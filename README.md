@@ -14,6 +14,7 @@ pnpm dev        # http://localhost:5173
 pnpm build      # type-check + production bundle in dist/
 pnpm test       # unit (vitest)
 pnpm test:e2e   # Playwright, uses local Chrome (CI installs Chromium)
+BASE_URL=https://agenthive-omega.vercel.app pnpm test:e2e   # same suite against a deployment
 pnpm og         # regenerate public/og.png from scripts/og-template.html
 ```
 
