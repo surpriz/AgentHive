@@ -61,7 +61,7 @@ vite-plugin-registry.ts        emits /api/agents.json, agent cards, sitemap
 | `@agenthive/cli` | `agent-cli search | info | manifest | add | setup`, writes `mcpServers` entries for Claude Code / Cursor |
 
 ```sh
-pnpm -rw build && pnpm -rw test   # -w includes the web app at the root
+pnpm -r --include-workspace-root build && pnpm -r --include-workspace-root test   # includes the web app at the root
 AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive/mcp smoke   # needs pnpm dev running
 AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive/cli smoke
 ```
