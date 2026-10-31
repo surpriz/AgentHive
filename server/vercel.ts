@@ -36,10 +36,14 @@ export function resolveRequestUrl(rawUrl: string, headers: Headers): URL {
   return url;
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handler(req: Request): Promise<Response> {
   const url = resolveRequestUrl(req.url, req.headers);
-  const request = new Request(url, req);
+  const request = url.href === req.url ? req : new Request(url, req);
   ready ??= createApp(optionsFromEnv(process.env, { template: () => loadTemplate(url.origin) }));
   const { app } = await ready;
   return app.fetch(request);
 }
+
+// Vercel only uses the web-standard (Request → Response) signature for named HTTP method exports;
+// a default export would be invoked Node-style with (req, res).
+export { handler as GET, handler as POST, handler as PUT, handler as PATCH, handler as DELETE, handler as OPTIONS, handler as HEAD };
