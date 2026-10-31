@@ -2,12 +2,39 @@
   "name": "@agenthive/registry-client",
   "version": "0.1.0",
   "description": "Typed client for the agenthive.sh registry (index, agent cards, manifests, install snippets).",
+  "keywords": [
+    "agenthive",
+    "ai-agents",
+    "mcp",
+    "a2a",
+    "registry",
+    "sdk"
+  ],
   "type": "module",
   "license": "Apache-2.0",
+  "homepage": "https://agenthive.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/surpriz/AgentHive.git",
+    "directory": "packages/registry-client"
+  },
+  "bugs": {
+    "url": "https://github.com/surpriz/AgentHive/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -17,5 +44,7 @@
     "typescript": "^5.9.0",
     "vitest": "^4.1.12"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

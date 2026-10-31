@@ -2,10 +2,34 @@
   "name": "@agenthive/cli",
   "version": "0.1.0",
   "description": "agent-cli: search, inspect and install agents from the agenthive.sh registry.",
+  "keywords": [
+    "agenthive",
+    "ai-agents",
+    "mcp",
+    "a2a",
+    "registry",
+    "cli"
+  ],
   "type": "module",
   "license": "Apache-2.0",
-  "bin": { "agent-cli": "./dist/bin.js" },
-  "files": ["dist"],
+  "homepage": "https://agenthive.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/surpriz/AgentHive.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/surpriz/AgentHive/issues"
+  },
+  "bin": {
+    "agent-cli": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod +x dist/bin.js",
     "test": "vitest run",
@@ -21,5 +45,7 @@
     "typescript": "^5.9.0",
     "vitest": "^4.1.12"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

@@ -58,3 +58,14 @@ test('registry endpoints serve JSON consistent with the catalog', async ({ reque
   const sitemap = await request.get('/sitemap.xml');
   expect(await sitemap.text()).toContain('/agents/pg-query-optimizer');
 });
+
+test('agent pages are pre-rendered with per-agent open graph tags', async ({ request }) => {
+  const res = await request.get('/agents/pg-query-optimizer', { headers: { accept: 'text/html' } });
+  expect(res.ok()).toBeTruthy();
+  const html = await res.text();
+  expect(html).toContain('<title>pg-query-optimizer · agenthive.sh</title>');
+  expect(html).toContain('content="https://agenthive.sh/agents/pg-query-optimizer"');
+  expect(html).toContain('"@type":"SoftwareApplication"');
+  const home = await (await request.get('/')).text();
+  expect(home).toContain('<title>agenthive.sh — The registry for interoperable AI agents</title>');
+});

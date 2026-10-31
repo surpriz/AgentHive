@@ -2,16 +2,38 @@
   "name": "@agenthive/mcp",
   "version": "0.1.0",
   "description": "MCP server exposing the agenthive.sh registry: search agents, read manifests, get install snippets.",
+  "keywords": [
+    "agenthive",
+    "ai-agents",
+    "mcp",
+    "a2a",
+    "registry",
+    "mcp-server",
+    "claude-code",
+    "cursor"
+  ],
   "type": "module",
   "license": "Apache-2.0",
-  "bin": {
-    "agenthive-mcp": "./dist/bin.js"
+  "homepage": "https://agenthive.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/surpriz/AgentHive.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/surpriz/AgentHive/issues"
   },
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
+  "bin": {
+    "agenthive-mcp": "./dist/bin.js"
+  },
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod +x dist/bin.js",
     "test": "vitest run",
