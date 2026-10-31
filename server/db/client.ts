@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as agentSchema from './schema';
 import * as authSchema from './auth-schema';
@@ -36,5 +38,7 @@ export async function createDb(databaseUrl: string): Promise<{ db: Db; migrate: 
 }
 
 function migrationsFolder(): string {
-  return new URL('./migrations', import.meta.url).pathname;
+  // Next to this file in source; the bundled function falls back to the repo layout (only PGlite migrates at boot).
+  const local = new URL('./migrations', import.meta.url).pathname;
+  return fs.existsSync(path.join(local, 'meta', '_journal.json')) ? local : path.resolve('server/db/migrations');
 }

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createApp, type AppContext } from '../server/app';
-import { optionsFromEnv } from '../server/env';
+import { createApp, type AppContext } from './app';
+import { optionsFromEnv } from './env';
 
 let ready: Promise<AppContext> | null = null;
 let cachedTemplate: string | null = null;
