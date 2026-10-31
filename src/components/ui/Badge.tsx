@@ -52,7 +52,7 @@ export function FrameworkBadge({ framework }: { framework: Framework }) {
   return <Badge variant={frameworkVariant[framework]}>{frameworkLabel[framework]}</Badge>;
 }
 
-const gradeVariant: Record<SecurityGrade, Variant> = { AAA: 'ok', AA: 'ok', A: 'warn', B: 'warn' };
+const gradeVariant: Record<SecurityGrade, Variant> = { AAA: 'ok', AA: 'ok', A: 'warn', B: 'warn', pending: 'neutral' };
 
 export function GradeBadge({ grade, title = 'Security audit grade' }: { grade: SecurityGrade; title?: string }) {
   return (

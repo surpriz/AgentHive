@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hexagon, Terminal, Upload, Code2, CircleHelp } from 'lucide-react';
+import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2 } from 'lucide-react';
+import { GithubIcon } from './ui/GithubIcon';
+import type { SessionUser } from '../lib/auth-client';
 import { CopyButton } from './ui/CodeBlock';
 
 const INSTALL_CMD = 'npm i -g @agenthive/cli';
 
-export function Navbar({ onPush, onHow, nodeCount }: { onPush: () => void; onHow: () => void; nodeCount: number }) {
+export interface NavbarSession {
+  user: SessionUser | null;
+  pending: boolean;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  onDashboard: () => void;
+}
+
+export function Navbar({ onPush, onHow, nodeCount, session }: { onPush: () => void; onHow: () => void; nodeCount: number; session: NavbarSession }) {
   const [cliOpen, setCliOpen] = useState(false);
   const cliRef = useRef<HTMLDivElement>(null);
 
@@ -96,8 +106,70 @@ export function Navbar({ onPush, onHow, nodeCount }: { onPush: () => void; onHow
             <span className="hidden sm:inline">Push Agent</span>
             <span className="sm:hidden">Push</span>
           </button>
+          {session.pending ? (
+            <span className="inline-flex h-8 w-8 items-center justify-center text-dim" aria-label="Loading session">
+              <Loader2 size={14} className="animate-spin" />
+            </span>
+          ) : session.user ? (
+            <UserMenu user={session.user} onDashboard={session.onDashboard} onSignOut={session.onSignOut} />
+          ) : (
+            <button
+              type="button"
+              onClick={session.onSignIn}
+              aria-label="Sign in"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
+            >
+              <GithubIcon size={14} />
+              <span className="hidden sm:inline">Sign in</span>
+            </button>
+          )}
         </nav>
       </div>
     </header>
+  );
+}
+
+function UserMenu({ user, onDashboard, onSignOut }: { user: SessionUser; onDashboard: () => void; onSignOut: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const label = user.login ?? user.name;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={`Account menu for ${label}`}
+        className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-2 font-mono text-[12px] text-fg hover:border-accent/60"
+      >
+        {user.image ? <img src={user.image} alt="" className="h-full w-full object-cover" /> : label.slice(0, 2).toUpperCase()}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-48 rounded-lg border border-border bg-surface p-1 shadow-2xl animate-fade-up" role="menu">
+          <p className="truncate px-2.5 py-1.5 font-mono text-[11px] text-dim">@{label}</p>
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onDashboard(); }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface-2 hover:text-fg">
+            <LayoutDashboard size={14} /> Dashboard
+          </button>
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onSignOut(); }} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface-2 hover:text-fg">
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

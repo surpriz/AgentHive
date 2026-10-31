@@ -11,8 +11,12 @@ export const CATEGORIES = [
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-export const GRADES = ['AAA', 'AA', 'A', 'B'] as const;
+export const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;
+/** `pending`: published but not yet audited. Only the registry assigns the other four. */
 export type SecurityGrade = (typeof GRADES)[number];
+
+export const TRANSPORTS = ['mcp/stdio', 'a2a/http+json'] as const;
+export type Transport = (typeof TRANSPORTS)[number];
 
 export interface Agent {
   id: string;
@@ -25,9 +29,10 @@ export interface Agent {
   framework: Framework;
   category: Category;
   grade: SecurityGrade;
-  successRate: number;
-  costPerRun: number;
-  avgLatencyMs: number;
+  /** Benchmark figures are null until the registry has measured the agent. */
+  successRate: number | null;
+  costPerRun: number | null;
+  avgLatencyMs: number | null;
   runs30d: number;
   tools: string[];
   tags: string[];
@@ -38,7 +43,12 @@ export interface Agent {
   capabilities: string[];
   model: string;
   license: string;
+  transport: Transport;
+  /** Author-hosted endpoint declared in the manifest. Stored, never called in v1.0. */
+  endpoint: string | null;
   publishedAt: string;
+  /** Illustrative agent shipped with the registry, not published by a third party. */
+  isSeed: boolean;
 }
 
 export type StepKind = 'thought' | 'tool_call' | 'action' | 'observation' | 'result';

@@ -3,6 +3,8 @@ import { DEFAULT_REGISTRY, RegistryClient, RegistryError } from '@agenthive/regi
 import { registerSearch } from './commands/search.js';
 import { registerInfo } from './commands/info.js';
 import { registerAdd } from './commands/add.js';
+import { registerAccount } from './commands/account.js';
+import { resolveToken } from './credentials.js';
 import { c } from './ui.js';
 
 export function buildProgram(): Command {
@@ -18,10 +20,18 @@ export function buildProgram(): Command {
     if (!cached) cached = new RegistryClient({ baseUrl: program.opts<{ registry?: string }>().registry });
     return cached;
   };
+  /** Same client, with the stored or env token attached. */
+  let cachedAuthed: Promise<RegistryClient> | null = null;
+  const authed = () =>
+    (cachedAuthed ??= (async () => {
+      const baseUrl = client().baseUrl;
+      return new RegistryClient({ baseUrl, token: await resolveToken(baseUrl) });
+    })());
 
   registerSearch(program, client);
   registerInfo(program, client);
   registerAdd(program, client);
+  registerAccount(program, authed, () => client().baseUrl);
   return program;
 }
 

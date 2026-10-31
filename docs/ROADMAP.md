@@ -50,7 +50,8 @@ Simulated today, and labelled as such in the UI:
 ## v1: a real registry with real agents
 
 The ordering below is deliberate. Supply comes before compute, measurement
-before billing.
+before billing. Items 1 and 2 shipped 2026-10-31 (v1.0, see
+`docs/specs/2026-10-31-v1-registry-design.md`); deprecation is still open.
 
 1. Backend: database, publish API, semantic versioning, deprecation, name
    ownership.

@@ -1,45 +1,44 @@
 import type { Agent } from '../types';
 
-const transportFor = (a: Agent) => (a.framework === 'MCP Server' ? 'mcp/stdio' : 'a2a/http+json');
+import { stringify } from 'yaml';
 
-export function buildManifestYaml(a: Agent): string {
-  const tools = a.tools.map((t) => `    - ${t}`).join('\n');
-  const caps = a.capabilities.map((c) => `    - ${c}`).join('\n');
-  return `# AgentHive manifest · agenthive.sh/${a.author}/${a.name}
-apiVersion: agenthive.sh/v0
-kind: Agent
-metadata:
-  name: ${a.name}
-  version: ${a.version}
-  author: ${a.author}
-  license: ${a.license}
-  category: ${a.category}
-spec:
-  framework: ${a.framework}
-  model: ${a.model}
-  transport: ${transportFor(a)}
-  endpoint: https://run.agenthive.sh/${a.author}/${a.name}
-  capabilities:
-${caps}
-  tools:
-${tools}
-  io:
-    input: "#/schemas/input"
-    output: "#/schemas/output"
-security:
-  grade: ${a.grade}
-  audited_at: ${a.publishedAt}
-  sandbox: wasm-isolated
-  network_egress: allowlist
-benchmark:
-  success_rate: ${a.successRate}
-  avg_cost_usd: ${a.costPerRun}
-  avg_latency_ms: ${a.avgLatencyMs}
-a2a:
-  agent_card: https://run.agenthive.sh/${a.author}/${a.name}/.well-known/agent.json
-  skills:
-${a.capabilities.map((c) => `    - id: ${c}\n      name: ${c.split('.').reverse().join(' ')}`).join('\n')}
-`;
+export const MANIFEST_API_VERSION = 'agenthive.sh/v1';
+
+/** The manifest document as the registry serves it (and as `agent-cli push` sends it, minus the server-owned blocks). */
+export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
+  return {
+    apiVersion: MANIFEST_API_VERSION,
+    kind: 'Agent',
+    metadata: {
+      name: a.name,
+      version: a.version,
+      author: a.author,
+      license: a.license,
+      category: a.category,
+      value: a.value,
+      tagline: a.tagline,
+      tags: a.tags,
+    },
+    spec: {
+      framework: a.framework,
+      model: a.model,
+      transport: a.transport,
+      ...(a.endpoint ? { endpoint: a.endpoint } : {}),
+      capabilities: a.capabilities,
+      tools: a.tools,
+      io: { input: a.inputSchema, output: a.outputSchema },
+    },
+    readme: a.readme,
+    useCases: a.useCases,
+    // Server-owned. Ignored on push.
+    security: { grade: a.grade, auditedAt: a.grade === 'pending' ? null : a.publishedAt },
+    benchmark: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
+    registry: { url: `${origin}/agents/${a.name}`, agentCard: `${origin}/agents/${a.name}/agent.json`, publishedAt: a.publishedAt },
+  };
+}
+
+export function buildManifestYaml(a: Agent, origin = 'https://agenthive.sh'): string {
+  return `# AgentHive manifest · ${origin}/agents/${a.name}\n` + stringify(buildManifestObject(a, origin), { lineWidth: 0 });
 }
 
 export function buildClaudeJson(a: Agent): string {
@@ -83,7 +82,7 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
   return {
     name: a.name,
     description: a.tagline,
-    url: `https://run.agenthive.sh/${a.author}/${a.name}`,
+    url: a.endpoint ?? `${origin}/agents/${a.name}`,
     provider: { organization: a.author, url: `${origin}/@${a.author}` },
     version: a.version,
     documentationUrl: `${origin}/agents/${a.name}`,
@@ -107,7 +106,9 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
       model: a.model,
       license: a.license,
       tools: a.tools,
-      benchmark: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs },
+      benchmark: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
+      transport: a.transport,
+      isSeed: a.isSeed,
       inputSchema: a.inputSchema,
       outputSchema: a.outputSchema,
       publishedAt: a.publishedAt,
@@ -118,7 +119,7 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
 /** Registry index (served at /api/agents.json). */
 export function buildRegistryIndex(agents: Agent[], origin = 'https://agenthive.sh') {
   return {
-    apiVersion: 'agenthive.sh/v0',
+    apiVersion: MANIFEST_API_VERSION,
     generatedAt: new Date().toISOString(),
     count: agents.length,
     agents: agents.map((a) => ({

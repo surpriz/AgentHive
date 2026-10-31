@@ -13,7 +13,7 @@ export interface PageMeta {
 export function agentMeta(a: Agent, origin = SITE_ORIGIN): PageMeta {
   return {
     title: `${a.name} · agenthive.sh`,
-    description: `${a.value} ${a.framework} · ${a.category} · grade ${a.grade} · ${a.successRate}% success.`,
+    description: `${a.value} ${a.framework} · ${a.category} · ${a.grade === 'pending' ? 'audit pending' : `grade ${a.grade}`}${a.successRate === null ? '' : ` · ${a.successRate}% success`}.`,
     ogTitle: `${a.name} — ${a.value}`,
     ogDescription: `${a.tagline} Built with ${a.framework}, security grade ${a.grade}. Install in one command from agenthive.sh.`,
     url: `${origin}/agents/${a.name}`,
@@ -33,7 +33,7 @@ export function agentJsonLd(a: Agent, origin = SITE_ORIGIN) {
     author: { '@type': 'Organization', name: a.author },
     license: a.license,
     datePublished: a.publishedAt,
-    offers: { '@type': 'Offer', price: a.costPerRun, priceCurrency: 'USD', description: 'average cost per run' },
+    ...(a.costPerRun === null ? {} : { offers: { '@type': 'Offer', price: a.costPerRun, priceCurrency: 'USD', description: 'average cost per run' } }),
     keywords: a.tags.join(', '),
   };
 }

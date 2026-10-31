@@ -4,10 +4,10 @@ import { RegistryClient, RegistryError, installSnippet } from '@agenthive/regist
 import type { RegistryEntry } from '@agenthive/registry-client';
 
 const FRAMEWORKS = ['LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
-const GRADES = ['AAA', 'AA', 'A', 'B'] as const;
+const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;
 
 const summary = (a: RegistryEntry) =>
-  `${a.name}@${a.version} by ${a.author} · ${a.framework} · ${a.category} · grade ${a.grade} · ${a.successRate}% success · $${a.costPerRun}/run\n  ${a.tagline}\n  tools: ${a.tools.join(', ')}\n  ${a.url}`;
+  `${a.name}@${a.version} by ${a.author} · ${a.framework} · ${a.category} · grade ${a.grade} · ${a.successRate === null ? 'not benchmarked' : `${a.successRate}% success · $${a.costPerRun}/run`}\n  ${a.tagline}\n  tools: ${a.tools.join(', ')}\n  ${a.url}`;
 
 const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 const fail = (e: unknown) => ({ content: [{ type: 'text' as const, text: e instanceof RegistryError ? e.message : String(e) }], isError: true });

@@ -1,5 +1,6 @@
 export type Framework = 'LangGraph' | 'CrewAI' | 'AutoGen' | 'MCP Server' | 'Custom A2A';
-export type SecurityGrade = 'AAA' | 'AA' | 'A' | 'B';
+/** `pending`: published, not yet audited by the registry. */
+export type SecurityGrade = 'AAA' | 'AA' | 'A' | 'B' | 'pending';
 
 /** One row of /api/agents.json */
 export interface RegistryEntry {
@@ -12,8 +13,9 @@ export interface RegistryEntry {
   framework: Framework;
   category: string;
   grade: SecurityGrade;
-  successRate: number;
-  costPerRun: number;
+  /** null until the registry has benchmarked the agent */
+  successRate: number | null;
+  costPerRun: number | null;
   tools: string[];
   tags: string[];
   capabilities: string[];
@@ -45,7 +47,7 @@ export interface AgentCard {
     model: string;
     license: string;
     tools: string[];
-    benchmark: { successRate: number; avgCostUsd: number; avgLatencyMs: number };
+    benchmark: { successRate: number | null; avgCostUsd: number | null; avgLatencyMs: number | null; runs30d?: number };
     inputSchema: Record<string, unknown>;
     outputSchema: Record<string, unknown>;
     publishedAt: string;
@@ -61,3 +63,22 @@ export interface SearchOptions {
 }
 
 export type InstallTarget = 'claude' | 'cursor' | 'cli';
+
+/** GET /api/v1/me */
+export interface Me {
+  user: { id: string; login: string; name: string; image: string | null };
+  via: 'session' | 'api-key';
+  agents: { name: string; version: string; grade: SecurityGrade; framework: Framework; category: string }[];
+}
+
+export interface ManifestIssue {
+  path: string;
+  message: string;
+}
+
+/** POST /api/v1/agents */
+export interface PublishResponse {
+  agent: { name: string; version: string; author: string; grade: SecurityGrade };
+  entry: RegistryEntry;
+  url: string;
+}

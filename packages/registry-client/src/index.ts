@@ -1,11 +1,16 @@
-import type { AgentCard, InstallTarget, RegistryEntry, RegistryIndex, SearchOptions } from './types.js';
+import type { AgentCard, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, SearchOptions } from './types.js';
 
 export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
 export class RegistryError extends Error {
-  constructor(message: string, public readonly status?: number) {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    /** Field-level problems for a 422 on publish. */
+    public readonly issues?: ManifestIssue[],
+  ) {
     super(message);
     this.name = 'RegistryError';
   }
@@ -17,6 +22,8 @@ export interface RegistryClientOptions {
   fetch?: typeof fetch;
   /** Cache TTL for the index, ms. 0 disables. */
   ttlMs?: number;
+  /** API key for authenticated calls (me, publish). Env AGENTHIVE_TOKEN is the usual source. */
+  token?: string;
 }
 
 export class RegistryClient {
@@ -24,11 +31,38 @@ export class RegistryClient {
   private readonly fetchImpl: typeof fetch;
   private readonly ttlMs: number;
   private indexCache: { at: number; value: RegistryIndex } | null = null;
+  private readonly token?: string;
 
   constructor(opts: RegistryClientOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? process.env.AGENTHIVE_REGISTRY ?? DEFAULT_REGISTRY).replace(/\/+$/, '');
     this.fetchImpl = opts.fetch ?? globalThis.fetch;
     this.ttlMs = opts.ttlMs ?? 60_000;
+    this.token = opts.token;
+  }
+
+  private authHeaders(): Record<string, string> {
+    if (!this.token) throw new RegistryError('not logged in: run `agent-cli login` or set AGENTHIVE_TOKEN', 401);
+    return { authorization: `Bearer ${this.token}` };
+  }
+
+  /** Who the configured token belongs to. */
+  async me(): Promise<Me> {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/me`, { headers: { accept: 'application/json', ...this.authHeaders() } });
+    if (!res.ok) throw new RegistryError(res.status === 401 ? 'invalid or revoked API key' : `registry returned ${res.status}`, res.status);
+    return (await res.json()) as Me;
+  }
+
+  /** Publish a manifest (YAML or JSON text). 422 surfaces as RegistryError.issues. */
+  async publish(manifest: string): Promise<PublishResponse> {
+    const isJson = manifest.trimStart().startsWith('{');
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/agents`, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': isJson ? 'application/json' : 'application/yaml', ...this.authHeaders() },
+      body: manifest,
+    });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; issues?: ManifestIssue[] } & Partial<PublishResponse>;
+    if (!res.ok) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status, body.issues);
+    return body as PublishResponse;
   }
 
   private async getJson<T>(path: string): Promise<T> {

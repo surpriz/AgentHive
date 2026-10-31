@@ -11,7 +11,13 @@ export const c = {
 };
 
 export function gradeColor(grade: string): string {
+  if (grade === 'pending') return c.dim(grade);
   return grade === 'AAA' || grade === 'AA' ? c.green(grade) : c.yellow(grade);
+}
+
+/** Formats a benchmark number, or a dash when the registry has not measured it yet. */
+export function num(n: unknown, suffix = '', prefix = ''): string {
+  return n === null || n === undefined || Number.isNaN(Number(n)) ? '—' : `${prefix}${Number(n)}${suffix}`;
 }
 
 /** Minimal column table. Pure so it can be tested. */

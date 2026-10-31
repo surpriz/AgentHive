@@ -35,7 +35,7 @@ describe('ui.sanitize', () => {
 describe('program', () => {
   it('registers the expected commands', () => {
     const names = buildProgram().commands.map((c) => c.name()).sort();
-    expect(names).toEqual(['add', 'info', 'manifest', 'search', 'serve', 'setup']);
+    expect(names).toEqual(['add', 'info', 'login', 'logout', 'manifest', 'push', 'search', 'serve', 'setup', 'whoami']);
   });
 });
 
@@ -50,5 +50,23 @@ describe('add author check', () => {
     const program = new Command().exitOverride();
     registerAdd(program, () => client);
     await expect(program.parseAsync(['add', 'mallory/pg', '--print'], { from: 'user' })).rejects.toThrow(/published by "dbforge", not "mallory"/);
+  });
+});
+
+describe('credentials', () => {
+  it('resolves AGENTHIVE_TOKEN first, then the stored file for the same registry', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { credentialsPath, readCredentials, resolveToken, writeCredentials } = await import('./credentials.js');
+    const dir = await mkdtemp(path.join(tmpdir(), 'ah-'));
+    const file = credentialsPath({ XDG_CONFIG_HOME: dir }, dir);
+    expect(file).toBe(path.join(dir, 'agenthive', 'credentials.json'));
+    expect(await readCredentials(file)).toBeNull();
+    await writeCredentials({ registry: 'https://r.test', token: 'ah_abc', login: 'me' }, file);
+    expect((await readCredentials(file))?.login).toBe('me');
+    expect(await resolveToken('https://r.test', {}, file)).toBe('ah_abc');
+    expect(await resolveToken('https://other.test', {}, file)).toBeUndefined();
+    expect(await resolveToken('https://other.test', { AGENTHIVE_TOKEN: 'env' }, file)).toBe('env');
   });
 });

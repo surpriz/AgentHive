@@ -1,65 +1,28 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm build",
+  "buildCommand": "pnpm db:migrate && pnpm build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/index.ts": { "includeFiles": "dist/index.html", "maxDuration": 15 }
+  },
   "rewrites": [
-    {
-      "source": "/agents/:name",
-      "destination": "/"
-    }
+    { "source": "/api/auth/:path*", "destination": "/api/index?__path=/api/auth/:path*" },
+    { "source": "/api/v1/:path*", "destination": "/api/index?__path=/api/v1/:path*" },
+    { "source": "/api/agents.json", "destination": "/api/index?__path=/api/agents.json" },
+    { "source": "/sitemap.xml", "destination": "/api/index?__path=/sitemap.xml" },
+    { "source": "/agents/:name/agent.json", "destination": "/api/index?__path=/agents/:name/agent.json" },
+    { "source": "/agents/:name/agent.yaml", "destination": "/api/index?__path=/agents/:name/agent.yaml" },
+    { "source": "/agents/:name", "destination": "/api/index?__path=/agents/:name" }
   ],
   "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400"
-        }
-      ]
-    },
-    {
-      "source": "/agents/:name/agent.(json|yaml)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400"
-        }
-      ]
-    },
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
+    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     }
   ]

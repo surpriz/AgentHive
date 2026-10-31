@@ -27,6 +27,9 @@ export default defineConfig({
     ? undefined
     : {
         command: `pnpm dev --port ${PORT}`,
+        env: { DATABASE_URL: "pglite://memory" },
+        stdout: "pipe",
+        stderr: "pipe",
         url: `http://localhost:${PORT}`,
         reuseExistingServer: !process.env.CI,
         timeout: 30_000,

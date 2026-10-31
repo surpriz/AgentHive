@@ -2,25 +2,29 @@ import { test, expect } from '@playwright/test';
 
 const cards = (page: import('@playwright/test').Page) => page.locator('button[aria-label^="Open "]');
 
+const SEEDS = ['claude-code-reviewer', 'eu-ai-act-auditor', 'pg-query-optimizer', 'sec-filings-analyzer', 'smart-contract-sentinel', 'linkedin-outreach-agent'];
+
 test('renders the six seed agents without console errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('/');
-  await expect(cards(page)).toHaveCount(6);
+  for (const name of SEEDS) await expect(page.getByRole('button', { name: `Open ${name}` })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('search and chip filters narrow the grid, reset restores it', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Search agents').fill('SQL');
+  await expect(page.getByRole('button', { name: 'Open pg-query-optimizer' })).toBeVisible();
+  const total = await cards(page).count();
+  await page.getByLabel('Search agents').fill('EXPLAIN ANALYZE');
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toContainText('pg-query-optimizer');
   await page.getByLabel('Search agents').fill('');
   await page.getByRole('button', { name: 'AAA', exact: true }).click();
   await expect(cards(page)).toHaveCount(3);
   await page.getByRole('button', { name: /reset filters/ }).first().click();
-  await expect(cards(page)).toHaveCount(6);
+  await expect(cards(page)).toHaveCount(total);
 });
 
 test('deep link opens the drawer, unknown name shows 404 banner', async ({ page }) => {
@@ -50,8 +54,10 @@ test('card click pushes history and back button closes the drawer', async ({ pag
 test('registry endpoints serve JSON consistent with the catalog', async ({ request }) => {
   const idx = await request.get('/api/agents.json');
   expect(idx.ok()).toBeTruthy();
-  const body = (await idx.json()) as { count: number; agents: { name: string; agentCard: string }[] };
-  expect(body.count).toBe(6);
+  const body = (await idx.json()) as { apiVersion: string; count: number; agents: { name: string; agentCard: string }[] };
+  expect(body.apiVersion).toBe('agenthive.sh/v1');
+  expect(body.count).toBeGreaterThanOrEqual(6);
+  expect(body.agents.map((a) => a.name)).toEqual(expect.arrayContaining(SEEDS));
   const card = await request.get('/agents/pg-query-optimizer/agent.json');
   expect(card.ok()).toBeTruthy();
   expect((await card.json()).name).toBe('pg-query-optimizer');

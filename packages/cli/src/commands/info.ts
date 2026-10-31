@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import type { RegistryClient } from '@agenthive/registry-client';
-import { c, gradeColor, sanitize } from '../ui.js';
+import { c, gradeColor, num, sanitize } from '../ui.js';
 
 export function registerInfo(program: Command, client: () => RegistryClient) {
   program
@@ -17,7 +17,7 @@ export function registerInfo(program: Command, client: () => RegistryClient) {
       console.log(s(card.description));
       console.log('');
       console.log(`${c.dim('framework')}  ${s(x.framework)}    ${c.dim('category')}  ${s(x.category)}    ${c.dim('model')}  ${s(x.model)}    ${c.dim('license')}  ${s(x.license)}`);
-      console.log(`${c.dim('benchmark')}  ${Number(x.benchmark.successRate)}% success · $${Number(x.benchmark.avgCostUsd)}/run · ${Number(x.benchmark.avgLatencyMs)}ms p50`);
+      console.log(`${c.dim('benchmark')}  ${num(x.benchmark.successRate, '% success')} · ${num(x.benchmark.avgCostUsd, '/run', '$')} · ${num(x.benchmark.avgLatencyMs, 'ms p50')}`);
       console.log(`${c.dim('tools')}      ${list(x.tools)}`);
       console.log(`${c.dim('skills')}     ${list(card.skills.map((k) => k.id))}`);
       console.log(`${c.dim('endpoint')}   ${s(card.url)}`);

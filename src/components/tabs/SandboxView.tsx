@@ -31,9 +31,9 @@ export function SandboxView({ agent }: { agent: Agent }) {
   const timers = useRef<number[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
 
-  const scenario = sandboxScenarios[agent.id] ?? defaultScenario;
+  const scenario = sandboxScenarios[agent.name] ?? defaultScenario;
   const totalScenarioTokens = scenario.reduce((s, x) => s + x.tokens, 0);
-  const pricePerToken = agent.costPerRun / totalScenarioTokens;
+  const pricePerToken = (agent.costPerRun ?? 0.004) / totalScenarioTokens;
 
   const tokens = steps.reduce((s, x) => s + x.tokens, 0);
   const cost = tokens * pricePerToken;
@@ -49,7 +49,7 @@ export function SandboxView({ agent }: { agent: Agent }) {
     setSteps([]);
     setStatus('idle');
     setElapsed(0);
-  }, [agent.id]);
+  }, [agent.name]);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
@@ -62,7 +62,7 @@ export function SandboxView({ agent }: { agent: Agent }) {
     return () => window.clearInterval(id);
   }, [status]);
 
-  const example = placeholderFor[agent.id] ?? 'run default task';
+  const example = placeholderFor[agent.name] ?? 'run default task';
 
   const run = (text = prompt) => {
     clearTimers();
@@ -109,7 +109,7 @@ export function SandboxView({ agent }: { agent: Agent }) {
           id="sandbox-prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder={placeholderFor[agent.id] ?? 'Describe the task…'}
+          placeholder={placeholderFor[agent.name] ?? 'Describe the task…'}
           rows={2}
           className="w-full resize-none rounded-md border border-border bg-[#0c0c0e] px-3 py-2 font-mono text-[13px] text-fg placeholder:text-dim focus:border-accent/60 focus:outline-none"
           onKeyDown={(e) => {

@@ -1,1 +1,2 @@
+# Netlify is not the primary target; the API lives in a Vercel function.
 /agents/*  /index.html  200
