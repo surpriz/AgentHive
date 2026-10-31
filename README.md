@@ -52,6 +52,22 @@ e2e/                           Playwright specs (desktop + mobile projects)
 vite-plugin-registry.ts        emits /api/agents.json, agent cards, sitemap
 ```
 
+## Packages (pnpm workspace)
+
+| Package | What |
+|---|---|
+| `@agenthive/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
+| `@agenthive/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
+| `@agenthive/cli` | `agent-cli search | info | manifest | add | setup`, writes `mcpServers` entries for Claude Code / Cursor |
+
+```sh
+pnpm -r build && pnpm -r test
+AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive/mcp smoke   # needs pnpm dev running
+AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive/cli smoke
+```
+
+Neither package is published to npm yet. `agent-cli serve` and the `.claude.json` snippets point at the V1 runtime and fail with a clear message today.
+
 ## Roadmap
 
 - **V0** catalog + registry, universal MCP server, developer CLI

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Hexagon, Terminal, Upload, Code2 } from 'lucide-react';
 import { CopyButton } from './ui/CodeBlock';
 
-const INSTALL_CMD = 'curl -fsSL https://agenthive.sh/install | sh';
+const INSTALL_CMD = 'npm i -g @agenthive/cli';
 
 export function Navbar({ onPush, nodeCount }: { onPush: () => void; nodeCount: number }) {
   const [cliOpen, setCliOpen] = useState(false);
@@ -64,7 +64,7 @@ export function Navbar({ onPush, nodeCount }: { onPush: () => void; nodeCount: n
                   <CopyButton text={INSTALL_CMD} />
                 </div>
                 <p className="mt-2 font-mono text-[11px] text-dim">
-                  then: <span className="text-muted">agent-cli search sql</span>
+                  then: <span className="text-muted">agent-cli search sql</span> · <span className="text-muted">agent-cli setup</span> adds the catalog to Claude Code
                 </p>
               </div>
             )}

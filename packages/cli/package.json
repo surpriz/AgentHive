@@ -1,0 +1,25 @@
+{
+  "name": "@agenthive/cli",
+  "version": "0.1.0",
+  "description": "agent-cli: search, inspect and install agents from the agenthive.sh registry.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": { "agent-cli": "./dist/bin.js" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@agenthive/registry-client": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.12"
+  },
+  "engines": { "node": ">=20" }
+}
