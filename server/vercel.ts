@@ -6,7 +6,7 @@ import { optionsFromEnv } from './env';
 let ready: Promise<AppContext> | null = null;
 let cachedTemplate: string | null = null;
 
-/** The built SPA shell. Bundled with the function (vercel.json includeFiles); falls back to fetching it from the deployment. */
+/** The built SPA shell: read from the deployment when bundled, otherwise fetched once from the same origin. */
 async function loadTemplate(origin: string): Promise<string> {
   if (cachedTemplate) return cachedTemplate;
   for (const p of [path.join(process.cwd(), 'dist', 'index.html'), path.join(process.cwd(), 'index.html')]) {
@@ -17,16 +17,29 @@ async function loadTemplate(origin: string): Promise<string> {
   return (cachedTemplate = await res.text());
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-  // vercel.json rewrites carry the original path as ?__path= so this works whether or not the platform preserves req.url.
+/** Query params vercel.json rewrites add: the original path we ask for, plus the named route params the platform appends. */
+const REWRITE_PARAMS = ['__path', 'ahp', 'ahname'];
+
+/**
+ * Vercel hands the web handler a relative `req.url` (original path, with the
+ * rewrite's query merged in). Rebuild an absolute URL from the forwarding
+ * headers and restore the original path when the request landed on the
+ * function's own path.
+ */
+export function resolveRequestUrl(rawUrl: string, headers: Headers): URL {
+  const host = headers.get('x-forwarded-host') ?? headers.get('host') ?? 'localhost';
+  const proto = headers.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  const url = new URL(rawUrl, `${proto}://${host}`);
   const original = url.searchParams.get('__path');
-  if (original) {
-    url.pathname = original;
-    url.searchParams.delete('__path');
-    req = new Request(url, req);
-  }
+  if (original && (url.pathname === '/api/index' || url.pathname === '/api/index.mjs')) url.pathname = original;
+  for (const p of REWRITE_PARAMS) url.searchParams.delete(p);
+  return url;
+}
+
+export default async function handler(req: Request): Promise<Response> {
+  const url = resolveRequestUrl(req.url, req.headers);
+  const request = new Request(url, req);
   ready ??= createApp(optionsFromEnv(process.env, { template: () => loadTemplate(url.origin) }));
   const { app } = await ready;
-  return app.fetch(req);
+  return app.fetch(request);
 }

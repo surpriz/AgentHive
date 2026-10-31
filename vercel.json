@@ -5,24 +5,24 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/index?__path=/api/:path*"
+      "source": "/api/:ahp*",
+      "destination": "/api/index?__path=/api/:ahp*"
     },
     {
       "source": "/sitemap.xml",
       "destination": "/api/index?__path=/sitemap.xml"
     },
     {
-      "source": "/agents/:name/agent.json",
-      "destination": "/api/index?__path=/agents/:name/agent.json"
+      "source": "/agents/:ahname/agent.json",
+      "destination": "/api/index?__path=/agents/:ahname/agent.json"
     },
     {
-      "source": "/agents/:name/agent.yaml",
-      "destination": "/api/index?__path=/agents/:name/agent.yaml"
+      "source": "/agents/:ahname/agent.yaml",
+      "destination": "/api/index?__path=/agents/:ahname/agent.yaml"
     },
     {
-      "source": "/agents/:name",
-      "destination": "/api/index?__path=/agents/:name"
+      "source": "/agents/:ahname",
+      "destination": "/api/index?__path=/agents/:ahname"
     },
     {
       "source": "/dashboard",
