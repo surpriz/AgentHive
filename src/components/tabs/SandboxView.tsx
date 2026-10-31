@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Brain, Wrench, Zap, Eye, Flag, Play, RotateCcw, Loader2 } from 'lucide-react';
+import { Brain, Wrench, Zap, Eye, Flag, Play, RotateCcw, Loader2, Sparkles, FlaskConical } from 'lucide-react';
 import type { Agent, SandboxStep, StepKind } from '../../types';
 import { sandboxScenarios, defaultScenario, PROMPT_TOKEN } from '../../data/sandboxScenarios';
 import { fmtMicroCost, fmtTokens } from '../../lib/format';
@@ -62,11 +62,13 @@ export function SandboxView({ agent }: { agent: Agent }) {
     return () => window.clearInterval(id);
   }, [status]);
 
-  const run = () => {
+  const example = placeholderFor[agent.id] ?? 'run default task';
+
+  const run = (text = prompt) => {
     clearTimers();
     setSteps([]);
     setStatus('running');
-    const effective = prompt.trim() || placeholderFor[agent.id] || 'run default task';
+    const effective = text.trim() || example;
     let t = 300;
     scenario.forEach((step, i) => {
       t += step.delayMs;
@@ -78,6 +80,11 @@ export function SandboxView({ agent }: { agent: Agent }) {
     });
   };
 
+  const tryExample = () => {
+    setPrompt(example);
+    run(example);
+  };
+
   const reset = () => {
     clearTimers();
     setSteps([]);
@@ -87,6 +94,13 @@ export function SandboxView({ agent }: { agent: Agent }) {
 
   return (
     <div className="flex h-full flex-col gap-3">
+      <div className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-[12px] leading-relaxed text-warn" role="note">
+        <FlaskConical size={14} className="mt-0.5 shrink-0" />
+        <span>
+          <span className="font-semibold">Simulated run.</span> This replays a scripted trace of what {agent.name} does; no model is called and nothing
+          is executed. Real runs land with the v1 gateway.
+        </span>
+      </div>
       <div className="rounded-lg border border-border bg-surface-2 p-3">
         <label htmlFor="sandbox-prompt" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-dim">
           Test prompt
@@ -106,13 +120,22 @@ export function SandboxView({ agent }: { agent: Agent }) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={run}
+              onClick={() => run()}
               disabled={status === 'running'}
               className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[13px] font-medium text-black transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {status === 'running' ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               Execute Agent
             </button>
+            {status === 'idle' && (
+              <button
+                type="button"
+                onClick={tryExample}
+                className="inline-flex items-center gap-1 rounded-md border border-accent/40 px-2.5 py-1.5 font-mono text-[12px] text-accent hover:bg-accent/10"
+              >
+                <Sparkles size={12} /> try example
+              </button>
+            )}
             {steps.length > 0 && (
               <button type="button" onClick={reset} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 font-mono text-[12px] text-muted hover:text-fg">
                 <RotateCcw size={12} /> reset
@@ -138,7 +161,7 @@ export function SandboxView({ agent }: { agent: Agent }) {
       >
         {steps.length === 0 && status === 'idle' && (
           <p className="text-dim">
-            <span className="text-ok">$</span> sandbox ready · wasm-isolated · egress allowlist · {agent.model}
+            <span className="text-ok">$</span> simulated sandbox · scripted trace · no model call · {agent.model} declared
           </p>
         )}
         {status === 'running' && steps.length === 0 && (
@@ -189,7 +212,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 function StatusPill({ status }: { status: Status }) {
   const map: Record<Status, { text: string; cls: string }> = {
     idle: { text: 'idle', cls: 'border-border text-dim' },
-    running: { text: 'running…', cls: 'border-accent/50 text-accent' },
+    running: { text: 'simulating…', cls: 'border-accent/50 text-accent' },
     done: { text: 'done', cls: 'border-ok/50 text-ok' },
   };
   return <span className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${map[status].cls}`}>{map[status].text}</span>;

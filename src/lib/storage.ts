@@ -18,7 +18,7 @@ export function loadPublished(store: Storage | null = storage()): Agent[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isAgentLike) as Agent[];
+    return (parsed.filter(isAgentLike) as Agent[]).map((a) => ({ ...a, value: typeof a.value === 'string' ? a.value : a.tagline }));
   } catch {
     return [];
   }

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hexagon, Terminal, Upload, Code2 } from 'lucide-react';
+import { Hexagon, Terminal, Upload, Code2, CircleHelp } from 'lucide-react';
 import { CopyButton } from './ui/CodeBlock';
 
 const INSTALL_CMD = 'npm i -g @agenthive/cli';
 
-export function Navbar({ onPush, nodeCount }: { onPush: () => void; nodeCount: number }) {
+export function Navbar({ onPush, onHow, nodeCount }: { onPush: () => void; onHow: () => void; nodeCount: number }) {
   const [cliOpen, setCliOpen] = useState(false);
   const cliRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +43,15 @@ export function Navbar({ onPush, nodeCount }: { onPush: () => void; nodeCount: n
         </div>
 
         <nav className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onHow}
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
+          >
+            <CircleHelp size={14} />
+            <span className="hidden sm:inline">How it works</span>
+            <span className="sm:hidden">Help</span>
+          </button>
           <div className="relative" ref={cliRef}>
             <button
               type="button"

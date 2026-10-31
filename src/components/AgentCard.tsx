@@ -29,7 +29,10 @@ export function AgentCard({ agent, onOpen, isNew }: { agent: Agent; onOpen: (a: 
         <GradeBadge grade={agent.grade} />
       </div>
 
-      <p className="line-clamp-2 text-[13px] leading-snug text-muted">{agent.tagline}</p>
+      <div className="space-y-1">
+        <p className="line-clamp-2 text-[13px] leading-snug text-fg/90">{agent.value}</p>
+        <p className="line-clamp-2 text-[12px] leading-snug text-dim">{agent.tagline}</p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
         <FrameworkBadge framework={agent.framework} />

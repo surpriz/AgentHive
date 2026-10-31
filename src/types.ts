@@ -20,6 +20,8 @@ export interface Agent {
   version: string;
   author: string;
   tagline: string;
+  /** One plain-language sentence: what the agent does for you, no jargon. */
+  value: string;
   framework: Framework;
   category: Category;
   grade: SecurityGrade;

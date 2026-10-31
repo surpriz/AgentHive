@@ -7,6 +7,8 @@ export interface RegistryEntry {
   version: string;
   author: string;
   tagline: string;
+  /** Plain-language outcome line. Optional: older indexes omit it. */
+  value?: string;
   framework: Framework;
   category: string;
   grade: SecurityGrade;

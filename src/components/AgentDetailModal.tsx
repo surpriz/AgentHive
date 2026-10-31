@@ -41,7 +41,8 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
                 <X size={16} />
               </button>
             </div>
-            <p className="mt-2 text-[13px] text-muted">{agent.tagline}</p>
+            <p className="mt-2 text-[13.5px] text-fg/90">{agent.value}</p>
+            <p className="mt-1 text-[12.5px] text-muted">{agent.tagline}</p>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <FrameworkBadge framework={agent.framework} />
               <Badge mono={false}>{agent.category}</Badge>
@@ -60,7 +61,7 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
             tabs={[
               { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
               { id: 'manifest', label: 'A2A & MCP Manifest', icon: <FileCode2 size={14} /> },
-              { id: 'sandbox', label: 'Live Sandbox', icon: <TerminalSquare size={14} /> },
+              { id: 'sandbox', label: 'Sandbox (simulated)', icon: <TerminalSquare size={14} /> },
             ]}
             active={tab}
             onChange={setTab}

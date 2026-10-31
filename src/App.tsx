@@ -4,6 +4,7 @@ import { FilterBar } from './components/FilterBar';
 import { AgentGrid } from './components/AgentGrid';
 import { AgentDetailModal } from './components/AgentDetailModal';
 import { PublishModal } from './components/PublishModal';
+import { HowItWorksModal } from './components/HowItWorksModal';
 import { mockAgents } from './data/mockAgents';
 import { EMPTY_FILTERS, filterAgents } from './lib/filters';
 import { agentPath, useRoute } from './lib/router';
@@ -26,6 +27,7 @@ function agentFromPayload(p: PublishPayload): Agent {
     version: '0.1.0',
     author: 'you',
     tagline: p.description,
+    value: p.description,
     framework: p.framework,
     category: p.category,
     grade: 'A',
@@ -52,6 +54,7 @@ export default function App() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [route, navigate] = useRoute();
   const [publishOpen, setPublishOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
 
   const selected = useMemo<Agent | null>(
     () => (route.kind === 'agent' ? (agents.find((a) => a.name === route.name) ?? null) : null),
@@ -65,19 +68,20 @@ export default function App() {
   const openAgent = useCallback((a: Agent) => navigate(agentPath(a.name)), [navigate]);
   const closeDetail = useCallback(() => navigate('/'), [navigate]);
   const closePublish = useCallback(() => setPublishOpen(false), []);
+  const closeHow = useCallback(() => setHowOpen(false), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (e.key === '/' && !typing && route.kind === 'home' && !publishOpen) {
+      if (e.key === '/' && !typing && route.kind === 'home' && !publishOpen && !howOpen) {
         e.preventDefault();
         document.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [route, publishOpen]);
+  }, [route, publishOpen, howOpen]);
 
   useEffect(() => {
     const base = 'agenthive.sh';
@@ -110,7 +114,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen grid-bg">
-      <Navbar onPush={() => setPublishOpen(true)} nodeCount={agents.length} />
+      <Navbar onPush={() => setPublishOpen(true)} onHow={() => setHowOpen(true)} nodeCount={agents.length} />
 
       <main className="mx-auto max-w-7xl px-4 pb-20">
         <section className="py-10 sm:py-14">
@@ -121,7 +125,10 @@ export default function App() {
             The registry for <span className="text-accent">interoperable</span> AI agents.
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">
-            Discover, audit, run and publish agents across LangGraph, CrewAI, AutoGen, MCP and A2A. One manifest, any runtime.
+            Discover, audit, run and publish agents across LangGraph, CrewAI, AutoGen, MCP and A2A. One manifest, any runtime.{' '}
+            <button type="button" onClick={() => setHowOpen(true)} className="text-accent underline-offset-4 hover:underline">
+              How it works →
+            </button>
           </p>
           <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-2 font-mono text-[12px] text-dim">
             <div><dt className="inline">agents </dt><dd className="inline text-fg">{agents.length}</dd></div>
@@ -156,6 +163,7 @@ export default function App() {
 
       <AgentDetailModal agent={selected} onClose={closeDetail} />
       <PublishModal open={publishOpen} onClose={closePublish} onPublished={onPublished} />
+      <HowItWorksModal open={howOpen} onClose={closeHow} />
     </div>
   );
 }

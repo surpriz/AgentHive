@@ -100,6 +100,7 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
       outputModes: ['application/json'],
     })),
     'x-agenthive': {
+      value: a.value,
       framework: a.framework,
       category: a.category,
       securityGrade: a.grade,
@@ -125,6 +126,7 @@ export function buildRegistryIndex(agents: Agent[], origin = 'https://agenthive.
       version: a.version,
       author: a.author,
       tagline: a.tagline,
+      value: a.value,
       framework: a.framework,
       category: a.category,
       grade: a.grade,
