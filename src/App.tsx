@@ -7,6 +7,7 @@ import { PublishModal } from './components/PublishModal';
 import { mockAgents } from './data/mockAgents';
 import { EMPTY_FILTERS, filterAgents } from './lib/filters';
 import { agentPath, useRoute } from './lib/router';
+import { loadPublished, savePublished } from './lib/storage';
 import type { Agent, Filters, PublishPayload } from './types';
 
 function agentFromPayload(p: PublishPayload): Agent {
@@ -46,7 +47,8 @@ function agentFromPayload(p: PublishPayload): Agent {
 }
 
 export default function App() {
-  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [published, setPublished] = useState<Agent[]>(() => loadPublished());
+  const agents = useMemo(() => [...published, ...mockAgents], [published]);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [route, navigate] = useRoute();
   const [publishOpen, setPublishOpen] = useState(false);
@@ -91,7 +93,11 @@ export default function App() {
 
   const onPublished = (p: PublishPayload) => {
     const a = agentFromPayload(p);
-    setAgents((prev) => [a, ...prev]);
+    setPublished((prev) => {
+      const next = [a, ...prev];
+      savePublished(next);
+      return next;
+    });
     setNewIds((prev) => new Set(prev).add(a.id));
     setFilters(EMPTY_FILTERS);
   };
