@@ -72,5 +72,7 @@ Neither package is published to npm yet. `agent-cli serve` and the `.claude.json
 ## Roadmap
 
 - **V0** catalog + registry, universal MCP server, developer CLI
-- **V1** managed serverless runtime, reasoning logs, automatic security audit, pay-as-you-go
-- **V2** A2A mesh, enterprise marketplace, private registries
+- **V1** publish API, run gateway, computed benchmarks and grades, usage metering
+- **V2** full A2A compliance, private registries, public leaderboard, SDKs
+
+Details, ordering and the decisions behind them: [docs/ROADMAP.md](docs/ROADMAP.md).
