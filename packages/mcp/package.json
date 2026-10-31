@@ -1,0 +1,35 @@
+{
+  "name": "@agenthive/mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing the agenthive.sh registry: search agents, read manifests, get install snippets.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "agenthive-mcp": "./dist/bin.js"
+  },
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/bin.js",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@agenthive/registry-client": "workspace:*",
+    "@modelcontextprotocol/sdk": "~1.32.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "og": "node scripts/generate-og.mjs",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "build:packages": "pnpm -r --filter \"@agenthive/*\" build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
