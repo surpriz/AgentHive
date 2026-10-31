@@ -28,3 +28,21 @@ export function visibleLength(s: string): number {
   // eslint-disable-next-line no-control-regex
   return s.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
+
+/**
+ * Strip C0/C1 control characters and ESC sequences from registry-supplied text
+ * before it reaches a terminal (keeps \t and \n). Raw --json output is not sanitized.
+ */
+export function sanitize(s: string): string {
+  return (
+    s
+      // OSC: ESC ] ... (BEL | ESC \)
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?/g, '')
+      // CSI (7-bit and 8-bit): ESC [ params intermediates final / 0x9b ...
+      .replace(/(?:\x1b\[|\x9b)[0-9;?]*[ -/]*[@-~]?/g, '')
+      // other 2-byte ESC sequences
+      .replace(/\x1b[@-Z\\-_]/g, '')
+      // remaining C0 (except \t \n) and C1 controls
+      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '')
+  );
+}

@@ -3,11 +3,11 @@ import { installSnippet, mcpServerEntry, type RegistryClient } from '@agenthive/
 import { TARGETS, mergeMcpServer, readConfig, targetPath, writeConfig, type Target } from '../config.js';
 import { c } from '../ui.js';
 
-/** Parses "name", "author/name", "author/name@1.2.3" → { name, version? } */
-export function parseRef(ref: string): { name: string; version?: string } {
-  const m = /^(?:[a-z0-9-]+\/)?([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([\w.-]+))?$/.exec(ref);
+/** Parses "name", "author/name", "author/name@1.2.3" → { name, author?, version? } */
+export function parseRef(ref: string): { name: string; author?: string; version?: string } {
+  const m = /^(?:([a-z0-9]+(?:-[a-z0-9]+)*)\/)?([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([\w.-]+))?$/.exec(ref);
   if (!m) throw new Error(`invalid agent reference "${ref}" (expected name, author/name or author/name@version)`);
-  return { name: m[1], version: m[2] };
+  return { name: m[2], author: m[1], version: m[3] };
 }
 
 export function registerAdd(program: Command, client: () => RegistryClient) {
@@ -19,9 +19,12 @@ export function registerAdd(program: Command, client: () => RegistryClient) {
     .option('--dry-run', 'print the resulting config instead of writing')
     .option('--print', 'only print the snippet (same as the website)')
     .action(async (ref: string, opts: { target: string; path?: string; dryRun?: boolean; print?: boolean }) => {
-      const { name, version } = parseRef(ref);
+      const { name, author, version } = parseRef(ref);
       const entry = await client().get(name);
       if (!entry) throw new Error(`no agent named "${name}" on ${client().baseUrl}`);
+      if (author && author !== entry.author) {
+        throw new Error(`"${name}" is published by "${entry.author}", not "${author}". Refusing to install a mismatched reference.`);
+      }
       if (version && version !== entry.version) {
         console.error(c.yellow(`warning: requested ${version}, registry has ${entry.version}; pinning ${version}.`));
       }

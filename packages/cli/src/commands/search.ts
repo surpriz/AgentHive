@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import type { Framework, RegistryClient, SecurityGrade } from '@agenthive/registry-client';
-import { c, gradeColor, table } from '../ui.js';
+import { c, gradeColor, sanitize, table } from '../ui.js';
 
 export function registerSearch(program: Command, client: () => RegistryClient) {
   program
@@ -27,7 +27,7 @@ export function registerSearch(program: Command, client: () => RegistryClient) {
       }
       console.log(
         table(
-          hits.map((a) => [c.bold(a.name), c.dim(`v${a.version}`), a.framework, gradeColor(a.grade), `${a.successRate}%`, `$${a.costPerRun}`, c.dim(a.tagline.slice(0, 60))]),
+          hits.map((a) => [c.bold(sanitize(a.name)), c.dim(`v${sanitize(a.version)}`), sanitize(a.framework), gradeColor(sanitize(a.grade)), `${Number(a.successRate)}%`, `$${Number(a.costPerRun)}`, c.dim(sanitize(a.tagline).slice(0, 60))]),
           ['NAME', 'VERSION', 'FRAMEWORK', 'GRADE', 'SUCCESS', 'COST/RUN', 'TAGLINE'],
         ),
       );
