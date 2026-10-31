@@ -3,12 +3,6 @@
   "framework": "vite",
   "buildCommand": "pnpm db:migrate && pnpm build",
   "outputDirectory": "dist",
-  "functions": {
-    "api/index.mjs": {
-      "includeFiles": "dist/index.html",
-      "maxDuration": 15
-    }
-  },
   "rewrites": [
     {
       "source": "/api/:path*",
