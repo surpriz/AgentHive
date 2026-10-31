@@ -24,8 +24,16 @@ describe('parseManifest', () => {
     expect(parseManifest('- not a mapping').ok).toBe(false);
   });
 
-  it('caps the size', () => {
+  it('caps the size of the document and of inline schemas', () => {
     expect(parseManifest('x'.repeat(300 * 1024)).ok).toBe(false);
+    const big = JSON.stringify({ apiVersion: 'agenthive.sh/v1', metadata: { name: 'x-bot', version: '1.0.0', category: 'Finance', value: 'Does something useful for finance teams.', tagline: 'A longer technical description.' }, spec: { framework: 'CrewAI', io: { input: { blob: 'y'.repeat(40 * 1024) }, output: {} } } });
+    const r = parseManifest(big);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.issues[0].path).toBe('spec.io.input');
+    let deep: Record<string, unknown> = {};
+    for (let i = 0; i < 20; i++) deep = { n: deep };
+    const d = parseManifest({ apiVersion: 'agenthive.sh/v1', metadata: { name: 'x-bot', version: '1.0.0', category: 'Finance', value: 'Does something useful for finance teams.', tagline: 'A longer technical description.' }, spec: { framework: 'CrewAI', io: { input: deep, output: {} } } });
+    expect(d.ok).toBe(false);
   });
 });
 

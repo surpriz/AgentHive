@@ -154,10 +154,8 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     hits.push(now);
     publishHits.set(me.id, hits);
 
-    const ct = c.req.header('content-type') ?? '';
-    const body = ct.includes('application/json') ? await c.req.json().catch(() => null) : await c.req.text();
-    if (body === null) return c.json({ error: 'invalid JSON body' }, 400);
-    const parsed = parseManifest(body);
+    // Always the raw text: parseManifest enforces the byte cap before parsing JSON or YAML.
+    const parsed = parseManifest(await c.req.text());
     if (!parsed.ok) return c.json({ error: 'invalid manifest', issues: parsed.issues }, 422);
 
     const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest);

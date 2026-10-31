@@ -6,8 +6,24 @@ export const NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
 export const MAX_MANIFEST_BYTES = 256 * 1024;
 
+export const MAX_SCHEMA_BYTES = 32 * 1024;
+export const MAX_SCHEMA_DEPTH = 12;
+
 const shortList = z.array(z.string().trim().min(1).max(64)).max(32).default([]);
-const jsonSchema = z.record(z.string(), z.unknown()).default({});
+
+function depthOf(v: unknown, d = 0): number {
+  if (typeof v !== 'object' || v === null) return d;
+  let max = d;
+  for (const x of Object.values(v)) max = Math.max(max, depthOf(x, d + 1));
+  return max;
+}
+
+/** Inline JSON schema: bounded in bytes and nesting so a manifest cannot smuggle megabytes into a jsonb column. */
+const jsonSchema = z
+  .record(z.string(), z.unknown())
+  .refine((v) => JSON.stringify(v).length <= MAX_SCHEMA_BYTES, `schema larger than ${MAX_SCHEMA_BYTES / 1024} KiB`)
+  .refine((v) => depthOf(v) <= MAX_SCHEMA_DEPTH, `schema nested deeper than ${MAX_SCHEMA_DEPTH} levels`)
+  .default({});
 
 /**
  * What a publisher may send. Anything else in the document (security,

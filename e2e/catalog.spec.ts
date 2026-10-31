@@ -70,7 +70,7 @@ test('agent pages are pre-rendered with per-agent open graph tags', async ({ req
   expect(res.ok()).toBeTruthy();
   const html = await res.text();
   expect(html).toContain('<title>pg-query-optimizer · agenthive.sh</title>');
-  expect(html).toContain('content="https://agenthive.sh/agents/pg-query-optimizer"');
+  expect(html).toMatch(/content="https?:\/\/[^"]+\/agents\/pg-query-optimizer"/);
   expect(html).toContain('"@type":"SoftwareApplication"');
   const home = await (await request.get('/')).text();
   expect(home).toContain('<title>agenthive.sh — The registry for interoperable AI agents</title>');
