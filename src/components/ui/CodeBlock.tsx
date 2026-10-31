@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
-export function CopyButton({ text, className = '' }: { text: string; className?: string }) {
+export function CopyButton({ text, className = '', label = 'Copy' }: { text: string; className?: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -26,7 +26,7 @@ export function CopyButton({ text, className = '' }: { text: string; className?:
       aria-live="polite"
     >
       {copied ? <Check size={12} className="text-ok" /> : <Copy size={12} />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? 'Copied' : label}
     </button>
   );
 }

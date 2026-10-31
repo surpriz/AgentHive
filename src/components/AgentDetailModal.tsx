@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, FileCode2, TerminalSquare, Download, X } from 'lucide-react';
+import { agentPath } from '../lib/router';
+import { CopyButton } from './ui/CodeBlock';
 import type { Agent } from '../types';
 import { Modal } from './ui/Modal';
 import { Tabs } from './ui/Tabs';
@@ -30,8 +32,9 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
                   </h2>
                   <Badge>v{agent.version}</Badge>
                 </div>
-                <p className="mt-0.5 font-mono text-[11px] text-dim">
-                  agenthive.sh/{agent.author}/{agent.name}
+                <p className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-dim">
+                  <span>agenthive.sh/{agent.author}/{agent.name}</span>
+                  <CopyButton text={`${window.location.origin}${agentPath(agent.name)}`} label="Share" className="!px-1.5 !py-0.5" />
                 </p>
               </div>
               <button type="button" onClick={onClose} className="rounded-md p-1 text-muted hover:bg-surface-2 hover:text-fg" aria-label="Close">

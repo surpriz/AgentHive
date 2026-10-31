@@ -6,6 +6,7 @@ import { AgentDetailModal } from './components/AgentDetailModal';
 import { PublishModal } from './components/PublishModal';
 import { mockAgents } from './data/mockAgents';
 import { EMPTY_FILTERS, filterAgents } from './lib/filters';
+import { agentPath, useRoute } from './lib/router';
 import type { Agent, Filters, PublishPayload } from './types';
 
 function agentFromPayload(p: PublishPayload): Agent {
@@ -47,27 +48,46 @@ function agentFromPayload(p: PublishPayload): Agent {
 export default function App() {
   const [agents, setAgents] = useState<Agent[]>(mockAgents);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [selected, setSelected] = useState<Agent | null>(null);
+  const [route, navigate] = useRoute();
   const [publishOpen, setPublishOpen] = useState(false);
+
+  const selected = useMemo<Agent | null>(
+    () => (route.kind === 'agent' ? (agents.find((a) => a.name === route.name) ?? null) : null),
+    [route, agents],
+  );
+  const notFound = route.kind === 'agent' && selected === null;
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
   const visible = useMemo(() => filterAgents(agents, filters), [agents, filters]);
 
-  const closeDetail = useCallback(() => setSelected(null), []);
+  const openAgent = useCallback((a: Agent) => navigate(agentPath(a.name)), [navigate]);
+  const closeDetail = useCallback(() => navigate('/'), [navigate]);
   const closePublish = useCallback(() => setPublishOpen(false), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (e.key === '/' && !typing && !selected && !publishOpen) {
+      if (e.key === '/' && !typing && route.kind === 'home' && !publishOpen) {
         e.preventDefault();
         document.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, publishOpen]);
+  }, [route, publishOpen]);
+
+  useEffect(() => {
+    const base = 'agenthive.sh';
+    const desc = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (selected) {
+      document.title = `${selected.name} · ${base}`;
+      desc?.setAttribute('content', `${selected.tagline} ${selected.framework} · ${selected.category} · grade ${selected.grade}.`);
+    } else {
+      document.title = `${base} — The registry for interoperable AI agents`;
+      desc?.setAttribute('content', 'AgentHive — the open registry for interoperable AI agents. Discover, audit, run and publish agents across LangGraph, CrewAI, AutoGen, MCP and A2A.');
+    }
+  }, [selected]);
 
   const onPublished = (p: PublishPayload) => {
     const a = agentFromPayload(p);
@@ -105,9 +125,19 @@ export default function App() {
           </dl>
         </section>
 
+        {notFound && route.kind === 'agent' && (
+          <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 font-mono text-[12px] text-warn">
+            <span>
+              404 · no agent named <span className="text-fg">{route.name}</span> in the registry.
+            </span>
+            <button type="button" onClick={closeDetail} className="rounded-md border border-warn/40 px-2 py-0.5 hover:bg-warn/10">
+              back to catalog
+            </button>
+          </div>
+        )}
         <div className="space-y-6">
           <FilterBar filters={filters} onChange={setFilters} count={visible.length} total={agents.length} />
-          <AgentGrid agents={visible} onOpen={setSelected} newIds={newIds} onReset={() => setFilters(EMPTY_FILTERS)} />
+          <AgentGrid agents={visible} onOpen={openAgent} newIds={newIds} onReset={() => setFilters(EMPTY_FILTERS)} />
         </div>
       </main>
 
