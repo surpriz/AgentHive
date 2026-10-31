@@ -23,6 +23,10 @@
     {
       "source": "/agents/:name",
       "destination": "/api/index?__path=/agents/:name"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/"
     }
   ],
   "headers": [

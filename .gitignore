@@ -8,4 +8,4 @@ playwright-report
 .env
 .env.*
 !.env.example
-api/
+api/_bundle/

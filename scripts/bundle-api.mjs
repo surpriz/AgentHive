@@ -2,10 +2,10 @@
 import { build } from 'esbuild';
 import { mkdirSync } from 'node:fs';
 
-mkdirSync('api', { recursive: true });
+mkdirSync('api/_bundle', { recursive: true });
 await build({
   entryPoints: ['server/vercel.ts'],
-  outfile: 'api/index.mjs',
+  outfile: 'api/_bundle/index.mjs',
   bundle: true,
   format: 'esm',
   platform: 'node',
@@ -15,4 +15,4 @@ await build({
   banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
   logLevel: 'warning',
 });
-console.log('api/index.mjs bundled');
+console.log('api/_bundle/index.mjs bundled');
