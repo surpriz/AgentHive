@@ -30,6 +30,12 @@ Start at 100. High findings cost 25, medium 10, low 3. Then apply caps.
 | A | ≥ 55 | |
 | B | < 55 | |
 
+A check that cannot complete never helps the grade: an unreachable
+endpoint, an unreadable dependency manifest, a vulnerability database that
+does not answer, a check that ran out of time or a dependency list longer
+than 100 entries all cap the grade at AA, and the report says why. The
+audit never follows redirects and only connects to public addresses.
+
 `pending` is only shown while an audit has not run yet (for example when the
 audit service was unreachable at publish time). Authors can re-run the audit
 from the dashboard or with `agent-cli audit <name> --rerun` at most once per

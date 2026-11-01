@@ -1,7 +1,9 @@
 import { promises as dns } from 'node:dns';
+import { createSafeFetch } from './net';
 import type { Manifest } from '../manifest';
 import type { AuditContext, Check, CheckRun, Finding, Report } from './types';
 import { gradeOf, scoreOf } from './grade';
+import { withTimeout } from './util';
 import { secretsCheck } from './checks/secrets';
 import { endpointCheck } from './checks/endpoint';
 import { permissionsCheck } from './checks/permissions';
@@ -17,17 +19,24 @@ export const SEVERITY_ORDER: Finding['severity'][] = ['blocker', 'high', 'medium
 
 export function defaultContext(overrides: Partial<AuditContext> = {}): AuditContext {
   const now = () => Date.now();
+  const callTimeoutMs = overrides.callTimeoutMs ?? 4000;
   return {
-    fetch: globalThis.fetch,
+    fetch: createSafeFetch({ timeoutMs: callTimeoutMs }),
     lookup: (host) => dns.lookup(host, { all: true }),
-    callTimeoutMs: 4000,
+    callTimeoutMs,
     deadline: now() + 8000,
     now,
     ...overrides,
   };
 }
 
-/** Runs every check; a check that throws becomes an error entry plus a low finding, never a crash. */
+/** A verification that did not happen can never raise the grade: skipped or failed network checks cap it. */
+const UNVERIFIED_CAP: Record<string, { grade: 'AA'; reason: string }> = {
+  endpoint: { grade: 'AA', reason: 'endpoint could not be verified' },
+  dependencies: { grade: 'AA', reason: 'dependencies not checked' },
+};
+
+/** Runs every check; a check that throws becomes an error entry plus a low finding and a cap, never a crash. */
 export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultContext()): Promise<Report> {
   const findings: Finding[] = [];
   const caps: Report['caps'] = [];
@@ -37,16 +46,19 @@ export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultCo
     if (check.network && ctx.now() > ctx.deadline) {
       checks.push({ id: check.id, status: 'skipped', ms: 0, note: 'audit time budget exhausted' });
       findings.push({ check: check.id, severity: 'low', message: `${check.id} check did not run (time budget)` });
+      if (UNVERIFIED_CAP[check.id]) caps.push(UNVERIFIED_CAP[check.id]);
       continue;
     }
     try {
-      const res = await check.run(manifest, ctx);
+      // Each network check gets its own budget so one publisher-controlled host cannot starve the next check.
+      const res = check.network ? await withTimeout(check.run(manifest, ctx), ctx.callTimeoutMs * 3, `${check.id} check`) : await check.run(manifest, ctx);
       findings.push(...res.findings);
       caps.push(...(res.caps ?? []));
       checks.push({ id: check.id, status: res.skipped ? 'skipped' : 'ok', ms: ctx.now() - start, note: res.skipped });
     } catch (e) {
       checks.push({ id: check.id, status: 'error', ms: ctx.now() - start, note: (e as Error).message });
       findings.push({ check: check.id, severity: 'low', message: `${check.id} check did not complete` });
+      if (UNVERIFIED_CAP[check.id]) caps.push(UNVERIFIED_CAP[check.id]);
     }
   }
   findings.sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));

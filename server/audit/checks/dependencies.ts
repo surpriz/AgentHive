@@ -1,5 +1,6 @@
 import type { Check, CheckResult, Finding } from '../types';
 import { withTimeout } from '../util';
+import { readCapped } from '../net';
 
 export interface Dep {
   ecosystem: 'npm' | 'PyPI';
@@ -38,7 +39,9 @@ export function depsFromRequirements(text: string): Dep[] {
 
 /** pyproject: `[project] dependencies = ["name==1.2.3", ...]` pins only. */
 export function depsFromPyproject(text: string): Dep[] {
-  const block = /dependencies\s*=\s*\[([\s\S]*?)\]/.exec(text)?.[1] ?? '';
+  const start = text.indexOf('dependencies');
+  const slice = start === -1 ? '' : text.slice(start, start + 64 * 1024);
+  const block = /dependencies\s*=\s*\[([^\]]*)\]/.exec(slice)?.[1] ?? '';
   const out: Dep[] = [];
   for (const m of block.matchAll(/["']([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)["']/g)) {
     out.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
@@ -67,6 +70,12 @@ function severityOf(v: OsvVuln): 'high' | 'medium' {
 }
 
 export const MAX_DEPS = 100;
+export const MAX_MANIFEST_FILE_BYTES = 512 * 1024;
+/** Git refs and repo paths we are willing to interpolate into a raw.githubusercontent.com URL. */
+export const REF_RE = /^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._\/-]{0,127}$/;
+export const PATH_RE = /^(?!.*\.\.)[A-Za-z0-9._\/-]{0,200}$/;
+
+const UNVERIFIED = { grade: 'AA' as const, reason: 'dependencies not checked' };
 
 export const dependenciesCheck: Check = {
   id: 'dependencies',
@@ -75,10 +84,11 @@ export const dependenciesCheck: Check = {
     const source = manifest.spec.source;
     if (!source) return { findings: [], skipped: 'no source declared', caps: [{ grade: 'AA', reason: 'source repository not declared, dependencies not checked' }] };
     const gh = parseGithubSource(source.repo);
-    if (!gh) return { findings: [{ check: 'dependencies', severity: 'low', message: 'source host not supported yet (GitHub only)' }], caps: [{ grade: 'AA', reason: 'dependencies not checked' }] };
+    if (!gh) return { findings: [{ check: 'dependencies', severity: 'low', message: 'source host not supported yet (GitHub only)' }], caps: [UNVERIFIED] };
 
     const ref = source.ref ?? 'HEAD';
     const dir = (source.path ?? '.').replace(/^\.?\/?/, '').replace(/\/$/, '');
+    if (!REF_RE.test(ref) || !PATH_RE.test(dir)) return { findings: [{ check: 'dependencies', severity: 'medium', message: 'source.ref or source.path is not a plain git ref / path' }], caps: [UNVERIFIED] };
     const base = `https://raw.githubusercontent.com/${gh.owner}/${gh.name}/${encodeURIComponent(ref)}/${dir ? `${dir}/` : ''}`;
     const files: { file: string; parse: (t: string) => Dep[] }[] = [
       { file: 'package.json', parse: depsFromPackageJson },
@@ -92,16 +102,18 @@ export const dependenciesCheck: Check = {
         const res = await withTimeout(ctx.fetch(base + file, { headers: { accept: 'text/plain' } }), ctx.callTimeoutMs, file);
         if (res.status === 200) {
           found++;
-          deps.push(...parse(await res.text()));
+          deps.push(...parse(await readCapped(res, MAX_MANIFEST_FILE_BYTES)));
         }
       } catch (e) {
-        return { findings: [], skipped: `could not fetch ${file}: ${(e as Error).message}`, caps: [{ grade: 'AA', reason: 'dependencies not checked' }] };
+        return { findings: [{ check: 'dependencies', severity: 'low', message: `could not read ${file}: ${(e as Error).message}` }], skipped: `could not fetch ${file}`, caps: [UNVERIFIED] };
       }
     }
-    if (found === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no dependency manifest found in the source repository' }], caps: [{ grade: 'AA', reason: 'dependencies not checked' }] };
+    if (found === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no dependency manifest found in the source repository' }], caps: [UNVERIFIED] };
     const findings: Finding[] = [];
     const unique = deps.slice(0, MAX_DEPS);
-    if (unique.length === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no pinned dependencies to check', hint: 'Pin exact versions or ship a lockfile-derived manifest.' }] };
+    if (unique.length === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no pinned dependencies to check', hint: 'Pin exact versions or ship a lockfile-derived manifest.' }], caps: [UNVERIFIED] };
+    const caps = deps.length > MAX_DEPS ? [{ grade: 'AA' as const, reason: `${deps.length - MAX_DEPS} dependencies beyond the first ${MAX_DEPS} were not checked` }] : [];
+    if (deps.length > MAX_DEPS) findings.push({ check: 'dependencies', severity: 'low', message: `${deps.length - MAX_DEPS} dependencies not checked (limit ${MAX_DEPS})` });
 
     let results: { vulns?: OsvVuln[] }[];
     try {
@@ -125,6 +137,6 @@ export const dependenciesCheck: Check = {
         findings.push({ check: 'dependencies', severity: severityOf(v), message: `${d.name}@${d.version}: ${v.id}${v.summary ? ` — ${v.summary}` : ''}`, hint: 'Upgrade the dependency.' });
       }
     });
-    return { findings };
+    return { findings, caps };
   },
 };

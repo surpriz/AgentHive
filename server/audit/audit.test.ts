@@ -3,7 +3,8 @@ import { parseManifest, type Manifest } from '../manifest';
 import { runAudit, type AuditContext } from './index';
 import { findSecrets } from './checks/secrets';
 import { isForbiddenAddress, isForbiddenHostname } from './checks/endpoint';
-import { depsFromPackageJson, depsFromPyproject, depsFromRequirements, parseGithubSource } from './checks/dependencies';
+import { depsFromPackageJson, depsFromPyproject, depsFromRequirements, parseGithubSource, REF_RE, PATH_RE } from './checks/dependencies';
+import { readCapped } from './net';
 import { gradeOf, scoreOf } from './grade';
 
 const base = (spec: Record<string, unknown> = {}, extra: Record<string, unknown> = {}): Manifest => {
@@ -63,8 +64,8 @@ describe('secrets', () => {
 
 describe('endpoint address rules', () => {
   it('flags private, loopback, link-local, metadata and ipv6 equivalents', () => {
-    for (const a of ['10.0.0.1', '127.0.0.1', '169.254.169.254', '172.16.5.5', '192.168.1.1', '100.64.0.1', '::1', 'fd00::1', '::ffff:10.0.0.1']) expect(isForbiddenAddress(a), a).toBe(true);
-    for (const a of ['93.184.216.34', '8.8.8.8', '2606:4700::1111', '172.32.0.1']) expect(isForbiddenAddress(a), a).toBe(false);
+    for (const a of ['10.0.0.1', '127.0.0.1', '169.254.169.254', '172.16.5.5', '192.168.1.1', '100.64.0.1', '0.0.0.0', '224.0.0.1', '::1', '::', 'fe80::1', 'fd00::1', '::ffff:10.0.0.1', '::ffff:7f00:1', '64:ff9b::7f00:1', '2002:7f00:1::1', 'not-an-ip']) expect(isForbiddenAddress(a), a).toBe(true);
+    for (const a of ['93.184.216.34', '8.8.8.8', '2606:4700::1111', '172.32.0.1', '::ffff:93.184.216.34']) expect(isForbiddenAddress(a), a).toBe(false);
     expect(isForbiddenHostname('localhost')).toBe(true);
     expect(isForbiddenHostname('metadata.google.internal')).toBe(true);
     expect(isForbiddenHostname('agents.example.com')).toBe(false);
@@ -84,6 +85,17 @@ describe('dependency parsing', () => {
     expect(depsFromPyproject('[project]\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n]\n')).toEqual([{ ecosystem: 'PyPI', name: 'httpx', version: '0.27.0' }]);
     expect(parseGithubSource('https://github.com/acme/bot.git')).toEqual({ owner: 'acme', name: 'bot' });
     expect(parseGithubSource('https://gitlab.com/acme/bot')).toBeNull();
+    expect(REF_RE.test('v1.2.3')).toBe(true);
+    expect(REF_RE.test('release/2026-11')).toBe(true);
+    expect(REF_RE.test('../../etc')).toBe(false);
+    expect(REF_RE.test('a?b=c')).toBe(false);
+    expect(PATH_RE.test('packages/agent')).toBe(true);
+    expect(PATH_RE.test('../x')).toBe(false);
+  });
+
+  it('caps bodies', async () => {
+    expect(await readCapped(new Response('ok'), 10)).toBe('ok');
+    await expect(readCapped(new Response('x'.repeat(20)), 10)).rejects.toThrow(/larger/);
   });
 });
 
@@ -141,14 +153,23 @@ describe('runAudit', () => {
     expect(osvDown.grade).toBe('AA');
   });
 
-  it('never crashes on a throwing check and respects the time budget', async () => {
-    const m = base({ endpoint: 'https://agents.example.com/run' });
-    const c = ctx({}, async () => { throw new Error('dns exploded'); });
-    const r = await runAudit(m, c);
-    expect(r.findings.find((f) => f.check === 'endpoint')?.severity).toBe('high');
+  it('never fails open: unverified network checks cap the grade', async () => {
+    const full = { permissions: { network: ['api.github.com'], filesystem: 'none', shell: false, env: [] }, source: { repo: 'https://github.com/acme/bot', ref: 'v1.0.0' } };
+    const m = base({ endpoint: 'https://agents.example.com/run', ...full });
+    const dnsDown = await runAudit(m, ctx({}, async () => { throw new Error('dns exploded'); }));
+    expect(dnsDown.findings.find((f) => f.check === 'endpoint')?.severity).toBe('high');
+    expect(dnsDown.caps.map((c) => c.reason)).toContain('endpoint could not be verified');
     const late = ctx();
     late.deadline = 0;
-    const r2 = await runAudit(m, late);
-    expect(r2.checks.find((c) => c.id === 'endpoint')?.status).toBe('skipped');
+    const budget = await runAudit(m, late);
+    expect(budget.checks.find((c) => c.id === 'endpoint')?.status).toBe('skipped');
+    expect(budget.grade).toBe('AA');
+    expect(budget.caps.length).toBeGreaterThanOrEqual(2);
+    const badRef = await runAudit(base({ ...full, source: { repo: 'https://github.com/acme/bot', ref: '../../x' } }), ctx());
+    expect(badRef.caps.map((c) => c.reason)).toContain('dependencies not checked');
+    const redirecting = await runAudit(m, ctx({ 'https://agents.example.com/run': () => new Response('', { status: 302, headers: { location: 'http://10.0.0.1/' } }) }));
+    expect(redirecting.caps.map((c) => c.reason)).toContain('endpoint could not be verified');
+    const noPins = await runAudit(base(full), ctx({ 'https://raw.githubusercontent.com/acme/bot/v1.0.0/package.json': () => new Response('{"dependencies":{"a":"^1"}}') }));
+    expect(noPins.grade).toBe('AA');
   });
 });
