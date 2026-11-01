@@ -14,7 +14,8 @@ export const BENCHMARK_LIMITS = {
   /** Benchmarks per owner per day across their agents, all triggers except cron. */
   perOwnerPerDay: 24,
   reasonChars: 300,
-  keepReports: 20,
+  /** Above perOwnerPerDay + the daily cron, so retention can never prune rows the daily budget counts. */
+  keepReports: 50,
 };
 
 export type BenchmarkTrigger = 'publish' | 'owner' | 'cron';
@@ -61,7 +62,7 @@ export function jsonPath(value: unknown, path: string): unknown {
 
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
-const clean = (t: string) => t.replace(CONTROL, '');
+const clean = (t: string) => t.replace(CONTROL, '').toWellFormed();
 const clip = (v: unknown, n = 80) => {
   const t = clean(typeof v === 'string' ? v : (JSON.stringify(v) ?? 'undefined'));
   return t.length > n ? `${t.slice(0, n)}…` : t;
@@ -179,8 +180,11 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
   const clean = results.map((r) => ({ ...r, name: clip(r.name, 80) }));
   const report: BenchmarkReport = { version: agent.latestVersion, trigger, ranAt, passed, total, passRate, cases: scored.length, results: clean };
   try {
+    // A version published while this ran owns the score now: store the report, never overwrite the newer version's state.
+    const current = await db.query.agents.findFirst({ where: eq(agents.id, agent.id), columns: { latestVersion: true } });
+    if (current?.latestVersion !== agent.latestVersion) return { ...report, skipped: `version moved to ${current?.latestVersion ?? '?'} during the run` };
     await db.insert(benchmarks).values({ id: randomUUID(), agentId: agent.id, version: agent.latestVersion, passed, total, passRate, trigger, results: clean as unknown as Record<string, unknown>[] });
-    await db.update(agents).set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) }).where(eq(agents.id, agent.id));
+    await db.update(agents).set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) }).where(and(eq(agents.id, agent.id), eq(agents.latestVersion, agent.latestVersion)));
     // Retention: keep the latest reports only.
     const old = await db.select({ id: benchmarks.id }).from(benchmarks).where(eq(benchmarks.agentId, agent.id)).orderBy(desc(benchmarks.createdAt)).offset(BENCHMARK_LIMITS.keepReports);
     if (old.length) await db.delete(benchmarks).where(inArray(benchmarks.id, old.map((o) => o.id)));
