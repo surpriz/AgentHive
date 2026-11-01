@@ -74,6 +74,9 @@ export function createSafeFetch(opts: SafeFetchOptions): typeof fetch {
   return (async (input: string | URL | Request, init: RequestInit = {}) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (url.protocol !== 'https:') throw new Error(`refusing non-https url ${url.protocol}`);
+    // IP literals never go through the connector's lookup, so the host must be screened here as well.
+    const host = url.hostname.replace(/^\[|\]$/g, '');
+    if (isForbiddenHostname(host) || (isIpLiteral(host) && isForbiddenAddress(host))) throw Object.assign(new Error(`blocked host ${host}`), { code: 'EBLOCKED' });
     try {
       const res = await undiciFetch(url, {
         ...(init as Parameters<typeof undiciFetch>[1]),
