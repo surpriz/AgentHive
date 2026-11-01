@@ -181,10 +181,14 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
   const report: BenchmarkReport = { version: agent.latestVersion, trigger, ranAt, passed, total, passRate, cases: scored.length, results: clean };
   try {
     // A version published while this ran owns the score now: store the report, never overwrite the newer version's state.
-    const current = await db.query.agents.findFirst({ where: eq(agents.id, agent.id), columns: { latestVersion: true } });
-    if (current?.latestVersion !== agent.latestVersion) return { ...report, skipped: `version moved to ${current?.latestVersion ?? '?'} during the run` };
+    // The report is always stored (it is what the daily budget counts); the score only moves if the version is still current.
     await db.insert(benchmarks).values({ id: randomUUID(), agentId: agent.id, version: agent.latestVersion, passed, total, passRate, trigger, results: clean as unknown as Record<string, unknown>[] });
-    await db.update(agents).set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) }).where(and(eq(agents.id, agent.id), eq(agents.latestVersion, agent.latestVersion)));
+    const updated = await db
+      .update(agents)
+      .set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) })
+      .where(and(eq(agents.id, agent.id), eq(agents.latestVersion, agent.latestVersion)))
+      .returning({ id: agents.id });
+    if (updated.length === 0) return { ...report, skipped: 'a newer version was published during the run; score not applied' };
     // Retention: keep the latest reports only.
     const old = await db.select({ id: benchmarks.id }).from(benchmarks).where(eq(benchmarks.agentId, agent.id)).orderBy(desc(benchmarks.createdAt)).offset(BENCHMARK_LIMITS.keepReports);
     if (old.length) await db.delete(benchmarks).where(inArray(benchmarks.id, old.map((o) => o.id)));
@@ -198,7 +202,8 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
 }
 
 export async function latestBenchmark(db: Db, agentId: string): Promise<BenchmarkReport | null> {
-  const row = await db.query.benchmarks.findFirst({ where: eq(benchmarks.agentId, agentId), orderBy: desc(benchmarks.createdAt) });
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId), columns: { latestVersion: true } });
+  const row = await db.query.benchmarks.findFirst({ where: and(eq(benchmarks.agentId, agentId), eq(benchmarks.version, agent?.latestVersion ?? '')), orderBy: desc(benchmarks.createdAt) });
   if (!row) return null;
   const results = row.results as unknown as CaseResult[];
   return { version: row.version, trigger: row.trigger as BenchmarkTrigger, ranAt: row.createdAt.toISOString(), passed: row.passed, total: row.total, passRate: row.passRate, cases: results.filter((r) => r.kind === 'case').length, results };
