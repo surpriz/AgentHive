@@ -11,7 +11,7 @@ import { latestAudit, publishManifest, reauditAgent } from './publish';
 import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
 import { ensureSecret, ensureSystemUser, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
-import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
+import { benchmarkGate, latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -75,7 +75,6 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   const auditCtx = opts.auditContext ?? (() => defaultContext());
   const gatewayFetch = opts.gatewayFetch ?? createSafeFetch({ timeoutMs: RUN_LIMITS.upstreamTimeoutMs });
   const background = opts.background ?? ((p) => p.catch((e) => console.error('background task failed', e)));
-  const benchmarkAt = new Map<string, number>();
   const benchmarkAgent = async (agentId: string, trigger: BenchmarkTrigger) => {
     const row = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
     return row ? runBenchmark(db, { fetch: gatewayFetch }, row, trigger) : null;
@@ -174,7 +173,13 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const runnable = rows.filter((r) => runnableReason(r) === null);
     background(
       (async () => {
-        for (const r of runnable) await runBenchmark(db, { fetch: gatewayFetch }, r, 'cron');
+        for (const r of runnable) {
+          try {
+            await runBenchmark(db, { fetch: gatewayFetch }, r, 'cron');
+          } catch (e) {
+            console.error(`cron benchmark failed for ${r.name}`, e);
+          }
+        }
       })(),
     );
     return c.json({ scheduled: runnable.length });
@@ -300,9 +305,8 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if ('error' in r) return r.error;
     const reason = runnableReason(r.row);
     if (reason) return c.json({ error: reason }, 409);
-    const last = benchmarkAt.get(r.row.id) ?? 0;
-    if (Date.now() - last < REAUDIT_WINDOW_MS) return c.json({ error: 'benchmark already ran recently', retryAfterMs: REAUDIT_WINDOW_MS - (Date.now() - last) }, 429);
-    benchmarkAt.set(r.row.id, Date.now());
+    const gate = await benchmarkGate(db, r.row, 'owner');
+    if (gate) return c.json({ error: gate.error, retryAfterMs: gate.retryAfterMs }, 429);
     const report = await runBenchmark(db, { fetch: gatewayFetch }, r.row, 'owner');
     return c.json({ benchmark: report });
   });

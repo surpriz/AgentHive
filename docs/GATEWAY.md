@@ -100,7 +100,10 @@ spec:
         maxLatencyMs: 5000
 ```
 
-Up to 10 cases, 10 s each. The pass rate is the "success" number on your
-card; the full report is public at `/agents/<name>/benchmark.json`.
+Up to 10 cases, 10 s each, one benchmark per agent per hour for publish and
+owner triggers, 24 per owner per day. The success number on your card is the
+pass rate over your declared cases (over the probes only if you declare
+none, and the report says so); the full report is public at
+`/agents/<name>/benchmark.json`.
 Benchmark calls carry `x-agenthive-caller: agenthive-benchmark` and are
 not counted in your quotas or availability.

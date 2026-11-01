@@ -1,11 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, ne } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { agents, agentVersions, benchmarks, type AgentRow } from './db/schema';
 import { parseManifest, type Manifest } from './manifest';
 import { runAgent, runnableReason, SYSTEM_CALLER, type GatewayDeps } from './gateway';
 
-export const BENCHMARK_LIMITS = { caseTimeoutMs: 10_000, totalBudgetMs: 45_000, maxCases: 10 };
+export const BENCHMARK_LIMITS = {
+  caseTimeoutMs: 10_000,
+  totalBudgetMs: 45_000,
+  maxCases: 10,
+  /** Minimum gap between benchmarks of one agent for publish and owner triggers (cron is exempt). */
+  minGapMs: 60 * 60 * 1000,
+  /** Benchmarks per owner per day across their agents, all triggers except cron. */
+  perOwnerPerDay: 24,
+  reasonChars: 300,
+  keepReports: 20,
+};
 
 export type BenchmarkTrigger = 'publish' | 'owner' | 'cron';
 
@@ -24,9 +34,12 @@ export interface BenchmarkReport {
   ranAt: string;
   passed: number;
   total: number;
+  /** Over the author-declared cases when there are any, otherwise over the registry probes. */
   passRate: number;
+  /** How many author-declared cases ran; 0 means the rate reflects probes only. */
+  cases: number;
   results: CaseResult[];
-  /** Set when nothing could run (agent not runnable). */
+  /** Set when nothing could run (agent not runnable, or rate limited). */
   skipped?: string;
 }
 
@@ -46,6 +59,12 @@ export function jsonPath(value: unknown, path: string): unknown {
   return cur;
 }
 
+const clip = (v: unknown, n = 80) => {
+  const t = typeof v === 'string' ? v : JSON.stringify(v);
+  return t === undefined ? 'undefined' : t.length > n ? `${t.slice(0, n)}…` : t;
+};
+const reasonOf = (r: string | null) => (r === null ? null : r.length > BENCHMARK_LIMITS.reasonChars ? `${r.slice(0, BENCHMARK_LIMITS.reasonChars)}…` : r);
+
 function judge(c: TestCase, status: number, output: unknown, latencyMs: number): string | null {
   const e = c.expect;
   if (e.status !== undefined ? status !== e.status : status < 200 || status >= 300) return `expected status ${e.status ?? '2xx'}, got ${status}`;
@@ -55,21 +74,40 @@ function judge(c: TestCase, status: number, output: unknown, latencyMs: number):
   if (e.jsonPath) {
     const v = jsonPath(output, e.jsonPath.path);
     if (v === undefined) return `path ${e.jsonPath.path} missing`;
-    if (e.jsonPath.min !== undefined && !(typeof v === 'number' && v >= e.jsonPath.min)) return `path ${e.jsonPath.path} is ${JSON.stringify(v)}, expected ≥ ${e.jsonPath.min}`;
-    if (e.jsonPath.equals !== undefined && JSON.stringify(v) !== JSON.stringify(e.jsonPath.equals)) return `path ${e.jsonPath.path} is ${JSON.stringify(v)}, expected ${JSON.stringify(e.jsonPath.equals)}`;
+    if (e.jsonPath.min !== undefined && !(typeof v === 'number' && v >= e.jsonPath.min)) return `path ${e.jsonPath.path} is ${clip(v)}, expected ≥ ${e.jsonPath.min}`;
+    if (e.jsonPath.equals !== undefined && JSON.stringify(v) !== JSON.stringify(e.jsonPath.equals)) return `path ${e.jsonPath.path} is ${clip(v)}, expected ${clip(e.jsonPath.equals)}`;
   }
+  return null;
+}
+
+/** Persistent gate for publish and owner triggers: one benchmark per agent per hour, a daily budget per owner. */
+export async function benchmarkGate(db: Db, agent: AgentRow, trigger: BenchmarkTrigger, now = new Date()): Promise<{ error: string; retryAfterMs: number } | null> {
+  if (trigger === 'cron') return null;
+  const last = await db.query.benchmarks.findFirst({ where: and(eq(benchmarks.agentId, agent.id), ne(benchmarks.trigger, 'cron')), orderBy: desc(benchmarks.createdAt) });
+  if (last && now.getTime() - last.createdAt.getTime() < BENCHMARK_LIMITS.minGapMs) {
+    return { error: 'benchmark already ran recently', retryAfterMs: BENCHMARK_LIMITS.minGapMs - (now.getTime() - last.createdAt.getTime()) };
+  }
+  const owned = db.select({ id: agents.id }).from(agents).where(eq(agents.ownerId, agent.ownerId));
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(benchmarks)
+    .where(and(inArray(benchmarks.agentId, owned), ne(benchmarks.trigger, 'cron'), gt(benchmarks.createdAt, new Date(now.getTime() - 86_400_000))));
+  if (Number(n) >= BENCHMARK_LIMITS.perOwnerPerDay) return { error: `daily benchmark budget reached (${BENCHMARK_LIMITS.perOwnerPerDay} per owner)`, retryAfterMs: 86_400_000 };
   return null;
 }
 
 /**
  * Runs the registry probes and the author's declared cases through the gateway
- * and stores the result. Never throws; an unrunnable agent yields a skipped report.
+ * and stores the result. Never throws; an unrunnable or rate-limited agent yields a skipped report.
  */
 export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, trigger: BenchmarkTrigger): Promise<BenchmarkReport> {
   const now = deps.now ?? (() => Date.now());
   const ranAt = new Date(now()).toISOString();
+  const empty = (skipped: string): BenchmarkReport => ({ version: agent.latestVersion, trigger, ranAt, passed: 0, total: 0, passRate: 0, cases: 0, results: [], skipped });
   const reason = runnableReason(agent);
-  if (reason) return { version: agent.latestVersion, trigger, ranAt, passed: 0, total: 0, passRate: 0, results: [], skipped: reason };
+  if (reason) return empty(reason);
+  const gate = await benchmarkGate(db, agent, trigger, new Date(now()));
+  if (gate) return empty(gate.error);
 
   const version = await db.query.agentVersions.findFirst({ where: eq(agentVersions.agentId, agent.id), orderBy: desc(agentVersions.createdAt) });
   const parsed = version ? parseManifest(version.manifest) : null;
@@ -83,18 +121,24 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
       return;
     }
     const t0 = now();
-    const out = await runAgent(db, deps, agent, SYSTEM_CALLER, JSON.stringify(input));
-    const latencyMs = Math.round(now() - t0);
-    if (out.kind === 'rejected') return results.push({ name, kind, passed: false, latencyMs, status: null, reason: out.error });
-    if (out.kind === 'failed') return results.push({ name, kind, passed: false, latencyMs, status: out.status, reason: out.error });
-    let output: unknown = out.body;
+    const remaining = BENCHMARK_LIMITS.totalBudgetMs - (t0 - started);
     try {
-      output = JSON.parse(out.body);
-    } catch {
-      /* judged as text */
+      const out = await runAgent(db, { ...deps, timeoutMs: Math.max(1000, Math.min(BENCHMARK_LIMITS.caseTimeoutMs, remaining)) }, agent, SYSTEM_CALLER, JSON.stringify(input));
+      const latencyMs = Math.round(now() - t0);
+      if (out.kind === 'rejected') return results.push({ name, kind, passed: false, latencyMs, status: null, reason: reasonOf(out.error) });
+      if (out.kind === 'failed') return results.push({ name, kind, passed: false, latencyMs, status: out.status, reason: reasonOf(out.error) });
+      let output: unknown = out.body;
+      try {
+        output = JSON.parse(out.body);
+      } catch {
+        /* judged as text */
+      }
+      const why = judgeFn(out.status, output, latencyMs);
+      results.push({ name, kind, passed: why === null, latencyMs, status: out.status, reason: reasonOf(why) });
+    } catch (e) {
+      // An agent-controlled answer must never abort the benchmark: it just fails this case.
+      results.push({ name, kind, passed: false, latencyMs: Math.round(now() - t0), status: null, reason: reasonOf(`judge error: ${(e as Error).message}`) });
     }
-    const why = judgeFn(out.status, output, latencyMs);
-    results.push({ name, kind, passed: why === null, latencyMs, status: out.status, reason: why });
   };
 
   await call('liveness', 'probe', {}, (status) => (status >= 500 ? `answered ${status}` : null));
@@ -108,14 +152,22 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
 
   const passed = results.filter((r) => r.passed).length;
   const total = results.length;
-  const passRate = total === 0 ? 0 : Math.round((passed / total) * 1000) / 10;
-  const report: BenchmarkReport = { version: agent.latestVersion, trigger, ranAt, passed, total, passRate, results };
+  // The published rate reflects the author's cases; with none declared it reflects the probes and the UI says so.
+  const scored = results.filter((r) => r.kind === 'case');
+  const pool = scored.length > 0 ? scored : results;
+  const passRate = pool.length === 0 ? 0 : Math.round((pool.filter((r) => r.passed).length / pool.length) * 1000) / 10;
+  const report: BenchmarkReport = { version: agent.latestVersion, trigger, ranAt, passed, total, passRate, cases: scored.length, results };
   await db.insert(benchmarks).values({ id: randomUUID(), agentId: agent.id, version: agent.latestVersion, passed, total, passRate, trigger, results: results as unknown as Record<string, unknown>[] });
   await db.update(agents).set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) }).where(eq(agents.id, agent.id));
+  // Retention: keep the latest reports only.
+  const old = await db.select({ id: benchmarks.id }).from(benchmarks).where(eq(benchmarks.agentId, agent.id)).orderBy(desc(benchmarks.createdAt)).offset(BENCHMARK_LIMITS.keepReports);
+  if (old.length) await db.delete(benchmarks).where(inArray(benchmarks.id, old.map((o) => o.id)));
   return report;
 }
 
 export async function latestBenchmark(db: Db, agentId: string): Promise<BenchmarkReport | null> {
   const row = await db.query.benchmarks.findFirst({ where: eq(benchmarks.agentId, agentId), orderBy: desc(benchmarks.createdAt) });
-  return row ? { version: row.version, trigger: row.trigger as BenchmarkTrigger, ranAt: row.createdAt.toISOString(), passed: row.passed, total: row.total, passRate: row.passRate, results: row.results as unknown as CaseResult[] } : null;
+  if (!row) return null;
+  const results = row.results as unknown as CaseResult[];
+  return { version: row.version, trigger: row.trigger as BenchmarkTrigger, ranAt: row.createdAt.toISOString(), passed: row.passed, total: row.total, passRate: row.passRate, cases: results.filter((r) => r.kind === 'case').length, results };
 }

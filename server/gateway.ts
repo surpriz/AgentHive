@@ -53,6 +53,8 @@ export type RunOutcome =
 export interface GatewayDeps {
   fetch: typeof fetch;
   now?: () => number;
+  /** Per-call upstream timeout override (the benchmark bounds it by its remaining budget). */
+  timeoutMs?: number;
 }
 
 /** Quota check from the runs table; cheap thanks to the (caller, created_at) and (agent, created_at) indexes. */
@@ -131,7 +133,7 @@ export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, calle
 
   let res: Response;
   try {
-    res = await withTimeout(deps.fetch(agent.endpoint!, { method: 'POST', headers, body, redirect: 'manual' }), RUN_LIMITS.upstreamTimeoutMs, 'upstream');
+    res = await withTimeout(deps.fetch(agent.endpoint!, { method: 'POST', headers, body, redirect: 'manual' }), Math.min(deps.timeoutMs ?? RUN_LIMITS.upstreamTimeoutMs, RUN_LIMITS.upstreamTimeoutMs), 'upstream');
   } catch (e) {
     const msg = (e as Error).message;
     const timeout = /timed out/i.test(msg);

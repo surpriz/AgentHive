@@ -24,7 +24,7 @@ export function printAudit(a: AuditReport): void {
 }
 
 function printBenchmark(b: BenchmarkReport): void {
-  console.log(`${b.passed}/${b.total} passed · ${b.passRate}% · ${b.ranAt.slice(0, 16).replace('T', ' ')} · trigger ${b.trigger} · v${sanitize(b.version)}`);
+  console.log(`${b.passed}/${b.total} passed · success ${b.passRate}% over ${b.cases > 0 ? `${b.cases} author-declared case(s)` : 'registry probes only'} · ${b.ranAt.slice(0, 16).replace('T', ' ')} · trigger ${b.trigger} · v${sanitize(b.version)}`);
   for (const r of b.results) console.log(`  ${r.passed ? c.green('✓') : c.red('✗')} ${sanitize(r.name)} ${c.dim(`[${r.kind}] ${r.status ?? '—'} ${r.latencyMs}ms`)}${r.reason ? c.dim(` — ${sanitize(r.reason)}`) : ''}`);
 }
 

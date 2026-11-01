@@ -85,7 +85,7 @@ function BenchmarkSection({ agent }: { agent: Agent }) {
       ) : (
         <div className="space-y-2">
           <p className="font-mono text-[11.5px] text-dim">
-            {data.benchmark.passed}/{data.benchmark.total} passed · {data.benchmark.passRate}% · {data.benchmark.ranAt.slice(0, 16).replace('T', ' ')} · trigger {data.benchmark.trigger} · v{data.benchmark.version}
+            {data.benchmark.passed}/{data.benchmark.total} passed · success {data.benchmark.passRate}% over {data.benchmark.cases > 0 ? `${data.benchmark.cases} author-declared case${data.benchmark.cases > 1 ? 's' : ''}` : 'registry probes only (no cases declared)'} · {data.benchmark.ranAt.slice(0, 16).replace('T', ' ')} · trigger {data.benchmark.trigger} · v{data.benchmark.version}
           </p>
           <ul className="divide-y divide-border rounded-lg border border-border">
             {data.benchmark.results.map((r) => (

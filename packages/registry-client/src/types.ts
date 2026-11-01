@@ -148,6 +148,7 @@ export interface BenchmarkReport {
   passed: number;
   total: number;
   passRate: number;
+  cases: number;
   results: { name: string; kind: 'probe' | 'case'; passed: boolean; latencyMs: number; status: number | null; reason: string | null }[];
   skipped?: string;
 }

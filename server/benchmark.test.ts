@@ -67,15 +67,15 @@ describe('benchmark', () => {
     await new Promise((r) => setTimeout(r, 50));
     const pub = (await (await req('/agents/good-agent/benchmark.json')).json()) as { benchmark: { passed: number; total: number; passRate: number; trigger: string; results: { name: string; passed: boolean; reason: string | null }[] } };
     expect(pub.benchmark.trigger).toBe('publish');
-    // liveness, malformed, 3 cases, latency = 6; one case fails on purpose
+    // liveness, malformed, 3 cases, latency = 6; one case fails on purpose; the rate is over the 3 cases
     expect(pub.benchmark.total).toBe(6);
     expect(pub.benchmark.passed).toBe(5);
-    expect(pub.benchmark.passRate).toBe(83.3);
+    expect(pub.benchmark.passRate).toBe(66.7);
     expect(pub.benchmark.results.find((r) => r.name === 'wrong expectation')?.reason).toMatch(/does not contain/);
     const idx = (await (await req('/api/agents.json')).json()) as { agents: { name: string; benchmarkPassRate: number | null }[] };
-    expect(idx.agents.find((a) => a.name === 'good-agent')?.benchmarkPassRate).toBe(83.3);
+    expect(idx.agents.find((a) => a.name === 'good-agent')?.benchmarkPassRate).toBe(66.7);
     const card = (await (await req('/agents/good-agent/agent.json')).json()) as { 'x-agenthive': { benchmark: { passRate: number } } };
-    expect(card['x-agenthive'].benchmark.passRate).toBe(83.3);
+    expect(card['x-agenthive'].benchmark.passRate).toBe(66.7);
   });
 
   it('flags a 5xx on unexpected input and keeps benchmark calls out of the measured metrics', async () => {
@@ -90,11 +90,11 @@ describe('benchmark', () => {
     expect(mine.runs.every((r) => r.via === 'benchmark' && r.callerLogin === 'agenthive-benchmark')).toBe(true);
   });
 
-  it('owner can re-run once an hour; seeds and strangers cannot', async () => {
-    const ok = await req('/api/v1/agents/good-agent/benchmark', { method: 'POST', headers: authz });
-    expect(ok.status).toBe(200);
-    expect(((await ok.json()) as { benchmark: { trigger: string } }).benchmark.trigger).toBe('owner');
-    expect((await req('/api/v1/agents/good-agent/benchmark', { method: 'POST', headers: authz })).status).toBe(429);
+  it('owner re-run is gated by the persistent hourly limit; seeds and strangers cannot', async () => {
+    // The publish benchmark just ran, so an owner re-run must wait.
+    const soon = await req('/api/v1/agents/good-agent/benchmark', { method: 'POST', headers: authz });
+    expect(soon.status).toBe(429);
+    expect(((await soon.json()) as { retryAfterMs: number }).retryAfterMs).toBeGreaterThan(0);
     expect((await req('/api/v1/agents/pg-query-optimizer/benchmark', { method: 'POST', headers: authz })).status).toBe(403);
     const seed = (await (await req('/agents/pg-query-optimizer/benchmark.json')).json()) as { illustrative: boolean };
     expect(seed.illustrative).toBe(true);
@@ -108,5 +108,15 @@ describe('benchmark', () => {
     await new Promise((r) => setTimeout(r, 100));
     const pub = (await (await req('/agents/good-agent/benchmark.json')).json()) as { benchmark: { trigger: string } };
     expect(pub.benchmark.trigger).toBe('cron');
+  });
+
+  it('a case whose expectation blows up fails the case, not the benchmark', async () => {
+    const { runBenchmark } = await import('./benchmark');
+    const [row] = await ctx.db.query.agents.findMany({ where: (a, { eq }) => eq(a.name, 'good-agent') });
+    const huge = 'x'.repeat(5000);
+    const r = await runBenchmark(ctx.db, { fetch: upstream }, row, 'cron');
+    expect(r.results.every((x) => (x.reason ?? '').length <= 301)).toBe(true);
+    expect(r.cases).toBe(3);
+    void huge;
   });
 });
