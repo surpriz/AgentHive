@@ -13,6 +13,10 @@
       "destination": "/api/index?__path=/docs/grading"
     },
     {
+      "source": "/docs/leaderboard",
+      "destination": "/api/index?__path=/docs/leaderboard"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/index?__path=/sitemap.xml"
     },
@@ -38,6 +42,10 @@
     },
     {
       "source": "/dashboard",
+      "destination": "/"
+    },
+    {
+      "source": "/leaderboard",
       "destination": "/"
     }
   ],

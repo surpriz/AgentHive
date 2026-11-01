@@ -90,7 +90,8 @@ before billing. Items 1 and 2 shipped 2026-10-31 (v1.0, see
    do not invent a discovery or negotiation layer.
 2. Private registries per organisation, SAML SSO, RBAC, exportable audit logs
    (SOC 2, EU AI Act).
-3. Continuous public leaderboard, per category, with history.
+3. Continuous public leaderboard, per category, with history. Shipped
+   2026-11-01 (`/leaderboard`, daily snapshots, `LEADERBOARD.md`).
 4. TypeScript and Python SDKs to call an agent from code, next to the CLI and
    the MCP server.
 

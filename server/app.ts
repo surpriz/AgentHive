@@ -12,6 +12,7 @@ import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
 import { ensureSecret, ensureSystemUser, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
 import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
+import { computeLeaderboard, rankHistory, snapshotLeaderboard } from './leaderboard';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -180,12 +181,36 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
             console.error(`cron benchmark failed for ${r.name}`, e);
           }
         }
+        try {
+          await snapshotLeaderboard(db);
+        } catch (e) {
+          console.error('leaderboard snapshot failed', e);
+        }
       })(),
     );
     return c.json({ scheduled: runnable.length });
   });
 
+  app.get('/api/leaderboard.json', async (c) => {
+    const board = await computeLeaderboard(db);
+    const category = c.req.query('category');
+    if (category) {
+      if (!(category in board.categories)) return publicJson(c, { error: 'unknown category' }, 404);
+      return publicJson(c, { ...board, categories: { [category]: board.categories[category] } });
+    }
+    return publicJson(c, board);
+  });
+
+  app.get('/api/leaderboard/history.json', async (c) => {
+    const name = c.req.query('agent') ?? '';
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, name) });
+    if (!row) return publicJson(c, { error: 'not found' }, 404);
+    const days = Math.min(365, Math.max(1, Number(c.req.query('days') ?? 30) || 30));
+    return publicJson(c, { agent: row.name, category: row.category, history: await rankHistory(db, row, days) });
+  });
+
   app.get('/docs/grading', (c) => c.redirect(GRADING_URL, 302));
+  app.get('/docs/leaderboard', (c) => c.redirect('https://github.com/surpriz/AgentHive/blob/main/docs/LEADERBOARD.md', 302));
 
   // Public test upstream: point a manifest's endpoint here to try the gateway end to end.
   app.post('/api/v1/echo', async (c) => {

@@ -7,6 +7,7 @@ import { AgentDetailModal } from './components/AgentDetailModal';
 import { PublishModal } from './components/PublishModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { Dashboard } from './components/Dashboard';
+import { Leaderboard } from './components/Leaderboard';
 import { EMPTY_FILTERS, filterAgents } from './lib/filters';
 import { agentPath, useRoute } from './lib/router';
 import { api, type RegistryConfig } from './lib/api';
@@ -45,7 +46,7 @@ export default function App() {
   const visible = useMemo(() => filterAgents(list, filters), [list, filters]);
 
   const openAgent = useCallback((a: Agent) => navigate(agentPath(a.name)), [navigate]);
-  const closeDetail = useCallback(() => navigate(route.kind === 'dashboard' ? '/dashboard' : '/'), [navigate, route.kind]);
+  const closeDetail = useCallback(() => navigate(route.kind === 'dashboard' ? '/dashboard' : route.kind === 'leaderboard' ? '/leaderboard' : '/'), [navigate, route.kind]);
   const closePublish = useCallback(() => setPublishOpen(false), []);
   const closeHow = useCallback(() => setHowOpen(false), []);
 
@@ -89,6 +90,9 @@ export default function App() {
       desc?.setAttribute('content', `${selected.value} ${selected.framework} · ${selected.category} · grade ${selected.grade}.`);
     } else if (route.kind === 'dashboard') {
       document.title = `Dashboard · ${base}`;
+    } else if (route.kind === 'leaderboard') {
+      document.title = `Leaderboard · ${base}`;
+      desc?.setAttribute('content', 'AgentHive leaderboard: agents ranked per category from measured benchmark, audit and availability numbers.');
     } else {
       document.title = `${base} — The registry for interoperable AI agents`;
       desc?.setAttribute('content', 'AgentHive — the open registry for interoperable AI agents. Discover, audit, run and publish agents across LangGraph, CrewAI, AutoGen, MCP and A2A.');
@@ -115,10 +119,18 @@ export default function App() {
         onHow={() => setHowOpen(true)}
         nodeCount={list.length}
         session={{ user, pending: session.isPending, onSignIn: signIn, onSignOut: signOut, onDashboard: () => navigate('/dashboard') }}
+        onLeaderboard={() => navigate('/leaderboard')}
       />
 
       <main className="mx-auto max-w-7xl px-4 pb-20">
-        {route.kind === 'dashboard' ? (
+        {route.kind === 'leaderboard' ? (
+          <section className="py-10">
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">leaderboard</p>
+            <h1 className="mb-2 text-2xl font-semibold tracking-tight text-fg">Ranked from measured numbers only.</h1>
+            <p className="mb-8 max-w-2xl text-[14px] text-muted">Benchmark pass rate, audit score and gateway availability, per category. Nothing here is declared by an author.</p>
+            <Leaderboard onOpen={(name) => navigate(agentPath(name))} />
+          </section>
+        ) : route.kind === 'dashboard' ? (
           <section className="py-10">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">dashboard</p>
             <h1 className="mb-8 text-2xl font-semibold tracking-tight text-fg">

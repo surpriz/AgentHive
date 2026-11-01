@@ -34,6 +34,7 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/` | catalog |
 | `/agents/<name>` | agent drawer, shareable deep link, pre-rendered with per-agent meta (unknown name → 404 banner) |
 | `/dashboard` | your agents and API keys (signed in) |
+| `/leaderboard`, `/api/leaderboard.json`, `/api/leaderboard/history.json` | agents ranked per category from measured numbers ([docs/LEADERBOARD.md](docs/LEADERBOARD.md)) |
 | `/api/agents.json` | registry index, CORS open, cached |
 | `/api/catalog.json` | full agent objects for the SPA |
 | `/agents/<name>/agent.json`, `agent.yaml` | A2A agent card, AgentHive manifest |
@@ -64,7 +65,7 @@ src/
   lib/manifest.ts              YAML manifest, A2A agent card, registry index, install snippets
   lib/router.ts                history-based routing (/, /agents/<name>, /dashboard)
   lib/api.ts, lib/auth-client.ts   fetch helpers, better-auth React client
-  components/                  Navbar, FilterBar, AgentCard, AgentGrid, AgentDetailModal, PublishModal, Dashboard, HowItWorksModal
+  components/                  Navbar, FilterBar, AgentCard, AgentGrid, AgentDetailModal, PublishModal, Dashboard, Leaderboard, HowItWorksModal
   components/tabs/             OverviewTab, ManifestTab, SandboxView
   components/ui/               Badge, CodeBlock, Modal, Tabs
 server/
@@ -74,6 +75,7 @@ server/
   publish.ts                   ownership + version rules, runs the audit
   gateway.ts                   run gateway: signing, quotas, logs, measured metrics
   benchmark.ts                 registry probes + author cases, pass rate shown as success
+  leaderboard.ts               composite ranking per category, daily snapshots
   audit/                       checks, grading, report (see docs/GRADING.md)
   db/schema.ts, db/auth-schema.ts, db/migrations/, db/seed.ts
 api/index.ts                   Vercel function
@@ -87,7 +89,7 @@ e2e/                           Playwright specs (desktop + mobile projects)
 |---|---|
 | `@agenthive-sh/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
 | `@agenthive-sh/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
-| `@agenthive-sh/cli` | `agent-cli search | info | manifest | audit | benchmark | run | runs | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
+| `@agenthive-sh/cli` | `agent-cli search | info | manifest | leaderboard | audit | benchmark | run | runs | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
 
 ```sh
 pnpm -r --include-workspace-root build && pnpm -r --include-workspace-root test   # includes the web app at the root

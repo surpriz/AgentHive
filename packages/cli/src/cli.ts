@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { DEFAULT_REGISTRY, RegistryClient, RegistryError } from '@agenthive-sh/registry-client';
 import { registerSearch } from './commands/search.js';
-import { registerInfo } from './commands/info.js';
+import { registerInfo, registerLeaderboard } from './commands/info.js';
 import { registerAdd } from './commands/add.js';
 import { registerAccount } from './commands/account.js';
 import { resolveToken } from './credentials.js';
@@ -30,6 +30,7 @@ export function buildProgram(): Command {
 
   registerSearch(program, client);
   registerInfo(program, client);
+  registerLeaderboard(program, client);
   registerAdd(program, client);
   registerAccount(program, authed, () => client().baseUrl);
   return program;

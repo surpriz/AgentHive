@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Route = { kind: 'home' } | { kind: 'agent'; name: string } | { kind: 'dashboard' };
+export type Route = { kind: 'home' } | { kind: 'agent'; name: string } | { kind: 'dashboard' } | { kind: 'leaderboard' };
 
 const AGENT_RE = /^\/agents\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
 
 export function parseRoute(pathname: string): Route {
   if (/^\/dashboard\/?$/.test(pathname)) return { kind: 'dashboard' };
+  if (/^\/leaderboard\/?$/.test(pathname)) return { kind: 'leaderboard' };
   const m = AGENT_RE.exec(pathname);
   return m ? { kind: 'agent', name: m[1] } : { kind: 'home' };
 }

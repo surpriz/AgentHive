@@ -124,6 +124,23 @@ export const benchmarks = pgTable(
   (t) => [index('benchmarks_agent_created_idx').on(t.agentId, t.createdAt)],
 );
 
+export const leaderboardSnapshots = pgTable(
+  'leaderboard_snapshots',
+  {
+    id: text('id').primaryKey(),
+    /** ISO date (UTC) the snapshot describes. */
+    day: varchar('day', { length: 10 }).notNull(),
+    category: varchar('category', { length: 32 }).notNull(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    rank: integer('rank').notNull(),
+    score: real('score').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('leaderboard_day_category_agent_idx').on(t.day, t.category, t.agentId), index('leaderboard_agent_day_idx').on(t.agentId, t.day)],
+);
+
 export type BenchmarkRow = typeof benchmarks.$inferSelect;
 export type RunRow = typeof runs.$inferSelect;
 export type AuditRow = typeof audits.$inferSelect;

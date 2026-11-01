@@ -114,6 +114,29 @@ export interface BenchmarkReport {
   skipped?: string;
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  author: string;
+  value: string;
+  category: string;
+  version: string;
+  grade: string;
+  score: number;
+  components: { benchmark: number | null; audit: number | null; availability: number | null };
+  benchmarkCases: number;
+  runs30d: number;
+  delta: number | null;
+  previousRank: number | null;
+}
+
+export interface Leaderboard {
+  generatedAt: string;
+  formula: string;
+  categories: Record<string, LeaderboardEntry[]>;
+  illustrative: { name: string; category: string; grade: string }[];
+}
+
 export interface ManifestIssue {
   path: string;
   message: string;
@@ -144,6 +167,7 @@ export const api = {
   agentRuns: (name: string) => request<{ runnable: boolean; reason: string | null; runs: RunLog[] }>(`/api/v1/agents/${encodeURIComponent(name)}/runs`, { cache: 'no-store' }),
   gatewaySecret: (name: string) => request<{ secret: string; recipe: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret`, { cache: 'no-store' }),
   rotateGatewaySecret: (name: string) => request<{ secret: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret/rotate`, { method: 'POST' }),
+  leaderboard: () => request<Leaderboard>('/api/leaderboard.json', { cache: 'no-store' }),
   benchmark: (name: string) => request<{ illustrative: boolean; runnable: boolean; reason: string | null; benchmark: BenchmarkReport | Agent['benchmark'] | null }>(`/agents/${encodeURIComponent(name)}/benchmark.json`, { cache: 'no-store' }),
   runBenchmark: (name: string) => request<{ benchmark: BenchmarkReport }>(`/api/v1/agents/${encodeURIComponent(name)}/benchmark`, { method: 'POST' }),
   audit: (name: string) => request<AuditResponse>(`/agents/${encodeURIComponent(name)}/audit.json`, { cache: 'no-store' }),

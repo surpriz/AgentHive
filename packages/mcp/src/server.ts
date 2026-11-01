@@ -76,6 +76,31 @@ export function createServer(client = new RegistryClient()): McpServer {
   );
 
   server.registerTool(
+    'get_leaderboard',
+    {
+      title: 'Leaderboard',
+      description: 'Agents ranked per category from numbers the registry measured (benchmark pass rate, audit score, gateway availability). Optional category filter.',
+      inputSchema: { category: z.string().optional() },
+    },
+    async ({ category }) => {
+      try {
+        const board = await client.leaderboard(category);
+        const lines: string[] = [];
+        for (const [cat, entries] of Object.entries(board.categories)) {
+          if (entries.length === 0) continue;
+          lines.push(`${cat}:`);
+          for (const e of entries) lines.push(`  #${e.rank} ${e.name}@${e.version} by ${e.author} · score ${e.score} · grade ${e.grade} · benchmark ${e.components.benchmark ?? '—'}%${e.benchmarkCases === 0 ? ' (probes only)' : ''} · availability ${e.components.availability ?? '—'}% · ${e.runs30d} runs/30d · https://agenthive.sh/agents/${e.name}`);
+        }
+        if (lines.length === 0) lines.push('Nobody ranked yet: an agent enters once it has a computed grade and a benchmark for its current version.');
+        lines.push(`Formula: ${board.formula}. Seeds shown on the site are illustrative and never ranked.`);
+        return text(lines.join('\n'));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
     'install_snippet',
     {
       title: 'Install snippet for an agent',

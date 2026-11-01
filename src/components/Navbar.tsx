@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2 } from 'lucide-react';
+import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2, Trophy } from 'lucide-react';
 import { GithubIcon } from './ui/GithubIcon';
 import type { SessionUser } from '../lib/auth-client';
 import { CopyButton } from './ui/CodeBlock';
@@ -16,7 +16,7 @@ export interface NavbarSession {
   onDashboard: () => void;
 }
 
-export function Navbar({ onPush, onHow, nodeCount, session }: { onPush: () => void; onHow: () => void; nodeCount: number; session: NavbarSession }) {
+export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { onPush: () => void; onHow: () => void; onLeaderboard: () => void; nodeCount: number; session: NavbarSession }) {
   const [cliOpen, setCliOpen] = useState(false);
   const cliRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +55,17 @@ export function Navbar({ onPush, onHow, nodeCount, session }: { onPush: () => vo
         </div>
 
         <nav className="flex items-center gap-2">
+          <a
+            href="/leaderboard"
+            onClick={(e) => {
+              e.preventDefault();
+              onLeaderboard();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
+          >
+            <Trophy size={14} />
+            <span className="hidden sm:inline">Leaderboard</span>
+          </a>
           <button
             type="button"
             onClick={onHow}

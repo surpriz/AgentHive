@@ -1,4 +1,4 @@
-import type { AgentCard, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, SearchOptions } from './types.js';
+import type { AgentCard, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, Leaderboard, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, SearchOptions } from './types.js';
 
 export * from './types.js';
 
@@ -94,6 +94,11 @@ export class RegistryClient {
     const body = (await res.json().catch(() => ({}))) as { error?: string; runs?: RunLog[] };
     if (!res.ok || !body.runs) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status);
     return body.runs;
+  }
+
+  /** Public leaderboard, optionally one category. */
+  async leaderboard(category?: string): Promise<Leaderboard> {
+    return this.getJson<Leaderboard>(`/api/leaderboard.json${category ? `?category=${encodeURIComponent(category)}` : ''}`);
   }
 
   /** Latest public benchmark for an agent. */

@@ -162,3 +162,27 @@ export interface BenchmarkResponse {
   reason: string | null;
   benchmark: BenchmarkReport | { passRate: number; ranAt: string } | null;
 }
+
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  author: string;
+  value: string;
+  category: string;
+  version: string;
+  grade: SecurityGrade;
+  score: number;
+  components: { benchmark: number | null; audit: number | null; availability: number | null };
+  benchmarkCases: number;
+  runs30d: number;
+  delta: number | null;
+  previousRank: number | null;
+}
+
+/** GET /api/leaderboard.json */
+export interface Leaderboard {
+  generatedAt: string;
+  formula: string;
+  categories: Record<string, LeaderboardEntry[]>;
+  illustrative: { name: string; category: string; grade: SecurityGrade }[];
+}

@@ -33,9 +33,9 @@ async function connect() {
 const textOf = (r: Awaited<ReturnType<Client['callTool']>>) => (r.content as { type: string; text: string }[])[0].text;
 
 describe('@agenthive-sh/mcp', () => {
-  it('lists four tools and one resource', async () => {
+  it('lists five tools and one resource', async () => {
     const c = await connect();
-    expect((await c.listTools()).tools.map((t) => t.name).sort()).toEqual(['get_agent', 'get_manifest', 'install_snippet', 'search_agents']);
+    expect((await c.listTools()).tools.map((t) => t.name).sort()).toEqual(['get_agent', 'get_leaderboard', 'get_manifest', 'install_snippet', 'search_agents']);
     expect((await c.listResources()).resources.map((r) => r.uri)).toEqual(['agenthive://registry']);
   });
 

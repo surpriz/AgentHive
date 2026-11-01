@@ -35,7 +35,7 @@ describe('ui.sanitize', () => {
 describe('program', () => {
   it('registers the expected commands', () => {
     const names = buildProgram().commands.map((c) => c.name()).sort();
-    expect(names).toEqual(['add', 'audit', 'benchmark', 'info', 'login', 'logout', 'manifest', 'push', 'run', 'runs', 'search', 'serve', 'setup', 'whoami']);
+    expect(names).toEqual(['add', 'audit', 'benchmark', 'info', 'leaderboard', 'login', 'logout', 'manifest', 'push', 'run', 'runs', 'search', 'serve', 'setup', 'whoami']);
   });
 });
 
