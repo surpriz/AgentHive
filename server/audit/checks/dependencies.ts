@@ -42,18 +42,28 @@ export function depsFromRequirements(text: string): ParsedDeps {
   for (const raw of text.split('\n')) {
     const line = raw.split('#')[0].trim();
     if (!line) continue;
-    // Includes, constraints, editable and VCS/URL requirements pull in packages we cannot query: unverifiable.
-    if (/^(-r|--requirement|-c|--constraint|-e|--editable)\b/.test(line) || /^(git\+|https?:\/\/|svn\+|hg\+|\.)/.test(line)) {
+    if (line.startsWith('-')) {
+      // Option lines are unverifiable by default (includes, editable installs, alternate indexes…); only a few
+      // harmless options are exempt, plus the canonical PyPI index spelled out exactly.
+      const [opt, ...rest] = line.split(/[=\s]+/);
+      const value = rest.join(' ').trim();
+      const harmless = HARMLESS_PIP_OPTIONS.has(opt) || ((opt === '-i' || opt === '--index-url') && value === 'https://pypi.org/simple');
+      if (!harmless) out.unpinned++;
+      continue;
+    }
+    // VCS, URL and local-path requirements cannot be queried either.
+    if (/^(git\+|https?:\/\/|svn\+|hg\+|bzr\+|\.|\/|file:)/.test(line)) {
       out.unpinned++;
       continue;
     }
-    if (line.startsWith('-')) continue; // pure options: --index-url, --hash, --no-binary…
     const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)\s*$/.exec(line);
     if (m) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
     else out.unpinned++;
   }
   return out;
 }
+
+const HARMLESS_PIP_OPTIONS = new Set(['--hash', '--no-binary', '--only-binary', '--prefer-binary', '--require-hashes', '--pre', '--use-feature']);
 
 const PEP508 = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*(.*)$/;
 
