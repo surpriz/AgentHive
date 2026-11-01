@@ -1,6 +1,7 @@
 import type { Check, CheckResult, Finding } from '../types';
 import { withTimeout } from '../util';
 import { readCapped } from '../net';
+import { parse as parseToml } from 'smol-toml';
 
 export interface Dep {
   ecosystem: 'npm' | 'PyPI';
@@ -10,41 +11,69 @@ export interface Dep {
 
 const EXACT = /^v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/;
 
+/** What a parser could and could not turn into a queryable (name, exact version) pair. */
+export interface ParsedDeps {
+  deps: Dep[];
+  /** Declared dependencies without an exact version: not queried, so they cap the grade. */
+  unpinned: number;
+  parseError?: string;
+}
+
 /** package.json dependencies with exact versions only (ranges cannot be queried reliably). */
-export function depsFromPackageJson(text: string): Dep[] {
+export function depsFromPackageJson(text: string): ParsedDeps {
   let pkg: { dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> };
   try {
     pkg = JSON.parse(text) as typeof pkg;
-  } catch {
-    return [];
+  } catch (e) {
+    return { deps: [], unpinned: 0, parseError: `package.json: ${(e as Error).message}` };
   }
-  const out: Dep[] = [];
+  const out: ParsedDeps = { deps: [], unpinned: 0 };
   for (const [name, spec] of Object.entries({ ...(pkg.dependencies ?? {}), ...(pkg.optionalDependencies ?? {}) })) {
     const m = EXACT.exec(String(spec).trim());
-    if (m) out.push({ ecosystem: 'npm', name, version: m[1] });
+    if (m) out.deps.push({ ecosystem: 'npm', name, version: m[1] });
+    else out.unpinned++;
   }
   return out;
 }
 
-/** requirements.txt pins: `name==1.2.3`, comments and extras ignored. */
-export function depsFromRequirements(text: string): Dep[] {
-  const out: Dep[] = [];
+/** requirements.txt: `name==1.2.3` is queryable, any other requirement line counts as unpinned. */
+export function depsFromRequirements(text: string): ParsedDeps {
+  const out: ParsedDeps = { deps: [], unpinned: 0 };
   for (const raw of text.split('\n')) {
     const line = raw.split('#')[0].trim();
-    const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)/.exec(line);
-    if (m) out.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
+    if (!line || line.startsWith('-')) continue; // blank, -r includes, --flags
+    const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)\s*$/.exec(line);
+    if (m) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
+    else out.unpinned++;
   }
   return out;
 }
 
-/** pyproject: `[project] dependencies = ["name==1.2.3", ...]` pins only. */
-export function depsFromPyproject(text: string): Dep[] {
-  const start = text.indexOf('dependencies');
-  const slice = start === -1 ? '' : text.slice(start, start + 64 * 1024);
-  const block = /dependencies\s*=\s*\[([^\]]*)\]/.exec(slice)?.[1] ?? '';
-  const out: Dep[] = [];
-  for (const m of block.matchAll(/["']([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)["']/g)) {
-    out.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
+const PEP508 = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*(.*)$/;
+
+/** pyproject.toml via a real TOML parser: [project].dependencies (PEP 621) and [tool.poetry.dependencies]. */
+export function depsFromPyproject(text: string): ParsedDeps {
+  let doc: Record<string, unknown>;
+  try {
+    doc = parseToml(text) as Record<string, unknown>;
+  } catch (e) {
+    return { deps: [], unpinned: 0, parseError: `pyproject.toml: ${(e as Error).message}` };
+  }
+  const out: ParsedDeps = { deps: [], unpinned: 0 };
+  const project = doc.project as { dependencies?: unknown } | undefined;
+  for (const item of Array.isArray(project?.dependencies) ? project.dependencies : []) {
+    const m = typeof item === 'string' ? PEP508.exec(item.trim()) : null;
+    const pin = m ? /^==\s*([0-9][0-9A-Za-z.+-]*)\s*(?:;.*)?$/.exec(m[2]) : null;
+    if (m && pin) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: pin[1] });
+    else out.unpinned++;
+  }
+  const poetry = ((doc.tool as Record<string, unknown> | undefined)?.poetry as { dependencies?: Record<string, unknown> } | undefined)?.dependencies ?? {};
+  for (const [name, spec] of Object.entries(poetry)) {
+    if (name === 'python') continue;
+    const v = typeof spec === 'string' ? spec : typeof spec === 'object' && spec && typeof (spec as { version?: unknown }).version === 'string' ? (spec as { version: string }).version : '';
+    const m = EXACT.exec(v.trim());
+    if (m) out.deps.push({ ecosystem: 'PyPI', name: name.toLowerCase(), version: m[1] });
+    else out.unpinned++;
   }
   return out;
 }
@@ -90,30 +119,45 @@ export const dependenciesCheck: Check = {
     const dir = (source.path ?? '.').replace(/^\.?\/?/, '').replace(/\/$/, '');
     if (!REF_RE.test(ref) || !PATH_RE.test(dir)) return { findings: [{ check: 'dependencies', severity: 'medium', message: 'source.ref or source.path is not a plain git ref / path' }], caps: [UNVERIFIED] };
     const base = `https://raw.githubusercontent.com/${gh.owner}/${gh.name}/${encodeURIComponent(ref)}/${dir ? `${dir}/` : ''}`;
-    const files: { file: string; parse: (t: string) => Dep[] }[] = [
+    const files: { file: string; parse: (t: string) => ParsedDeps }[] = [
       { file: 'package.json', parse: depsFromPackageJson },
       { file: 'requirements.txt', parse: depsFromRequirements },
       { file: 'pyproject.toml', parse: depsFromPyproject },
     ];
-    const deps: Dep[] = [];
-    let found = 0;
-    for (const { file, parse } of files) {
-      try {
-        const res = await withTimeout(ctx.fetch(base + file, { headers: { accept: 'text/plain' } }), ctx.callTimeoutMs, file);
-        if (res.status === 200) {
-          found++;
-          deps.push(...parse(await readCapped(res, MAX_MANIFEST_FILE_BYTES)));
+    // The three manifests are fetched concurrently so this check costs at most two round trips.
+    const fetched = await Promise.all(
+      files.map(async ({ file, parse }) => {
+        try {
+          const res = await withTimeout(ctx.fetch(base + file, { headers: { accept: 'text/plain' } }), ctx.callTimeoutMs, file);
+          if (res.status !== 200) return { file, parsed: null as ParsedDeps | null, error: null as string | null };
+          return { file, parsed: parse(await readCapped(res, MAX_MANIFEST_FILE_BYTES)), error: null };
+        } catch (e) {
+          return { file, parsed: null, error: (e as Error).message };
         }
-      } catch (e) {
-        return { findings: [{ check: 'dependencies', severity: 'low', message: `could not read ${file}: ${(e as Error).message}` }], skipped: `could not fetch ${file}`, caps: [UNVERIFIED] };
-      }
-    }
-    if (found === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no dependency manifest found in the source repository' }], caps: [UNVERIFIED] };
+      }),
+    );
+    const failed = fetched.find((f) => f.error);
+    if (failed) return { findings: [{ check: 'dependencies', severity: 'low', message: `could not read ${failed.file}: ${failed.error}` }], skipped: `could not fetch ${failed.file}`, caps: [UNVERIFIED] };
+    const parsedAll = fetched.filter((f): f is { file: string; parsed: ParsedDeps; error: null } => f.parsed !== null);
+    if (parsedAll.length === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no dependency manifest found in the source repository' }], caps: [UNVERIFIED] };
+
     const findings: Finding[] = [];
+    const caps: { grade: 'AA'; reason: string }[] = [];
+    const deps = parsedAll.flatMap((f) => f.parsed.deps);
+    const unpinned = parsedAll.reduce((n, f) => n + f.parsed.unpinned, 0);
+    const parseErrors = parsedAll.map((f) => f.parsed.parseError).filter(Boolean) as string[];
+    for (const err of parseErrors) findings.push({ check: 'dependencies', severity: 'low', message: `could not parse ${err}` });
+    if (parseErrors.length) caps.push({ grade: 'AA', reason: 'a dependency manifest could not be parsed' });
+    if (unpinned > 0) {
+      findings.push({ check: 'dependencies', severity: 'low', message: `${unpinned} declared dependenc${unpinned === 1 ? 'y is' : 'ies are'} not pinned to an exact version and could not be checked`, hint: 'Pin exact versions (or commit a lockfile-derived manifest) so every dependency is queried.' });
+      caps.push({ grade: 'AA', reason: `${unpinned} unpinned dependencies not checked` });
+    }
     const unique = deps.slice(0, MAX_DEPS);
-    if (unique.length === 0) return { findings: [{ check: 'dependencies', severity: 'low', message: 'no pinned dependencies to check', hint: 'Pin exact versions or ship a lockfile-derived manifest.' }], caps: [UNVERIFIED] };
-    const caps = deps.length > MAX_DEPS ? [{ grade: 'AA' as const, reason: `${deps.length - MAX_DEPS} dependencies beyond the first ${MAX_DEPS} were not checked` }] : [];
-    if (deps.length > MAX_DEPS) findings.push({ check: 'dependencies', severity: 'low', message: `${deps.length - MAX_DEPS} dependencies not checked (limit ${MAX_DEPS})` });
+    if (unique.length === 0) return { findings: [...findings, { check: 'dependencies', severity: 'low', message: 'no pinned dependencies to check' }], caps: [UNVERIFIED] };
+    if (deps.length > MAX_DEPS) {
+      findings.push({ check: 'dependencies', severity: 'low', message: `${deps.length - MAX_DEPS} dependencies not checked (limit ${MAX_DEPS})` });
+      caps.push({ grade: 'AA', reason: `${deps.length - MAX_DEPS} dependencies beyond the first ${MAX_DEPS} were not checked` });
+    }
 
     let results: { vulns?: OsvVuln[] }[];
     try {

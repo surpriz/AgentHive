@@ -74,15 +74,32 @@ describe('endpoint address rules', () => {
 
 describe('dependency parsing', () => {
   it('keeps exact pins only', () => {
-    expect(depsFromPackageJson('{"dependencies":{"a":"1.2.3","b":"^2.0.0","c":"v3.0.0-rc.1"}}')).toEqual([
-      { ecosystem: 'npm', name: 'a', version: '1.2.3' },
-      { ecosystem: 'npm', name: 'c', version: '3.0.0-rc.1' },
-    ]);
-    expect(depsFromRequirements('Requests==2.31.0  # http\nflask>=2\nnumpy[extra]==1.26.4')).toEqual([
-      { ecosystem: 'PyPI', name: 'requests', version: '2.31.0' },
-      { ecosystem: 'PyPI', name: 'numpy', version: '1.26.4' },
-    ]);
-    expect(depsFromPyproject('[project]\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n]\n')).toEqual([{ ecosystem: 'PyPI', name: 'httpx', version: '0.27.0' }]);
+    expect(depsFromPackageJson('{"dependencies":{"a":"1.2.3","b":"^2.0.0","c":"v3.0.0-rc.1"}}')).toEqual({
+      deps: [
+        { ecosystem: 'npm', name: 'a', version: '1.2.3' },
+        { ecosystem: 'npm', name: 'c', version: '3.0.0-rc.1' },
+      ],
+      unpinned: 1,
+    });
+    expect(depsFromPackageJson('{oops').parseError).toMatch(/package.json/);
+    expect(depsFromRequirements('Requests==2.31.0  # http\nflask>=2\n-r base.txt\nnumpy[extra]==1.26.4')).toEqual({
+      deps: [
+        { ecosystem: 'PyPI', name: 'requests', version: '2.31.0' },
+        { ecosystem: 'PyPI', name: 'numpy', version: '1.26.4' },
+      ],
+      unpinned: 1,
+    });
+    expect(depsFromPyproject('[project]\nname = "x"\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n  "rich==13.7.0; python_version < \'4\'",\n]\n[tool.poetry.dependencies]\npython = "^3.11"\nrequests = "2.31.0"\nflask = { version = "^3" }\n')).toEqual({
+      deps: [
+        { ecosystem: 'PyPI', name: 'httpx', version: '0.27.0' },
+        { ecosystem: 'PyPI', name: 'rich', version: '13.7.0' },
+        { ecosystem: 'PyPI', name: 'requests', version: '2.31.0' },
+      ],
+      unpinned: 2,
+    });
+    // A dependencies array hidden inside another table is not [project].dependencies.
+    expect(depsFromPyproject('[tool.other]\ndependencies = ["evil==1.0.0"]\n[project]\ndependencies = []\n')).toEqual({ deps: [], unpinned: 0 });
+    expect(depsFromPyproject('[project\n').parseError).toMatch(/pyproject/);
     expect(parseGithubSource('https://github.com/acme/bot.git')).toEqual({ owner: 'acme', name: 'bot' });
     expect(parseGithubSource('https://gitlab.com/acme/bot')).toBeNull();
     expect(REF_RE.test('v1.2.3')).toBe(true);
@@ -171,5 +188,30 @@ describe('runAudit', () => {
     expect(redirecting.caps.map((c) => c.reason)).toContain('endpoint could not be verified');
     const noPins = await runAudit(base(full), ctx({ 'https://raw.githubusercontent.com/acme/bot/v1.0.0/package.json': () => new Response('{"dependencies":{"a":"^1"}}') }));
     expect(noPins.grade).toBe('AA');
+    // One pinned and checked, seven ranges ignored: still capped, with the count in the report.
+    const mixed = await runAudit(
+      base(full),
+      ctx({
+        'https://raw.githubusercontent.com/acme/bot/v1.0.0/package.json': () => new Response(JSON.stringify({ dependencies: { a: '1.0.0', b: '^1', c: '~2', d: '*', e: 'latest', f: '>=1', g: '1.x', h: 'github:x/y' } })),
+        'https://api.osv.dev/v1/querybatch': () => json({ results: [{}] }),
+      }),
+    );
+    expect(mixed.grade).toBe('AA');
+    expect(mixed.findings.find((f) => f.check === 'dependencies')?.message).toMatch(/7 declared dependencies are not pinned/);
+  });
+
+  it('runs network checks concurrently so a slow endpoint cannot starve the dependency check', async () => {
+    const full = { permissions: { network: ['api.github.com'], filesystem: 'none', shell: false, env: [] }, source: { repo: 'https://github.com/acme/bot', ref: 'v1.0.0' } };
+    const m = base({ endpoint: 'https://slow.example.com/run', ...full });
+    const c = ctx({
+      'https://slow.example.com/run': () => new Promise<Response>(() => undefined), // never answers
+      'https://raw.githubusercontent.com/acme/bot/v1.0.0/package.json': () => new Response('{"dependencies":{"left-pad":"1.3.0"}}'),
+      'https://api.osv.dev/v1/querybatch': () => json({ results: [{}] }),
+    });
+    c.callTimeoutMs = 50;
+    const r = await runAudit(m, c);
+    expect(r.checks.find((x) => x.id === 'dependencies')?.status).toBe('ok');
+    expect(r.caps.map((x) => x.reason)).toContain('endpoint could not be verified');
+    expect(r.caps.map((x) => x.reason)).not.toContain('dependencies not checked');
   });
 });

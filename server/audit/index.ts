@@ -19,7 +19,7 @@ export const SEVERITY_ORDER: Finding['severity'][] = ['blocker', 'high', 'medium
 
 export function defaultContext(overrides: Partial<AuditContext> = {}): AuditContext {
   const now = () => Date.now();
-  const callTimeoutMs = overrides.callTimeoutMs ?? 4000;
+  const callTimeoutMs = overrides.callTimeoutMs ?? 2500;
   return {
     fetch: createSafeFetch({ timeoutMs: callTimeoutMs }),
     lookup: (host) => dns.lookup(host, { all: true }),
@@ -41,25 +41,34 @@ export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultCo
   const findings: Finding[] = [];
   const caps: Report['caps'] = [];
   const checks: CheckRun[] = [];
-  for (const check of CHECKS) {
+
+  const runOne = async (check: Check): Promise<{ run: CheckRun; findings: Finding[]; caps: Report['caps'] }> => {
     const start = ctx.now();
     if (check.network && ctx.now() > ctx.deadline) {
-      checks.push({ id: check.id, status: 'skipped', ms: 0, note: 'audit time budget exhausted' });
-      findings.push({ check: check.id, severity: 'low', message: `${check.id} check did not run (time budget)` });
-      if (UNVERIFIED_CAP[check.id]) caps.push(UNVERIFIED_CAP[check.id]);
-      continue;
+      return {
+        run: { id: check.id, status: 'skipped', ms: 0, note: 'audit time budget exhausted' },
+        findings: [{ check: check.id, severity: 'low', message: `${check.id} check did not run (time budget)` }],
+        caps: UNVERIFIED_CAP[check.id] ? [UNVERIFIED_CAP[check.id]] : [],
+      };
     }
     try {
-      // Each network check gets its own budget so one publisher-controlled host cannot starve the next check.
-      const res = check.network ? await withTimeout(check.run(manifest, ctx), ctx.callTimeoutMs * 3, `${check.id} check`) : await check.run(manifest, ctx);
-      findings.push(...res.findings);
-      caps.push(...(res.caps ?? []));
-      checks.push({ id: check.id, status: res.skipped ? 'skipped' : 'ok', ms: ctx.now() - start, note: res.skipped });
+      // Network checks run concurrently, each with its own budget: a slow publisher-controlled host cannot starve the vulnerability check.
+      const res = check.network ? await withTimeout(check.run(manifest, ctx), ctx.callTimeoutMs * 2 + 500, `${check.id} check`) : await check.run(manifest, ctx);
+      return { run: { id: check.id, status: res.skipped ? 'skipped' : 'ok', ms: ctx.now() - start, note: res.skipped }, findings: res.findings, caps: res.caps ?? [] };
     } catch (e) {
-      checks.push({ id: check.id, status: 'error', ms: ctx.now() - start, note: (e as Error).message });
-      findings.push({ check: check.id, severity: 'low', message: `${check.id} check did not complete` });
-      if (UNVERIFIED_CAP[check.id]) caps.push(UNVERIFIED_CAP[check.id]);
+      return {
+        run: { id: check.id, status: 'error', ms: ctx.now() - start, note: (e as Error).message },
+        findings: [{ check: check.id, severity: 'low', message: `${check.id} check did not complete` }],
+        caps: UNVERIFIED_CAP[check.id] ? [UNVERIFIED_CAP[check.id]] : [],
+      };
     }
+  };
+
+  const results = await Promise.all(CHECKS.map(runOne));
+  for (const r of results) {
+    checks.push(r.run);
+    findings.push(...r.findings);
+    caps.push(...r.caps);
   }
   findings.sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
   const blocked = findings.some((f) => f.severity === 'blocker');
