@@ -110,13 +110,32 @@ describe('benchmark', () => {
     expect(pub.benchmark.trigger).toBe('cron');
   });
 
+  it('a new version clears the published score and gets its own benchmark', async () => {
+    const res = await req('/api/v1/agents', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...authz },
+      body: JSON.stringify({
+        apiVersion: 'agenthive.sh/v1',
+        metadata: { name: 'good-agent', version: '0.2.0', category: 'Data & Analytics', value: 'Suggests indexes for slow queries, benchmark fixture.', tagline: 'A fake upstream agent used by the benchmark test suite.' },
+        spec: { framework: 'Custom A2A', endpoint: 'https://upstream.example/good', tests: [{ name: 'ctrl\u0007chars\u001b', input: { sql: 'x' }, expect: { contains: 'CREATE INDEX' } }] },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { benchmarkQueued: boolean }).benchmarkQueued).toBe(true);
+    await new Promise((r) => setTimeout(r, 100));
+    const pub = (await (await req('/agents/good-agent/benchmark.json')).json()) as { version: string; benchmark: { version: string; cases: number; results: { name: string }[] } };
+    expect(pub.benchmark.version).toBe('0.2.0');
+    expect(pub.benchmark.cases).toBe(1);
+    expect(pub.benchmark.results.find((r) => r.name.startsWith('ctrl'))?.name).toBe('ctrlchars');
+  });
+
   it('a case whose expectation blows up fails the case, not the benchmark', async () => {
     const { runBenchmark } = await import('./benchmark');
     const [row] = await ctx.db.query.agents.findMany({ where: (a, { eq }) => eq(a.name, 'good-agent') });
     const huge = 'x'.repeat(5000);
     const r = await runBenchmark(ctx.db, { fetch: upstream }, row, 'cron');
     expect(r.results.every((x) => (x.reason ?? '').length <= 301)).toBe(true);
-    expect(r.cases).toBe(3);
+    expect(r.cases).toBe(1);
     void huge;
   });
 });

@@ -24,6 +24,12 @@ describe('parseManifest', () => {
     expect(parseManifest('- not a mapping').ok).toBe(false);
   });
 
+  it('refuses NUL characters anywhere in the document', () => {
+    const r = parseManifest({ apiVersion: 'agenthive.sh/v1', metadata: { name: 'x-bot', version: '1.0.0', category: 'Finance', value: 'Does something useful for finance teams.', tagline: 'A longer technical description.' }, spec: { framework: 'CrewAI' }, readme: 'bad\u0000byte' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.issues[0].message).toMatch(/NUL/);
+  });
+
   it('caps the size of the document and of inline schemas', () => {
     expect(parseManifest('x'.repeat(300 * 1024)).ok).toBe(false);
     const big = JSON.stringify({ apiVersion: 'agenthive.sh/v1', metadata: { name: 'x-bot', version: '1.0.0', category: 'Finance', value: 'Does something useful for finance teams.', tagline: 'A longer technical description.' }, spec: { framework: 'CrewAI', io: { input: { blob: 'y'.repeat(40 * 1024) }, output: {} } } });

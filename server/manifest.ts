@@ -110,6 +110,8 @@ export function parseManifest(input: string | unknown): ParseResult {
     }
   }
   if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) return { ok: false, issues: [{ path: '', message: 'manifest must be a mapping' }] };
+  // Postgres jsonb cannot store NUL; refuse it up front rather than fail at insert time.
+  if (JSON.stringify(doc).includes('\\u0000')) return { ok: false, issues: [{ path: '', message: 'manifest contains NUL characters' }] };
   const res = manifestSchema.safeParse(doc);
   if (!res.success) {
     return { ok: false, issues: res.error.issues.map((i) => ({ path: i.path.map(String).join('.'), message: i.message })) };

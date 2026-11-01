@@ -48,7 +48,7 @@ export async function publishManifest(db: Db, who: Publisher, manifest: Manifest
   if (existing) {
     [row] = await db
       .update(agents)
-      .set({ ...cols, ...stamp, author: who.login, updatedAt: now })
+      .set({ ...cols, ...stamp, author: who.login, updatedAt: now, benchmarkPassRate: null, benchmarkAt: null })
       .where(eq(agents.id, existing.id))
       .returning();
     created = false;

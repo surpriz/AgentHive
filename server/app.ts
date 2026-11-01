@@ -11,7 +11,7 @@ import { latestAudit, publishManifest, reauditAgent } from './publish';
 import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
 import { ensureSecret, ensureSystemUser, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
-import { benchmarkGate, latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
+import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -305,9 +305,8 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if ('error' in r) return r.error;
     const reason = runnableReason(r.row);
     if (reason) return c.json({ error: reason }, 409);
-    const gate = await benchmarkGate(db, r.row, 'owner');
-    if (gate) return c.json({ error: gate.error, retryAfterMs: gate.retryAfterMs }, 429);
     const report = await runBenchmark(db, { fetch: gatewayFetch }, r.row, 'owner');
+    if (report.skipped && report.total === 0) return c.json({ error: report.skipped, retryAfterMs: 60_000 }, 429);
     return c.json({ benchmark: report });
   });
 

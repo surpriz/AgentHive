@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, count, desc, eq, gt, inArray, ne } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, isNull, lt, ne, or } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { agents, agentVersions, benchmarks, type AgentRow } from './db/schema';
 import { parseManifest, type Manifest } from './manifest';
@@ -59,11 +59,14 @@ export function jsonPath(value: unknown, path: string): unknown {
   return cur;
 }
 
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
+const clean = (t: string) => t.replace(CONTROL, '');
 const clip = (v: unknown, n = 80) => {
-  const t = typeof v === 'string' ? v : JSON.stringify(v);
-  return t === undefined ? 'undefined' : t.length > n ? `${t.slice(0, n)}…` : t;
+  const t = clean(typeof v === 'string' ? v : (JSON.stringify(v) ?? 'undefined'));
+  return t.length > n ? `${t.slice(0, n)}…` : t;
 };
-const reasonOf = (r: string | null) => (r === null ? null : r.length > BENCHMARK_LIMITS.reasonChars ? `${r.slice(0, BENCHMARK_LIMITS.reasonChars)}…` : r);
+const reasonOf = (r: string | null) => (r === null ? null : clip(r, BENCHMARK_LIMITS.reasonChars));
 
 function judge(c: TestCase, status: number, output: unknown, latencyMs: number): string | null {
   const e = c.expect;
@@ -80,20 +83,36 @@ function judge(c: TestCase, status: number, output: unknown, latencyMs: number):
   return null;
 }
 
-/** Persistent gate for publish and owner triggers: one benchmark per agent per hour, a daily budget per owner. */
+/**
+ * Gate for publish and owner triggers: a daily budget per owner, then an atomic
+ * reservation of the hourly slot (`benchmark_at` is the last start, claimed in
+ * one conditional UPDATE so two concurrent triggers cannot both pass).
+ */
 export async function benchmarkGate(db: Db, agent: AgentRow, trigger: BenchmarkTrigger, now = new Date()): Promise<{ error: string; retryAfterMs: number } | null> {
   if (trigger === 'cron') return null;
-  const last = await db.query.benchmarks.findFirst({ where: and(eq(benchmarks.agentId, agent.id), ne(benchmarks.trigger, 'cron')), orderBy: desc(benchmarks.createdAt) });
-  if (last && now.getTime() - last.createdAt.getTime() < BENCHMARK_LIMITS.minGapMs) {
-    return { error: 'benchmark already ran recently', retryAfterMs: BENCHMARK_LIMITS.minGapMs - (now.getTime() - last.createdAt.getTime()) };
-  }
   const owned = db.select({ id: agents.id }).from(agents).where(eq(agents.ownerId, agent.ownerId));
   const [{ n }] = await db
     .select({ n: count() })
     .from(benchmarks)
     .where(and(inArray(benchmarks.agentId, owned), ne(benchmarks.trigger, 'cron'), gt(benchmarks.createdAt, new Date(now.getTime() - 86_400_000))));
   if (Number(n) >= BENCHMARK_LIMITS.perOwnerPerDay) return { error: `daily benchmark budget reached (${BENCHMARK_LIMITS.perOwnerPerDay} per owner)`, retryAfterMs: 86_400_000 };
+  const cutoff = new Date(now.getTime() - BENCHMARK_LIMITS.minGapMs);
+  const claimed = await db
+    .update(agents)
+    .set({ benchmarkAt: now })
+    .where(and(eq(agents.id, agent.id), or(isNull(agents.benchmarkAt), lt(agents.benchmarkAt, cutoff))))
+    .returning({ id: agents.id });
+  if (claimed.length === 0) {
+    const row = await db.query.agents.findFirst({ where: eq(agents.id, agent.id), columns: { benchmarkAt: true } });
+    const elapsed = row?.benchmarkAt ? now.getTime() - row.benchmarkAt.getTime() : 0;
+    return { error: 'benchmark already ran recently', retryAfterMs: Math.max(1000, BENCHMARK_LIMITS.minGapMs - elapsed) };
+  }
   return null;
+}
+
+/** A new version invalidates the published score until it is measured again. */
+export async function resetBenchmark(db: Db, agentId: string): Promise<void> {
+  await db.update(agents).set({ benchmarkPassRate: null, benchmarkAt: null }).where(eq(agents.id, agentId));
 }
 
 /**
@@ -136,8 +155,9 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
       const why = judgeFn(out.status, output, latencyMs);
       results.push({ name, kind, passed: why === null, latencyMs, status: out.status, reason: reasonOf(why) });
     } catch (e) {
-      // An agent-controlled answer must never abort the benchmark: it just fails this case.
-      results.push({ name, kind, passed: false, latencyMs: Math.round(now() - t0), status: null, reason: reasonOf(`judge error: ${(e as Error).message}`) });
+      // An agent-controlled answer must never abort the benchmark: it just fails this case. Details stay server-side.
+      console.error(`benchmark case "${name}" for ${agent.name} threw`, e);
+      results.push({ name, kind, passed: false, latencyMs: Math.round(now() - t0), status: null, reason: 'internal error while running this case' });
     }
   };
 
@@ -156,12 +176,20 @@ export async function runBenchmark(db: Db, deps: GatewayDeps, agent: AgentRow, t
   const scored = results.filter((r) => r.kind === 'case');
   const pool = scored.length > 0 ? scored : results;
   const passRate = pool.length === 0 ? 0 : Math.round((pool.filter((r) => r.passed).length / pool.length) * 1000) / 10;
-  const report: BenchmarkReport = { version: agent.latestVersion, trigger, ranAt, passed, total, passRate, cases: scored.length, results };
-  await db.insert(benchmarks).values({ id: randomUUID(), agentId: agent.id, version: agent.latestVersion, passed, total, passRate, trigger, results: results as unknown as Record<string, unknown>[] });
-  await db.update(agents).set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) }).where(eq(agents.id, agent.id));
-  // Retention: keep the latest reports only.
-  const old = await db.select({ id: benchmarks.id }).from(benchmarks).where(eq(benchmarks.agentId, agent.id)).orderBy(desc(benchmarks.createdAt)).offset(BENCHMARK_LIMITS.keepReports);
-  if (old.length) await db.delete(benchmarks).where(inArray(benchmarks.id, old.map((o) => o.id)));
+  const clean = results.map((r) => ({ ...r, name: clip(r.name, 80) }));
+  const report: BenchmarkReport = { version: agent.latestVersion, trigger, ranAt, passed, total, passRate, cases: scored.length, results: clean };
+  try {
+    await db.insert(benchmarks).values({ id: randomUUID(), agentId: agent.id, version: agent.latestVersion, passed, total, passRate, trigger, results: clean as unknown as Record<string, unknown>[] });
+    await db.update(agents).set({ benchmarkPassRate: passRate, benchmarkAt: new Date(ranAt) }).where(eq(agents.id, agent.id));
+    // Retention: keep the latest reports only.
+    const old = await db.select({ id: benchmarks.id }).from(benchmarks).where(eq(benchmarks.agentId, agent.id)).orderBy(desc(benchmarks.createdAt)).offset(BENCHMARK_LIMITS.keepReports);
+    if (old.length) await db.delete(benchmarks).where(inArray(benchmarks.id, old.map((o) => o.id)));
+  } catch (e) {
+    // Never leave a stale score behind a report that could not be stored.
+    console.error(`could not persist benchmark for ${agent.name}`, e);
+    await db.update(agents).set({ benchmarkPassRate: null }).where(eq(agents.id, agent.id)).catch(() => undefined);
+    return { ...report, skipped: 'report could not be stored' };
+  }
   return report;
 }
 
