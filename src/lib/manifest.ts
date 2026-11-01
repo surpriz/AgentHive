@@ -4,7 +4,7 @@ import { stringify } from 'yaml';
 
 export const MANIFEST_API_VERSION = 'agenthive.sh/v1';
 /** Pinned so generated configs never auto-upgrade to an unreviewed release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.4.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.5.0';
 
 /** The manifest document as the registry serves it (and as `agent-cli push` sends it, minus the server-owned blocks). */
 export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {

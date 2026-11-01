@@ -1,6 +1,6 @@
 {
   "name": "@agenthive-sh/mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "MCP server exposing the agenthive.sh registry: search agents, read manifests, get install snippets.",
   "keywords": [
     "agenthive",

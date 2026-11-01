@@ -23,6 +23,14 @@ export function printAudit(a: AuditReport): void {
   for (const f of a.findings) console.log(`  ${SEV[f.severity](f.severity.padEnd(7))} ${sanitize(f.check)}: ${sanitize(f.message)}${f.hint ? c.dim(` — ${sanitize(f.hint)}`) : ''}`);
 }
 
+function printRunView(v: { runId: string; status: string; httpStatus: number | null; latencyMs: number; output: unknown; error: string | null; webhook: { status: string | null; attempts: number } | null }): void {
+  const ok = v.status === 'ok';
+  console.error(c.dim(`run ${v.runId} · ${ok ? c.green(v.status) : c.red(v.status)} · upstream ${v.httpStatus ?? '—'} · ${v.latencyMs}ms${v.webhook ? ` · webhook ${v.webhook.status ?? 'pending'} (${v.webhook.attempts})` : ''}`));
+  if (v.error) console.error(`${c.red('error:')} ${sanitize(v.error)}`);
+  if (v.output !== null && v.output !== undefined) console.log(typeof v.output === 'string' ? sanitize(v.output) : JSON.stringify(v.output, null, 2));
+  if (!ok) process.exitCode = v.status === 'queued' || v.status === 'running' ? 3 : 1;
+}
+
 function printBenchmark(b: BenchmarkReport): void {
   console.log(`${b.passed}/${b.total} passed · success ${b.passRate}% over ${b.cases > 0 ? `${b.cases} author-declared case(s)` : 'registry probes only'} · ${b.ranAt.slice(0, 16).replace('T', ' ')} · trigger ${b.trigger} · v${sanitize(b.version)}`);
   for (const r of b.results) console.log(`  ${r.passed ? c.green('✓') : c.red('✗')} ${sanitize(r.name)} ${c.dim(`[${r.kind}] ${r.status ?? '—'} ${r.latencyMs}ms`)}${r.reason ? c.dim(` — ${sanitize(r.reason)}`) : ''}`);
@@ -52,7 +60,10 @@ export function registerAccount(program: Command, client: () => Promise<Registry
     .description('call an agent through the gateway (signed, logged, quota-limited) and print its JSON answer')
     .option('-i, --input <json>', 'JSON input (default: read stdin)')
     .option('-f, --input-file <file>', 'read the JSON input from a file')
-    .action(async (name: string, opts: { input?: string; inputFile?: string }) => {
+    .option('--async', 'return a run id immediately; fetch the result with `agent-cli result <id>`')
+    .option('--webhook <url>', 'https url that receives the signed result (implies --async)')
+    .option('--wait', 'with --async: poll until the run completes')
+    .action(async (name: string, opts: { input?: string; inputFile?: string; async?: boolean; webhook?: string; wait?: boolean }) => {
       let raw = opts.input;
       if (opts.inputFile) raw = await readFile(opts.inputFile, 'utf8');
       if (raw === undefined) {
@@ -68,10 +79,26 @@ export function registerAccount(program: Command, client: () => Promise<Registry
       } catch (e) {
         throw new Error(`input is not valid JSON: ${(e as Error).message}`);
       }
+      if (opts.async || opts.webhook) {
+        const ticket = await (await client()).runAsync(name, input, { webhookUrl: opts.webhook });
+        console.error(c.dim(`run ${ticket.runId} queued · ${ticket.statusUrl}`));
+        if (!opts.wait) return console.log(ticket.runId);
+        const v = await (await client()).waitRun(ticket.runId);
+        return printRunView(v);
+      }
       const res = await (await client()).run(name, input);
       console.error(c.dim(`run ${res.runId} · upstream ${res.status} · ${res.latencyMs}ms`));
       console.log(typeof res.output === 'string' ? sanitize(res.output) : JSON.stringify(res.output, null, 2));
       if (res.status >= 400) process.exitCode = 1;
+    });
+
+  program
+    .command('result <runId>')
+    .description('state and output of one of your runs')
+    .option('--wait', 'poll until the run completes')
+    .action(async (runId: string, opts: { wait?: boolean }) => {
+      const v = opts.wait ? await (await client()).waitRun(runId) : await (await client()).getRun(runId);
+      printRunView(v);
     });
 
   program

@@ -36,6 +36,13 @@
       "when": 1793556537933,
       "tag": "0004_leaderboard",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793558057680,
+      "tag": "0005_async_runs",
+      "breakpoints": true
     }
   ]
 }

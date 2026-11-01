@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Play, Loader2, AlertCircle, Zap } from 'lucide-react';
 import type { Agent } from '../../types';
-import { api, type RunResult } from '../../lib/api';
+import { api, type RunResult, type RunView } from '../../lib/api';
 import { CodeBlock } from '../ui/CodeBlock';
 
 /** Why an agent cannot be called through the gateway, mirrored from the server rule. */
@@ -17,6 +17,9 @@ export function RunTab({ agent, signedIn, onSignIn }: { agent: Agent; signedIn: 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [asyncMode, setAsyncMode] = useState(false);
+  const [webhook, setWebhook] = useState('');
+  const [ticket, setTicket] = useState<RunView | { runId: string; status: 'queued' } | null>(null);
   const reason = runnableReason(agent);
 
   let parseError: string | null = null;
@@ -31,8 +34,22 @@ export function RunTab({ agent, signedIn, onSignIn }: { agent: Agent; signedIn: 
     setBusy(true);
     setError(null);
     setResult(null);
+    setTicket(null);
     try {
-      setResult(await api.run(agent.name, JSON.parse(input)));
+      if (asyncMode) {
+        const t = await api.runAsync(agent.name, JSON.parse(input), webhook.trim() || undefined);
+        setTicket({ runId: t.runId, status: 'queued' });
+        const deadline = Date.now() + 90_000;
+        for (;;) {
+          const v = await api.getRun(t.runId);
+          setTicket(v);
+          if (v.status !== 'queued' && v.status !== 'running') break;
+          if (Date.now() > deadline) break;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      } else {
+        setResult(await api.run(agent.name, JSON.parse(input)));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'run failed');
     } finally {
@@ -63,6 +80,20 @@ export function RunTab({ agent, signedIn, onSignIn }: { agent: Agent; signedIn: 
         spellCheck={false}
         className={`w-full resize-y rounded-md border bg-[#0c0c0e] px-3 py-2 font-mono text-[13px] text-fg focus:outline-none ${parseError ? 'border-danger/60' : 'border-border focus:border-accent/60'}`}
       />
+      <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted">
+        <label className="inline-flex items-center gap-1.5">
+          <input type="checkbox" checked={asyncMode} onChange={(e) => setAsyncMode(e.target.checked)} /> async (202 + poll, 50 s upstream timeout)
+        </label>
+        {asyncMode && (
+          <input
+            value={webhook}
+            onChange={(e) => setWebhook(e.target.value)}
+            placeholder="https://your.host/hook (optional webhook)"
+            aria-label="Webhook URL"
+            className="min-w-[260px] flex-1 rounded-md border border-border bg-[#0c0c0e] px-2 py-1 font-mono text-[12px] text-fg placeholder:text-dim focus:border-accent/60 focus:outline-none"
+          />
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         {signedIn ? (
           <button type="button" onClick={run} disabled={busy || Boolean(parseError)} className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[13px] font-medium text-black hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60">
@@ -79,6 +110,17 @@ export function RunTab({ agent, signedIn, onSignIn }: { agent: Agent; signedIn: 
       {error && (
         <div role="alert" className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[12.5px] text-danger">
           <AlertCircle size={14} className="mt-0.5 shrink-0" /> {error}
+        </div>
+      )}
+      {ticket && (
+        <div className="space-y-2" role="status" data-testid="async-run">
+          <p className="font-mono text-[11px] text-dim">
+            run <span className="text-fg">{ticket.runId}</span> · <span className={ticket.status === 'ok' ? 'text-ok' : ticket.status === 'queued' || ticket.status === 'running' ? 'text-accent' : 'text-danger'}>{ticket.status}</span>
+            {'latencyMs' in ticket && ticket.completedAt ? ` · ${ticket.latencyMs}ms` : ''}
+            {'webhook' in ticket && ticket.webhook ? ` · webhook ${ticket.webhook.status ?? 'pending'} (${ticket.webhook.attempts})` : ''}
+          </p>
+          {'error' in ticket && ticket.error && <p className="font-mono text-[12px] text-danger">{ticket.error}</p>}
+          {'output' in ticket && ticket.output !== null && <CodeBlock label="output" lang="json" code={typeof ticket.output === 'string' ? ticket.output : JSON.stringify(ticket.output, null, 2)} />}
         </div>
       )}
       {result && (

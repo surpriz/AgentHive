@@ -5,7 +5,7 @@ import type { RegistryEntry } from '@agenthive-sh/registry-client';
 
 const FRAMEWORKS = ['LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
 /** Kept in sync with package.json by the release bump. */
-export const MCP_VERSION = '0.4.0';
+export const MCP_VERSION = '0.5.0';
 
 const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;
 

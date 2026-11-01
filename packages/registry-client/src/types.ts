@@ -186,3 +186,25 @@ export interface Leaderboard {
   categories: Record<string, LeaderboardEntry[]>;
   illustrative: { name: string; category: string; grade: SecurityGrade }[];
 }
+
+/** GET /api/v1/runs/<runId> */
+export interface RunView {
+  runId: string;
+  agent: string;
+  version: string;
+  mode: 'sync' | 'async';
+  status: 'queued' | 'running' | 'ok' | 'upstream_error' | 'timeout' | 'blocked' | 'bad_request' | 'lost';
+  httpStatus: number | null;
+  latencyMs: number;
+  output: unknown;
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  webhook: { url: string; status: string | null; attempts: number } | null;
+}
+
+export interface AsyncRunTicket {
+  runId: string;
+  status: 'queued';
+  statusUrl: string;
+}

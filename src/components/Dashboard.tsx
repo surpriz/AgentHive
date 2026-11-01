@@ -209,6 +209,8 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
           ))}
         </ul>
 
+        <WebhookSecret />
+
         <div className="rounded-lg border border-border p-3">
           <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">from the terminal</p>
           <CodeBlock lang="bash" code={`npm i -g ${CLI_PACKAGE_SPEC}\nagent-cli login\nagent-cli push ./agent.yaml`} />
@@ -296,6 +298,36 @@ function AgentOps({ name }: { name: string }) {
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The caller-side secret that signs webhook deliveries for async runs. */
+function WebhookSecret() {
+  const [secret, setSecret] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
+  const reveal = async () => {
+    if (!secret) setSecret((await api.webhookSecret()).secret);
+    setShown((v) => !v);
+  };
+  const rotate = async () => {
+    if (!window.confirm('Rotate the webhook secret? Your receivers must switch to the new one.')) return;
+    setSecret((await api.rotateWebhookSecret()).secret);
+    setShown(true);
+  };
+  return (
+    <div className="rounded-lg border border-border p-3" data-testid="webhook-secret">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-dim">webhook secret</span>
+        <button type="button" onClick={reveal} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 font-mono text-[11px] text-muted hover:text-fg">
+          {shown ? <EyeOff size={11} /> : <Eye size={11} />} {shown ? 'hide' : 'reveal'}
+        </button>
+        <button type="button" onClick={rotate} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 font-mono text-[11px] text-muted hover:text-danger">
+          <RefreshCw size={11} /> rotate
+        </button>
+      </div>
+      {shown && secret && <code className="mt-2 block break-all font-mono text-[11px] text-fg">{secret}</code>}
+      <p className="mt-2 font-mono text-[11px] text-dim">signs the results posted to your x-agenthive-webhook on async runs; same recipe as the gateway signature.</p>
     </div>
   );
 }

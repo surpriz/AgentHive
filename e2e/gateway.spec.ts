@@ -63,6 +63,32 @@ test('an agent with a real endpoint runs through the gateway from the Run tab an
   await expect(ops.locator('code')).toContainText('ahgw_');
 });
 
+test('an async run returns a ticket and the Run tab polls it to completion', async ({ page }) => {
+  await signIn(page);
+  const name = `async-probe-${Date.now().toString(36)}`;
+  const res = await page.request.post('/api/v1/agents', {
+    headers: { 'content-type': 'application/json', origin: new URL(page.url()).origin },
+    data: { apiVersion: 'agenthive.sh/v1', metadata: { name, version: '0.1.0', category: 'DevOps', value: 'Echoes whatever it receives, asynchronously this time.', tagline: 'Points at the public echo endpoint of the registry.' }, spec: { framework: 'Custom A2A', transport: 'a2a/http+json', endpoint: 'https://agenthive.sh/api/v1/echo' } },
+  });
+  expect(res.status()).toBe(201);
+  await page.goto(`/agents/${name}`);
+  await page.getByRole('tab', { name: 'Run' }).click();
+  await page.getByRole('checkbox', { name: /async/ }).check();
+  await page.getByLabel('JSON input').fill('{"task": "later"}');
+  await page.getByRole('button', { name: 'Run agent' }).click();
+  const ticket = page.getByTestId('async-run');
+  await expect(ticket).toContainText(/run [0-9a-f-]{36}/);
+  await expect(ticket).toContainText('ok', { timeout: 60_000 });
+  await expect(ticket).toContainText('"task": "later"');
+  const runId = (await ticket.innerText()).match(/run ([0-9a-f-]{36})/)![1];
+  const view = (await (await page.request.get(`/api/v1/runs/${runId}`)).json()) as { status: string; mode: string };
+  expect(view).toMatchObject({ status: 'ok', mode: 'async' });
+  await page.goto('/dashboard');
+  const ws = page.getByTestId('webhook-secret');
+  await ws.getByRole('button', { name: 'reveal' }).click();
+  await expect(ws.locator('code')).toContainText('ahwh_');
+});
+
 test('seeds and endpoint-less agents have no Run tab', async ({ page }) => {
   await page.goto('/agents/pg-query-optimizer');
   await expect(page.getByRole('tab', { name: 'Run' })).toHaveCount(0);

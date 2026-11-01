@@ -1,8 +1,8 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { and, count, desc, eq, gt, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, lt, ne, sql } from 'drizzle-orm';
 import { user } from './db/auth-schema';
 import type { Db } from './db/client';
-import { agents, runs, type AgentRow, type RunStatus } from './db/schema';
+import { agents, runs, webhookSecrets, type AgentRow, type RunStatus } from './db/schema';
 import { readCapped } from './audit/net';
 import { withTimeout } from './audit/util';
 
@@ -13,11 +13,20 @@ export const RUN_LIMITS = {
   requestBytes: 256 * 1024,
   responseBytes: 1024 * 1024,
   upstreamTimeoutMs: 20_000,
+  asyncUpstreamTimeoutMs: 50_000,
+  /** Async outputs kept this long, then the body is purged (the log row stays). */
+  outputRetentionMs: 7 * 86_400_000,
+  /** A run still running after this is reported lost (the instance died). */
+  lostAfterMs: 3 * 60_000,
+  storedBodyBytes: 256 * 1024,
+  webhookTimeoutMs: 8_000,
+  webhookBackoffMs: [0, 2000, 8000],
   /** Reject signed requests older than this when verifying (echo endpoint, docs recipe). */
   signatureSkewMs: 5 * 60 * 1000,
 };
 
 export const newGatewaySecret = () => `ahgw_${randomBytes(24).toString('base64url')}`;
+export const newWebhookSecret = () => `ahwh_${randomBytes(24).toString('base64url')}`;
 
 export function signRun(secret: string, timestamp: string, body: string): string {
   return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
@@ -57,6 +66,13 @@ export interface GatewayDeps {
   timeoutMs?: number;
 }
 
+export interface RunOptions {
+  mode?: 'sync' | 'async';
+  /** Pre-allocated run id (async: handed to the caller before the call starts). */
+  runId?: string;
+  webhookUrl?: string | null;
+}
+
 /** Quota check from the runs table; cheap thanks to the (caller, created_at) and (agent, created_at) indexes. */
 async function quotaExceeded(db: Db, agentId: string, callerId: string, now: Date): Promise<{ error: string; retryAfterMs: number } | null> {
   const minuteAgo = new Date(now.getTime() - 60_000);
@@ -84,7 +100,8 @@ export function runnableReason(a: AgentRow): string | null {
  * Forwards one call to the agent's endpoint and logs it. The body is forwarded
  * verbatim; the caller never chooses the destination.
  */
-export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, caller: Caller, body: string): Promise<RunOutcome> {
+/** Everything that can refuse a run before any upstream traffic: runnable agent, body shape and size, quotas. */
+export async function precheckRun(db: Db, deps: GatewayDeps, agent: AgentRow, caller: Caller, body: string, webhookUrl?: string | null): Promise<Extract<RunOutcome, { kind: 'rejected' }> | null> {
   const now = deps.now ?? (() => Date.now());
   const reason = runnableReason(agent);
   if (reason) return { kind: 'rejected', status: 409, error: reason };
@@ -95,15 +112,37 @@ export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, calle
   } catch {
     return { kind: 'rejected', status: 400, error: 'request body must be valid JSON' };
   }
+  if (webhookUrl) {
+    let u: URL;
+    try {
+      u = new URL(webhookUrl);
+    } catch {
+      return { kind: 'rejected', status: 400, error: 'webhook must be an absolute https url' };
+    }
+    if (u.protocol !== 'https:' || u.username || u.password || webhookUrl.length > 2048) return { kind: 'rejected', status: 400, error: 'webhook must be a public https url without credentials' };
+  }
   if (caller.via !== 'benchmark') {
     const quota = await quotaExceeded(db, agent.id, caller.id, new Date(now()));
     if (quota) return { kind: 'rejected', status: 429, ...quota };
   }
+  return null;
+}
+
+export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, caller: Caller, body: string, opts: RunOptions = {}): Promise<RunOutcome> {
+  const now = deps.now ?? (() => Date.now());
+  const rejected = await precheckRun(db, deps, agent, caller, body, opts.webhookUrl);
+  if (rejected) return rejected;
 
   const secret = agent.gatewaySecret ?? (await ensureSecret(db, agent.id));
-  const runId = randomUUID();
+  const runId = opts.runId ?? randomUUID();
+  const mode = opts.mode ?? 'sync';
   const timestamp = String(now());
   const started = now();
+  // The row exists before the upstream call so an async caller can poll it and a dead instance leaves a visible trace.
+  await db
+    .insert(runs)
+    .values({ id: runId, agentId: agent.id, agentVersion: agent.latestVersion, callerId: caller.id, callerLogin: caller.login, via: caller.via, status: 'running', latencyMs: 0, requestBytes: Buffer.byteLength(body, 'utf8'), mode, webhookUrl: opts.webhookUrl ?? null })
+    .onConflictDoUpdate({ target: runs.id, set: { status: 'running' } });
   const headers = {
     'content-type': 'application/json',
     accept: 'application/json',
@@ -114,26 +153,25 @@ export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, calle
     'x-agenthive-timestamp': timestamp,
     'x-agenthive-signature': signRun(secret, timestamp, body),
   };
-  const log = async (status: RunStatus, httpStatus: number | null, responseBytes: number, error: string | null) => {
-    await db.insert(runs).values({
-      id: runId,
-      agentId: agent.id,
-      agentVersion: agent.latestVersion,
-      callerId: caller.id,
-      callerLogin: caller.login,
-      via: caller.via,
-      status,
-      httpStatus,
-      latencyMs: Math.max(0, Math.round(now() - started)),
-      requestBytes: Buffer.byteLength(body, 'utf8'),
-      responseBytes,
-      error,
-    });
+  const log = async (status: RunStatus, httpStatus: number | null, responseBytes: number, error: string | null, responseBody: string | null = null) => {
+    await db
+      .update(runs)
+      .set({
+        status,
+        httpStatus,
+        latencyMs: Math.max(0, Math.round(now() - started)),
+        responseBytes,
+        error,
+        completedAt: new Date(now()),
+        responseBody: mode === 'async' && responseBody !== null ? responseBody.slice(0, RUN_LIMITS.storedBodyBytes) : null,
+      })
+      .where(eq(runs.id, runId));
   };
 
+  const cap = mode === 'async' ? RUN_LIMITS.asyncUpstreamTimeoutMs : RUN_LIMITS.upstreamTimeoutMs;
   let res: Response;
   try {
-    res = await withTimeout(deps.fetch(agent.endpoint!, { method: 'POST', headers, body, redirect: 'manual' }), Math.min(deps.timeoutMs ?? RUN_LIMITS.upstreamTimeoutMs, RUN_LIMITS.upstreamTimeoutMs), 'upstream');
+    res = await withTimeout(deps.fetch(agent.endpoint!, { method: 'POST', headers, body, redirect: 'manual' }), Math.min(deps.timeoutMs ?? cap, cap), 'upstream');
   } catch (e) {
     const msg = (e as Error).message;
     const timeout = /timed out/i.test(msg);
@@ -153,8 +191,119 @@ export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, calle
     await log('upstream_error', res.status, text.length, 'non-json response');
     return { kind: 'failed', runId, status: 502, error: `upstream returned non-json (${res.status})`, latencyMs: now() - started };
   }
-  await log(res.ok ? 'ok' : 'upstream_error', res.status, Buffer.byteLength(text, 'utf8'), res.ok ? null : `upstream ${res.status}`);
+  await log(res.ok ? 'ok' : 'upstream_error', res.status, Buffer.byteLength(text, 'utf8'), res.ok ? null : `upstream ${res.status}`, text);
   return { kind: 'response', runId, status: res.status, body: text, latencyMs: now() - started };
+}
+
+export interface RunView {
+  runId: string;
+  agent: string;
+  version: string;
+  mode: string;
+  status: RunStatus;
+  httpStatus: number | null;
+  latencyMs: number;
+  output: unknown;
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  webhook: { url: string; status: string | null; attempts: number } | null;
+}
+
+/** Caller view of one run; a run still running past the lost threshold is reported (and marked) lost. */
+export async function getRun(db: Db, runId: string, callerId: string, now = Date.now()): Promise<RunView | null> {
+  const row = await db.select({ r: runs, name: agents.name }).from(runs).innerJoin(agents, eq(agents.id, runs.agentId)).where(and(eq(runs.id, runId), eq(runs.callerId, callerId))).limit(1);
+  if (row.length === 0) return null;
+  let { r } = row[0];
+  if ((r.status === 'running' || r.status === 'queued') && now - r.createdAt.getTime() > RUN_LIMITS.lostAfterMs) {
+    await db.update(runs).set({ status: 'lost', error: 'the gateway stopped before the run finished; retry it', completedAt: new Date(now) }).where(and(eq(runs.id, runId), eq(runs.status, r.status)));
+    r = { ...r, status: 'lost', error: 'the gateway stopped before the run finished; retry it' };
+  }
+  let output: unknown = null;
+  if (r.responseBody !== null) {
+    try {
+      output = JSON.parse(r.responseBody);
+    } catch {
+      output = r.responseBody;
+    }
+  }
+  return {
+    runId: r.id,
+    agent: row[0].name,
+    version: r.agentVersion,
+    mode: r.mode,
+    status: r.status,
+    httpStatus: r.httpStatus,
+    latencyMs: r.latencyMs,
+    output,
+    error: r.error,
+    createdAt: r.createdAt.toISOString(),
+    completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+    webhook: r.webhookUrl ? { url: r.webhookUrl, status: r.webhookStatus, attempts: r.webhookAttempts } : null,
+  };
+}
+
+export async function ensureWebhookSecret(db: Db, userId: string): Promise<string> {
+  await db.insert(webhookSecrets).values({ userId, secret: newWebhookSecret() }).onConflictDoNothing();
+  const row = await db.query.webhookSecrets.findFirst({ where: eq(webhookSecrets.userId, userId) });
+  return row!.secret;
+}
+
+export async function rotateWebhookSecret(db: Db, userId: string): Promise<string> {
+  const secret = newWebhookSecret();
+  await db.insert(webhookSecrets).values({ userId, secret }).onConflictDoUpdate({ target: webhookSecrets.userId, set: { secret, rotatedAt: new Date() } });
+  return secret;
+}
+
+/** Delivers the completed run to the caller's webhook, signed with the caller's secret, with bounded retries. */
+export async function deliverWebhook(db: Db, deps: GatewayDeps, runId: string, callerId: string): Promise<void> {
+  const view = await getRun(db, runId, callerId);
+  if (!view?.webhook) return;
+  const secret = await ensureWebhookSecret(db, callerId);
+  const body = JSON.stringify({ runId: view.runId, agent: view.agent, version: view.version, status: view.status, httpStatus: view.httpStatus, latencyMs: view.latencyMs, output: view.output, error: view.error, completedAt: view.completedAt });
+  const now = deps.now ?? (() => Date.now());
+  let attempts = 0;
+  let delivered = false;
+  for (const wait of RUN_LIMITS.webhookBackoffMs) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    attempts++;
+    const timestamp = String(now());
+    try {
+      const res = await withTimeout(
+        deps.fetch(view.webhook.url, {
+          method: 'POST',
+          redirect: 'manual',
+          headers: { 'content-type': 'application/json', 'user-agent': 'agenthive-gateway/1', 'x-agenthive-run-id': runId, 'x-agenthive-timestamp': timestamp, 'x-agenthive-signature': signRun(secret, timestamp, body) },
+          body,
+        }),
+        RUN_LIMITS.webhookTimeoutMs,
+        'webhook',
+      );
+      if (res.ok) {
+        delivered = true;
+        break;
+      }
+    } catch {
+      /* retry */
+    }
+  }
+  await db.update(runs).set({ webhookStatus: delivered ? 'delivered' : 'failed', webhookAttempts: attempts }).where(eq(runs.id, runId));
+}
+
+/** Housekeeping for the cron: mark stale runs lost and purge async outputs past retention. */
+export async function sweepRuns(db: Db, now = Date.now()): Promise<{ lost: number; purged: number }> {
+  const lostCutoff = new Date(now - RUN_LIMITS.lostAfterMs);
+  const lost = await db
+    .update(runs)
+    .set({ status: 'lost', error: 'the gateway stopped before the run finished; retry it', completedAt: new Date(now) })
+    .where(and(inArray(runs.status, ['queued', 'running']), lt(runs.createdAt, lostCutoff)))
+    .returning({ id: runs.id });
+  const purged = await db
+    .update(runs)
+    .set({ responseBody: null })
+    .where(and(sql`${runs.responseBody} is not null`, lt(runs.createdAt, new Date(now - RUN_LIMITS.outputRetentionMs))))
+    .returning({ id: runs.id });
+  return { lost: lost.length, purged: purged.length };
 }
 
 export async function ensureSecret(db: Db, agentId: string): Promise<string> {
@@ -189,7 +338,7 @@ export async function measuredMetrics(db: Db, now = new Date()): Promise<Map<str
       avgOkLatency: sql<number | null>`avg(case when ${runs.status} = 'ok' then ${runs.latencyMs} end)`,
     })
     .from(runs)
-    .where(and(gt(runs.createdAt, since), ne(runs.via, 'benchmark')))
+    .where(and(gt(runs.createdAt, since), ne(runs.via, 'benchmark'), inArray(runs.status, ['ok', 'upstream_error', 'timeout', 'blocked', 'lost'])))
     .groupBy(runs.agentId);
   const out = new Map<string, Measured>();
   for (const r of rows) {
@@ -220,6 +369,8 @@ export async function recentRuns(db: Db, where: { agentId?: string; callerId?: s
       requestBytes: runs.requestBytes,
       responseBytes: runs.responseBytes,
       error: runs.error,
+      mode: runs.mode,
+      webhookStatus: runs.webhookStatus,
       createdAt: runs.createdAt,
     })
     .from(runs)

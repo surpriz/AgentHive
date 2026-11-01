@@ -1,12 +1,12 @@
-import type { AgentCard, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, Leaderboard, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, SearchOptions } from './types.js';
+import type { AgentCard, AsyncRunTicket, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, Leaderboard, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, RunView, SearchOptions } from './types.js';
 
 export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
 /** Pinned package specs for generated install snippets: an unpinned npx would pick up any later (or squatted) release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.4.0';
-export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.4.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.5.0';
+export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.5.0';
 
 export class RegistryError extends Error {
   constructor(
@@ -85,6 +85,40 @@ export class RegistryClient {
     }
     if (res.status === 502 || res.status === 504) throw new RegistryError(`${(output as { error?: string }).error ?? 'upstream failed'} (run ${runId})`, res.status);
     return { runId, status: res.status, latencyMs, output: output as T };
+  }
+
+  /** Start an asynchronous run; the answer arrives on the run (poll `getRun`/`waitRun`) and on the webhook if given. */
+  async runAsync(name: string, input: unknown, opts: { webhookUrl?: string } = {}): Promise<AsyncRunTicket> {
+    assertName(name);
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/run/${name}`, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json', 'x-agenthive-async': '1', ...(opts.webhookUrl ? { 'x-agenthive-webhook': opts.webhookUrl } : {}), ...this.authHeaders() },
+      body: JSON.stringify(input),
+    });
+    const body = (await res.json().catch(() => ({}))) as { error?: string } & Partial<AsyncRunTicket>;
+    if (res.status !== 202 || !body.runId) throw new RegistryError(body.error ?? `gateway returned ${res.status}`, res.status);
+    return body as AsyncRunTicket;
+  }
+
+  /** State and result of one of your runs. */
+  async getRun(runId: string): Promise<RunView> {
+    if (!/^[0-9a-f-]{36}$/i.test(runId)) throw new RegistryError('invalid run id', 400);
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/runs/${runId}`, { headers: { accept: 'application/json', ...this.authHeaders() } });
+    const body = (await res.json().catch(() => ({}))) as { error?: string } & Partial<RunView>;
+    if (!res.ok || !body.runId) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status);
+    return body as RunView;
+  }
+
+  /** Polls until the run is final (default: 2 s interval, 5 min max). */
+  async waitRun(runId: string, opts: { intervalMs?: number; timeoutMs?: number } = {}): Promise<RunView> {
+    const interval = opts.intervalMs ?? 2000;
+    const deadline = Date.now() + (opts.timeoutMs ?? 5 * 60_000);
+    for (;;) {
+      const v = await this.getRun(runId);
+      if (v.status !== 'queued' && v.status !== 'running') return v;
+      if (Date.now() > deadline) throw new RegistryError(`run ${runId} still ${v.status} after the wait timeout`, 504);
+      await new Promise((r) => setTimeout(r, interval));
+    }
   }
 
   /** Runs you made (no name) or runs received by an agent you own. */

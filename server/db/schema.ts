@@ -79,7 +79,7 @@ export const audits = pgTable(
   (t) => [index('audits_agent_created_idx').on(t.agentId, t.createdAt)],
 );
 
-export const RUN_STATUSES = ['ok', 'upstream_error', 'timeout', 'blocked', 'bad_request'] as const;
+export const RUN_STATUSES = ['queued', 'running', 'ok', 'upstream_error', 'timeout', 'blocked', 'bad_request', 'lost'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
 export const runs = pgTable(
@@ -101,10 +101,27 @@ export const runs = pgTable(
     requestBytes: integer('request_bytes').notNull().default(0),
     responseBytes: integer('response_bytes').notNull().default(0),
     error: text('error'),
+    /** sync | async */
+    mode: varchar('mode', { length: 8 }).notNull().default('sync'),
+    /** Upstream body kept for async retrieval (capped), null for sync runs. */
+    responseBody: text('response_body'),
+    webhookUrl: text('webhook_url'),
+    webhookStatus: varchar('webhook_status', { length: 16 }),
+    webhookAttempts: integer('webhook_attempts').notNull().default(0),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('runs_agent_created_idx').on(t.agentId, t.createdAt), index('runs_caller_created_idx').on(t.callerId, t.createdAt)],
 );
+
+/** Per-caller secret the gateway signs webhook deliveries with. */
+export const webhookSecrets = pgTable('webhook_secrets', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  secret: text('secret').notNull(),
+  rotatedAt: timestamp('rotated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const benchmarks = pgTable(
   'benchmarks',

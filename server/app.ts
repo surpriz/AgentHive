@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Context, Next } from 'hono';
 import { asc, eq } from 'drizzle-orm';
 import { createDb, PGLITE_URL, type Db } from './db/client';
-import { agents } from './db/schema';
+import { agents, runs } from './db/schema';
 import { user as userTable } from './db/auth-schema';
 import { seedIfEmpty } from './db/seed';
 import { createAuth, type Auth, type AuthEnv } from './auth';
@@ -10,7 +10,8 @@ import { parseManifest } from './manifest';
 import { latestAudit, publishManifest, reauditAgent } from './publish';
 import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
-import { ensureSecret, ensureSystemUser, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
+import { deliverWebhook, ensureSecret, ensureSystemUser, ensureWebhookSecret, getRun, measuredMetrics, precheckRun, recentRuns, rotateSecret, rotateWebhookSecret, runAgent, runnableReason, sweepRuns, verifyRunSignature, RUN_LIMITS } from './gateway';
+import { randomUUID } from 'node:crypto';
 import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
 import { computeLeaderboard, rankHistory, snapshotLeaderboard } from './leaderboard';
 import { rowToAgent } from './registry';
@@ -186,6 +187,11 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
         } catch (e) {
           console.error('leaderboard snapshot failed', e);
         }
+        try {
+          await sweepRuns(db);
+        } catch (e) {
+          console.error('run sweep failed', e);
+        }
       })(),
     );
     return c.json({ scheduled: runnable.length });
@@ -302,7 +308,25 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return c.json({ error: 'not found' }, 404);
     const body = await c.req.text();
-    const out = await runAgent(db, { fetch: gatewayFetch }, row, { id: me.id, login: me.login, via: me.via }, body);
+    const caller = { id: me.id, login: me.login, via: me.via };
+    const wantsAsync = /^(1|true|yes)$/i.test(c.req.header('x-agenthive-async') ?? '');
+    const webhookUrl = c.req.header('x-agenthive-webhook') ?? null;
+    if (webhookUrl && !wantsAsync) return c.json({ error: 'a webhook needs an async run (x-agenthive-async: 1)' }, 400);
+    if (wantsAsync) {
+      const rejected = await precheckRun(db, { fetch: gatewayFetch }, row, caller, body, webhookUrl);
+      if (rejected) return c.json({ error: rejected.error, ...(rejected.retryAfterMs ? { retryAfterMs: rejected.retryAfterMs } : {}) }, rejected.status);
+      const runId = randomUUID();
+      await db.insert(runs).values({ id: runId, agentId: row.id, agentVersion: row.latestVersion, callerId: me.id, callerLogin: me.login, via: me.via, status: 'queued', latencyMs: 0, requestBytes: Buffer.byteLength(body, 'utf8'), mode: 'async', webhookUrl });
+      background(
+        (async () => {
+          await runAgent(db, { fetch: gatewayFetch }, row, caller, body, { mode: 'async', runId, webhookUrl });
+          if (webhookUrl) await deliverWebhook(db, { fetch: gatewayFetch }, runId, me.id);
+        })(),
+      );
+      c.header('x-agenthive-run-id', runId);
+      return c.json({ runId, status: 'queued', statusUrl: `${opts.origin}/api/v1/runs/${runId}` }, 202);
+    }
+    const out = await runAgent(db, { fetch: gatewayFetch }, row, caller, body);
     if (out.kind === 'rejected') return c.json({ error: out.error, ...(out.retryAfterMs ? { retryAfterMs: out.retryAfterMs } : {}) }, out.status);
     c.header('x-agenthive-run-id', out.runId);
     c.header('x-agenthive-latency-ms', String(Math.round(out.latencyMs)));
@@ -311,6 +335,21 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   });
 
   v1.get('/runs', async (c) => c.json({ runs: await recentRuns(db, { callerId: c.get('viewer').id }) }));
+
+  v1.get('/runs/:id', async (c) => {
+    const view = await getRun(db, c.req.param('id'), c.get('viewer').id);
+    return view ? c.json(view) : c.json({ error: 'not found' }, 404);
+  });
+
+  v1.get('/webhooks/secret', async (c) => {
+    if (c.get('viewer').via !== 'session') return c.json({ error: 'the webhook secret is only shown from the dashboard' }, 403);
+    return c.json({ secret: await ensureWebhookSecret(db, c.get('viewer').id), recipe: 'hex(hmac_sha256(secret, `${x-agenthive-timestamp}.${raw body}`)) == x-agenthive-signature' });
+  });
+
+  v1.post('/webhooks/secret/rotate', async (c) => {
+    if (c.get('viewer').via !== 'session') return c.json({ error: 'the webhook secret is only managed from the dashboard' }, 403);
+    return c.json({ secret: await rotateWebhookSecret(db, c.get('viewer').id) });
+  });
 
   const ownedAgent = async (c: Context<{ Variables: { viewer: Viewer } }>) => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name') ?? '') });

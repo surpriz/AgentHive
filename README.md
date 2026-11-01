@@ -39,7 +39,8 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/api/catalog.json` | full agent objects for the SPA |
 | `/agents/<name>/agent.json`, `agent.yaml` | A2A agent card, AgentHive manifest |
 | `/agents/<name>/audit.json` | public audit report behind the grade |
-| `POST /api/v1/run/<name>` | run gateway: forwards JSON to the author's endpoint, signed and logged ([docs/GATEWAY.md](docs/GATEWAY.md)) |
+| `POST /api/v1/run/<name>` | run gateway: forwards JSON to the author's endpoint, signed and logged; `x-agenthive-async: 1` returns a run id, `x-agenthive-webhook` posts the signed result ([docs/GATEWAY.md](docs/GATEWAY.md)) |
+| `GET /api/v1/runs/<runId>`, `/api/v1/webhooks/secret` | async run state and output, caller webhook secret |
 | `POST /api/v1/echo` | public echo upstream to try the gateway |
 | `/agents/<name>/benchmark.json`, `POST /api/v1/agents/<name>/benchmark` | registry benchmark (probes + `spec.tests`), public report and owner re-run |
 | `/api/v1/runs`, `/api/v1/agents/<name>/runs`, `…/secret` | run logs (caller / owner), gateway secret |
@@ -89,7 +90,7 @@ e2e/                           Playwright specs (desktop + mobile projects)
 |---|---|
 | `@agenthive-sh/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
 | `@agenthive-sh/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
-| `@agenthive-sh/cli` | `agent-cli search | info | manifest | leaderboard | audit | benchmark | run | runs | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
+| `@agenthive-sh/cli` | `agent-cli search | info | manifest | leaderboard | audit | benchmark | run | result | runs | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
 
 ```sh
 pnpm -r --include-workspace-root build && pnpm -r --include-workspace-root test   # includes the web app at the root

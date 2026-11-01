@@ -137,6 +137,21 @@ export interface Leaderboard {
   illustrative: { name: string; category: string; grade: string }[];
 }
 
+export interface RunView {
+  runId: string;
+  agent: string;
+  version: string;
+  mode: 'sync' | 'async';
+  status: 'queued' | 'running' | 'ok' | 'upstream_error' | 'timeout' | 'blocked' | 'bad_request' | 'lost';
+  httpStatus: number | null;
+  latencyMs: number;
+  output: unknown;
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  webhook: { url: string; status: string | null; attempts: number } | null;
+}
+
 export interface ManifestIssue {
   path: string;
   message: string;
@@ -163,6 +178,15 @@ export const api = {
     if (res.status === 502 || res.status === 504) throw new ApiError(`${(output as { error?: string }).error ?? 'upstream failed'} (run ${runId})`, res.status, output);
     return { runId, status: res.status, latencyMs: Number(res.headers.get('x-agenthive-latency-ms') ?? 0), output };
   },
+  runAsync: async (name: string, input: unknown, webhookUrl?: string): Promise<{ runId: string; statusUrl: string }> => {
+    const res = await fetch(`/api/v1/run/${encodeURIComponent(name)}`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-agenthive-async': '1', ...(webhookUrl ? { 'x-agenthive-webhook': webhookUrl } : {}) }, body: JSON.stringify(input) });
+    const body = safeJson(await res.text()) as { error?: string; runId?: string; statusUrl?: string } | null;
+    if (res.status !== 202 || !body?.runId) throw new ApiError(body?.error ?? `${res.status} ${res.statusText}`, res.status, body);
+    return { runId: body.runId, statusUrl: body.statusUrl ?? '' };
+  },
+  getRun: (runId: string) => request<RunView>(`/api/v1/runs/${encodeURIComponent(runId)}`, { cache: 'no-store' }),
+  webhookSecret: () => request<{ secret: string; recipe: string }>('/api/v1/webhooks/secret', { cache: 'no-store' }),
+  rotateWebhookSecret: () => request<{ secret: string }>('/api/v1/webhooks/secret/rotate', { method: 'POST' }),
   myRuns: () => request<{ runs: RunLog[] }>('/api/v1/runs', { cache: 'no-store' }).then((r) => r.runs),
   agentRuns: (name: string) => request<{ runnable: boolean; reason: string | null; runs: RunLog[] }>(`/api/v1/agents/${encodeURIComponent(name)}/runs`, { cache: 'no-store' }),
   gatewaySecret: (name: string) => request<{ secret: string; recipe: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret`, { cache: 'no-store' }),
