@@ -36,34 +36,68 @@ export function depsFromPackageJson(text: string): ParsedDeps {
   return out;
 }
 
-/** requirements.txt: `name==1.2.3` is queryable, any other requirement line counts as unpinned. */
+/** Option tokens allowed on a requirements line. `null` = flag, otherwise a validator for its value. */
+const PIP_FLAGS: Record<string, null | RegExp> = {
+  '--pre': null,
+  '--require-hashes': null,
+  '--prefer-binary': null,
+  '--no-binary': /^[:A-Za-z0-9_,.-]+$/,
+  '--only-binary': /^[:A-Za-z0-9_,.-]+$/,
+  '--hash': /^(sha256|sha384|sha512):[0-9a-fA-F]+$/,
+};
+const CANONICAL_INDEX = 'https://pypi.org/simple';
+const PIP_LINE_SPLIT = /\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]/;
+
+/**
+ * Walks every token on a requirements line. Returns true only when each option is explicitly harmless
+ * (flags that never load a package or change where it comes from). Anything else fails closed.
+ */
+function harmlessOptionTokens(tokens: string[]): boolean {
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const eq = t.indexOf('=');
+    const name = eq === -1 ? t : t.slice(0, eq);
+    const rule = PIP_FLAGS[name];
+    if (rule === undefined) return false;
+    if (rule === null) {
+      if (eq !== -1) return false;
+      continue;
+    }
+    const value = eq !== -1 ? t.slice(eq + 1) : tokens[++i];
+    if (value === undefined || !rule.test(value)) return false;
+  }
+  return true;
+}
+
+/** requirements.txt: `name==1.2.3` (optionally followed by --hash tokens) is queryable; everything else counts as unpinned. */
 export function depsFromRequirements(text: string): ParsedDeps {
   const out: ParsedDeps = { deps: [], unpinned: 0 };
-  for (const raw of text.split('\n')) {
-    const line = raw.split('#')[0].trim();
+  for (const raw of text.split(PIP_LINE_SPLIT)) {
+    const line = raw.replace(/(^|\s+)#.*$/, '').trim();
     if (!line) continue;
-    if (line.startsWith('-')) {
-      // Option lines are unverifiable by default (includes, editable installs, alternate indexes…); only a few
-      // harmless options are exempt, plus the canonical PyPI index spelled out exactly.
-      const [opt, ...rest] = line.split(/[=\s]+/);
-      const value = rest.join(' ').trim();
-      const harmless = HARMLESS_PIP_OPTIONS.has(opt) || ((opt === '-i' || opt === '--index-url') && value === 'https://pypi.org/simple');
-      if (!harmless) out.unpinned++;
+    if (line.endsWith('\\')) {
+      out.unpinned++; // continuation lines: we do not reassemble them, so fail closed
+      continue;
+    }
+    const tokens = line.split(/\s+/);
+    if (tokens[0].startsWith('-')) {
+      // Only the canonical index, alone on its line, or a line made solely of harmless flags.
+      const canonical = tokens.length === 2 && (tokens[0] === '-i' || tokens[0] === '--index-url') && tokens[1] === CANONICAL_INDEX;
+      const canonicalEq = tokens.length === 1 && tokens[0] === `--index-url=${CANONICAL_INDEX}`;
+      if (!(canonical || canonicalEq || harmlessOptionTokens(tokens))) out.unpinned++;
       continue;
     }
     // VCS, URL and local-path requirements cannot be queried either.
-    if (/^(git\+|https?:\/\/|svn\+|hg\+|bzr\+|\.|\/|file:)/.test(line)) {
+    if (/^(git\+|https?:\/\/|svn\+|hg\+|bzr\+|\.|\/|file:)/.test(tokens[0])) {
       out.unpinned++;
       continue;
     }
-    const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)\s*$/.exec(line);
-    if (m) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
+    const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?==([0-9][0-9A-Za-z.+-]*)$/.exec(tokens[0]);
+    if (m && harmlessOptionTokens(tokens.slice(1))) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
     else out.unpinned++;
   }
   return out;
 }
-
-const HARMLESS_PIP_OPTIONS = new Set(['--hash', '--no-binary', '--only-binary', '--prefer-binary', '--require-hashes', '--pre', '--use-feature']);
 
 const PEP508 = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*(.*)$/;
 

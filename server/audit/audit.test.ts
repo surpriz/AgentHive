@@ -84,15 +84,35 @@ describe('dependency parsing', () => {
     expect(depsFromPackageJson('{oops').parseError).toMatch(/package.json/);
     expect(
       depsFromRequirements(
-        ['Requests==2.31.0  # http', 'flask>=2', '-r base.txt', '-e .', 'git+https://github.com/x/y', '--index-url https://pypi.org/simple', '--index-url=https://evil.example/simple', '-rother.txt', '--extra-index-url https://x', '--find-links ./wheels', '--require-hashes', '--pre', './local-pkg', 'numpy[extra]==1.26.4'].join('\n'),
+        [
+          'Requests==2.31.0  # http',
+          'flask>=2',
+          '-r base.txt',
+          '-e .',
+          'git+https://github.com/x/y',
+          '--index-url https://pypi.org/simple',
+          '--index-url=https://evil.example/simple',
+          '--pre --index-url https://evil.example/simple',
+          '-rother.txt',
+          '--extra-index-url https://x',
+          '--find-links ./wheels',
+          '--require-hashes',
+          '--pre',
+          '--no-binary :all:',
+          './local-pkg',
+          'numpy[extra]==1.26.4 --hash=sha256:abcd',
+          'yarl==1.9.4 --hash=sha256:abcd \\',
+          'pandas==2.2.0 --index-url https://evil.example/simple',
+        ].join('\n'),
       ),
     ).toEqual({
       deps: [
         { ecosystem: 'PyPI', name: 'requests', version: '2.31.0' },
         { ecosystem: 'PyPI', name: 'numpy', version: '1.26.4' },
       ],
-      unpinned: 9,
+      unpinned: 12,
     });
+    expect(depsFromRequirements('a==1.0.0\r\nb==2.0.0\u2028c>=1').unpinned).toBe(1);
     expect(depsFromPyproject('[project]\nname = "x"\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n  "rich==13.7.0; python_version < \'4\'",\n]\n[tool.poetry.dependencies]\npython = "^3.11"\nrequests = "2.31.0"\nflask = { version = "^3" }\n')).toEqual({
       deps: [
         { ecosystem: 'PyPI', name: 'httpx', version: '0.27.0' },
