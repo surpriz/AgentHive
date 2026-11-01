@@ -15,8 +15,8 @@ private code. Items it cannot verify cap the grade rather than lower it.
 |---|---|---|
 | `secrets` | the whole manifest text | API keys, tokens, private keys, credentials in URLs → **blocker**, publish refused |
 | `endpoint` | `spec.endpoint`, if declared | private, loopback, link-local or cloud-metadata addresses → **blocker**; unreachable → high; TLS error → high; no A2A agent card at `/.well-known/agent.json` → low |
-| `permissions` | `spec.permissions` | not declared → medium and **cap AA**; `shell: true` → medium; `network: ["*"]` → medium; `filesystem: write` → low |
-| `dependencies` | `spec.source` (GitHub) → `package.json`, `requirements.txt`, `pyproject.toml` checked against [OSV](https://osv.dev) | critical/high vulnerability → high; other vulnerability → medium; no dependency manifest found → low; no source declared → **cap A** |
+| `permissions` | `spec.permissions` | not declared → medium and **cap A**; `shell: true` → medium; `network: ["*"]` → medium; `filesystem: write` → low |
+| `dependencies` | `spec.source` (GitHub) → `package.json`, `requirements.txt`, `pyproject.toml` checked against [OSV](https://osv.dev) | critical/high vulnerability → high; other vulnerability → medium; no dependency manifest found → low; no source declared or database unreachable → **cap AA** |
 | `completeness` | schemas, README, use cases, license, tags, tools | each missing item → low |
 
 ## Score and grade

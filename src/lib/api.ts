@@ -52,6 +52,34 @@ export interface ApiKeySummary {
   enabled: boolean | null;
 }
 
+export interface AuditFinding {
+  check: string;
+  severity: 'blocker' | 'high' | 'medium' | 'low';
+  message: string;
+  hint?: string;
+}
+
+export interface AuditReport {
+  engine: string;
+  auditedAt: string;
+  score: number;
+  grade: 'AAA' | 'AA' | 'A' | 'B';
+  caps: { grade: 'AA' | 'A'; reason: string }[];
+  blocked: boolean;
+  findings: AuditFinding[];
+  checks: { id: string; status: 'ok' | 'skipped' | 'error'; ms: number; note?: string }[];
+  illustrative?: boolean;
+}
+
+export interface AuditResponse {
+  agent: string;
+  version: string;
+  grade: string;
+  score: number | null;
+  criteria: string;
+  report: AuditReport | null;
+}
+
 export interface ManifestIssue {
   path: string;
   message: string;
@@ -69,13 +97,23 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   revokeKey: (id: string) => request<null>(`/api/v1/keys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  audit: (name: string) => request<AuditResponse>(`/agents/${encodeURIComponent(name)}/audit.json`, { cache: 'no-store' }),
+  rerunAudit: (name: string) => request<{ agent: Agent | null; audit: AuditReport }>(`/api/v1/agents/${encodeURIComponent(name)}/audit`, { method: 'POST' }),
   publish: (manifest: Record<string, unknown>) =>
-    request<{ agent: Agent; url: string }>('/api/v1/agents', {
+    request<{ agent: Agent; url: string; audit: AuditReport }>('/api/v1/agents', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(manifest),
     }),
 };
+
+export function blockedAuditFrom(e: unknown): AuditReport | null {
+  if (e instanceof ApiError && e.status === 422) {
+    const audit = (e.body as { code?: string; audit?: AuditReport } | null)?.audit;
+    return audit && audit.blocked ? audit : null;
+  }
+  return null;
+}
 
 export function issuesFrom(e: unknown): ManifestIssue[] | null {
   if (e instanceof ApiError && e.status === 422) {

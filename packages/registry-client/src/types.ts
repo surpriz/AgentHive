@@ -13,6 +13,9 @@ export interface RegistryEntry {
   framework: Framework;
   category: string;
   grade: SecurityGrade;
+  /** Audit score behind the grade, null while pending. */
+  score?: number | null;
+  auditedAt?: string | null;
   /** null until the registry has benchmarked the agent */
   successRate: number | null;
   costPerRun: number | null;
@@ -78,7 +81,38 @@ export interface ManifestIssue {
 
 /** POST /api/v1/agents */
 export interface PublishResponse {
-  agent: { name: string; version: string; author: string; grade: SecurityGrade };
+  agent: { name: string; version: string; author: string; grade: SecurityGrade; score: number | null };
   entry: RegistryEntry;
+  audit: AuditReport;
   url: string;
+}
+
+export interface AuditFinding {
+  check: string;
+  severity: 'blocker' | 'high' | 'medium' | 'low';
+  message: string;
+  hint?: string;
+}
+
+/** The registry's audit report, see /docs/grading. */
+export interface AuditReport {
+  engine: string;
+  auditedAt: string;
+  score: number;
+  grade: 'AAA' | 'AA' | 'A' | 'B';
+  caps: { grade: 'AA' | 'A'; reason: string }[];
+  blocked: boolean;
+  findings: AuditFinding[];
+  checks: { id: string; status: 'ok' | 'skipped' | 'error'; ms: number; note?: string }[];
+  illustrative?: boolean;
+}
+
+/** GET /agents/<name>/audit.json */
+export interface AuditResponse {
+  agent: string;
+  version: string;
+  grade: SecurityGrade;
+  score: number | null;
+  criteria: string;
+  report: AuditReport | null;
 }

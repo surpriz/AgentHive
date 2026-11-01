@@ -7,7 +7,8 @@ import { user as userTable } from './db/auth-schema';
 import { seedIfEmpty } from './db/seed';
 import { createAuth, type Auth, type AuthEnv } from './auth';
 import { parseManifest } from './manifest';
-import { publishManifest } from './publish';
+import { latestAudit, publishManifest, reauditAgent } from './publish';
+import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -22,6 +23,8 @@ export interface AppOptions {
   template?: () => Promise<string>;
   /** Apply migrations on boot. Default: only for pglite. */
   migrate?: boolean;
+  /** Audit engine context factory; tests inject fakes, production uses real fetch/dns with budgets. */
+  auditContext?: () => AuditContext;
 }
 
 export interface AppContext {
@@ -45,6 +48,8 @@ export const TEST_USER = { email: 'test@agenthive.local', password: 'test-passwo
 
 const PUBLIC_CACHE = 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600';
 const PUBLISH_LIMIT = { max: 30, windowMs: 60 * 60 * 1000 };
+const REAUDIT_WINDOW_MS = 60 * 60 * 1000;
+export const GRADING_URL = 'https://github.com/surpriz/AgentHive/blob/main/docs/GRADING.md';
 
 export async function createApp(opts: AppOptions): Promise<AppContext> {
   const isPglite = opts.databaseUrl.startsWith('pglite://');
@@ -56,6 +61,8 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   const auth = createAuth(db, { ...opts.auth, passwordLogin: devLogin });
   const app = new Hono();
   const publishHits = new Map<string, number[]>();
+  const reauditAt = new Map<string, number>();
+  const auditCtx = opts.auditContext ?? (() => defaultContext());
 
   const loadAgents = async (): Promise<Agent[]> => (await db.select().from(agents).orderBy(asc(agents.isSeed), asc(agents.createdAt))).map(rowToAgent);
   const loadAgent = async (name: string): Promise<Agent | null> => {
@@ -118,6 +125,16 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     return c.text(buildManifestYaml(a, opts.origin), 200, { 'Content-Type': 'application/yaml; charset=utf-8' });
   });
 
+  app.get('/agents/:name/audit.json', async (c) => {
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return publicJson(c, { error: 'not found' }, 404);
+    const a = rowToAgent(row);
+    const report = row.isSeed ? illustrativeReport(a.grade === 'pending' ? 'B' : a.grade, a.publishedAt) : await latestAudit(db, row.id);
+    return publicJson(c, { agent: a.name, version: a.version, grade: a.grade, score: a.score, criteria: `${opts.origin}/docs/grading`, report: report ?? null });
+  });
+
+  app.get('/docs/grading', (c) => c.redirect(GRADING_URL, 302));
+
   app.get('/sitemap.xml', async (c) => {
     const urls = ['/', ...(await loadAgents()).map((a) => `/agents/${a.name}`)]
       .map((p) => `  <url><loc>${opts.origin}${p}</loc><changefreq>daily</changefreq></url>`)
@@ -158,10 +175,25 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const parsed = parseManifest(await c.req.text());
     if (!parsed.ok) return c.json({ error: 'invalid manifest', issues: parsed.issues }, 422);
 
-    const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest);
-    if (!res.ok) return c.json({ error: res.message, code: res.code }, res.status);
+    const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest, auditCtx());
+    if (!res.ok) return c.json(res.code === 'AUDIT_BLOCKED' ? { error: res.message, code: res.code, audit: res.audit } : { error: res.message, code: res.code }, res.status);
     const entry = buildRegistryIndex([res.agent], opts.origin).agents[0];
-    return c.json({ agent: res.agent, entry, url: `${opts.origin}/agents/${res.agent.name}` }, res.created ? 201 : 200);
+    return c.json({ agent: res.agent, entry, audit: res.audit, url: `${opts.origin}/agents/${res.agent.name}` }, res.created ? 201 : 200);
+  });
+
+  v1.post('/agents/:name/audit', async (c) => {
+    const me = c.get('viewer');
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return c.json({ error: 'not found' }, 404);
+    if (row.ownerId !== me.id) return c.json({ error: 'only the owner can re-run the audit' }, 403);
+    if (row.isSeed) return c.json({ error: 'seed agents are illustrative and not audited' }, 409);
+    const last = reauditAt.get(row.id) ?? 0;
+    if (Date.now() - last < REAUDIT_WINDOW_MS) return c.json({ error: 'audit already ran recently', retryAfterMs: REAUDIT_WINDOW_MS - (Date.now() - last) }, 429);
+    reauditAt.set(row.id, Date.now());
+    const report = await reauditAgent(db, row.id, auditCtx());
+    if (!report) return c.json({ error: 'no manifest stored for this agent' }, 500);
+    const fresh = await db.query.agents.findFirst({ where: eq(agents.id, row.id) });
+    return c.json({ agent: fresh ? rowToAgent(fresh) : null, audit: report });
   });
 
   v1.get('/keys', async (c) => {

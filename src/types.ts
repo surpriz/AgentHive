@@ -29,6 +29,9 @@ export interface Agent {
   framework: Framework;
   category: Category;
   grade: SecurityGrade;
+  /** Audit score 0–100 behind the grade; null while pending. */
+  score: number | null;
+  auditedAt: string | null;
   /** Benchmark figures are null until the registry has measured the agent. */
   successRate: number | null;
   costPerRun: number | null;

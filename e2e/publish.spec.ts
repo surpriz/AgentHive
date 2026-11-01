@@ -13,7 +13,7 @@ test('publish asks to sign in first', async ({ page }) => {
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Sign in to publish' })).toBeVisible();
 });
 
-test('publish validates inline, stores the agent as pending and serves it everywhere', async ({ page, request }) => {
+test('publish validates inline, grades the agent and serves it everywhere', async ({ page, request }) => {
   await signIn(page);
   const name = `redis-cache-advisor-${Date.now().toString(36)}`;
   await page.getByRole('button', { name: /Push/ }).click();
@@ -31,12 +31,12 @@ test('publish validates inline, stores the agent as pending and serves it everyw
 
   const card = page.getByRole('button', { name: `Open ${name}` });
   await expect(card).toBeVisible();
-  await expect(card).toContainText('pending');
-  await expect(card).toContainText('—');
+  await expect(card).toContainText('A');
+  await expect(card).toContainText('—'); // no benchmark numbers yet
 
   const idx = (await (await request.get('/api/agents.json')).json()) as { agents: { name: string; grade: string; successRate: number | null }[] };
   const entry = idx.agents.find((a) => a.name === name);
-  expect(entry?.grade).toBe('pending');
+  expect(entry?.grade).toBe('A');
   expect(entry?.successRate).toBeNull();
   expect((await request.get(`/agents/${name}/agent.yaml`)).ok()).toBeTruthy();
   const html = await (await request.get(`/agents/${name}`, { headers: { accept: 'text/html' } })).text();

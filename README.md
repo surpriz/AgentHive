@@ -37,11 +37,12 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/api/agents.json` | registry index, CORS open, cached |
 | `/api/catalog.json` | full agent objects for the SPA |
 | `/agents/<name>/agent.json`, `agent.yaml` | A2A agent card, AgentHive manifest |
-| `/api/v1/me`, `POST /api/v1/agents`, `/api/v1/keys` | authenticated: session cookie or `Authorization: Bearer <api key>` |
+| `/agents/<name>/audit.json` | public audit report behind the grade |
+| `/api/v1/me`, `POST /api/v1/agents`, `POST /api/v1/agents/<name>/audit`, `/api/v1/keys` | authenticated: session cookie or `Authorization: Bearer <api key>` |
 | `/api/auth/*` | better-auth (GitHub OAuth) |
 | `/sitemap.xml`, `/robots.txt`, `/og.png` | SEO |
 
-All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `vite-plugin-api.ts` and exported by `api/index.ts` on Vercel. Publishing rules: first publisher owns the name, re-publish needs a greater semver, seeds are read-only, new agents get `grade: pending` and no benchmark numbers until the registry measures them.
+All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `vite-plugin-api.ts` and exported by `api/index.ts` on Vercel. Publishing rules: first publisher owns the name, re-publish needs a greater semver, seeds are read-only. Every publish runs the audit in `server/audit/` (secrets, endpoint, permissions, dependencies via OSV, completeness); the grade is computed from it, the report is public at `/agents/<name>/audit.json`, criteria in [docs/GRADING.md](docs/GRADING.md). Benchmark numbers stay null until the registry measures them.
 
 ## Deploy
 
@@ -66,7 +67,8 @@ server/
   app.ts                       Hono app: public registry, auth, publish, keys
   auth.ts                      better-auth config (GitHub, api-key plugin)
   manifest.ts                  zod schema for agenthive.sh/v1 manifests
-  publish.ts                   ownership + version rules
+  publish.ts                   ownership + version rules, runs the audit
+  audit/                       checks, grading, report (see docs/GRADING.md)
   db/schema.ts, db/auth-schema.ts, db/migrations/, db/seed.ts
 api/index.ts                   Vercel function
 vite-plugin-api.ts             mounts the app in the dev server
@@ -79,7 +81,7 @@ e2e/                           Playwright specs (desktop + mobile projects)
 |---|---|
 | `@agenthive-sh/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
 | `@agenthive-sh/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
-| `@agenthive-sh/cli` | `agent-cli search | info | manifest | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
+| `@agenthive-sh/cli` | `agent-cli search | info | manifest | audit | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
 
 ```sh
 pnpm -r --include-workspace-root build && pnpm -r --include-workspace-root test   # includes the web app at the root

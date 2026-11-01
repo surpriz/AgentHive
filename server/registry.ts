@@ -13,6 +13,8 @@ export function rowToAgent(r: AgentRow): Agent {
     framework: r.framework as Agent['framework'],
     category: r.category as Agent['category'],
     grade: r.grade,
+    score: r.score,
+    auditedAt: r.auditedAt ? r.auditedAt.toISOString() : null,
     successRate: r.successRate,
     costPerRun: r.costPerRun,
     avgLatencyMs: r.avgLatencyMs,

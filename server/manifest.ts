@@ -49,6 +49,23 @@ export const manifestSchema = z.object({
     capabilities: shortList,
     tools: shortList,
     io: z.object({ input: jsonSchema, output: jsonSchema }).default({ input: {}, output: {} }),
+    /** What the agent touches at runtime. Optional, but AA and AAA require it. */
+    permissions: z
+      .object({
+        network: z.array(z.string().trim().min(1).max(253)).max(64).default([]),
+        filesystem: z.enum(['none', 'read', 'write']).default('none'),
+        shell: z.boolean().default(false),
+        env: z.array(z.string().trim().regex(/^[A-Z][A-Z0-9_]*$/, 'env names are UPPER_SNAKE')).max(32).default([]),
+      })
+      .optional(),
+    /** Public repository holding the agent's code; lets the audit check dependencies. */
+    source: z
+      .object({
+        repo: z.url({ protocol: /^https$/, hostname: z.regexes.domain }),
+        ref: z.string().trim().min(1).max(128).optional(),
+        path: z.string().trim().max(200).optional(),
+      })
+      .optional(),
   }),
   readme: z.string().max(20_000).default(''),
   useCases: z.array(z.string().trim().min(1).max(200)).max(12).default([]),

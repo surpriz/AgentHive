@@ -15,7 +15,14 @@ let ctx: AppContext;
 let authz: Record<string, string>;
 
 beforeAll(async () => {
-  ctx = await createApp({ databaseUrl: 'pglite://memory', origin: 'https://agenthive.sh', auth: { secret: 'x'.repeat(40), baseURL: 'http://localhost' }, template: async () => TEMPLATE });
+  ctx = await createApp({
+    databaseUrl: 'pglite://memory',
+    origin: 'https://agenthive.sh',
+    auth: { secret: 'x'.repeat(40), baseURL: 'http://localhost' },
+    template: async () => TEMPLATE,
+    // Offline audit: nothing resolves, nothing fetches.
+    auditContext: () => ({ fetch: (async () => new Response('', { status: 404 })) as typeof fetch, lookup: async () => [{ address: '93.184.216.34', family: 4 }], callTimeoutMs: 100, deadline: Date.now() + 5000, now: () => Date.now() }),
+  });
   authz = { authorization: `Bearer ${ctx.testApiKey}` };
 });
 
@@ -82,7 +89,7 @@ describe('publish', () => {
     expect(paths).toContain('metadata.value');
   });
 
-  it('accepts yaml, creates the agent as pending and lists it', async () => {
+  it('accepts yaml, grades the agent from the audit and lists it', async () => {
     const yaml = `apiVersion: agenthive.sh/v1
 kind: Agent
 metadata:
@@ -102,8 +109,10 @@ benchmark:
 `;
     const res = await req('/api/v1/agents', { method: 'POST', headers: { 'content-type': 'application/yaml', ...authz }, body: yaml });
     expect(res.status).toBe(201);
-    const body = (await res.json()) as { agent: { grade: string; successRate: number | null; author: string }; url: string };
-    expect(body.agent.grade).toBe('pending');
+    const body = (await res.json()) as { agent: { grade: string; score: number | null; successRate: number | null; author: string }; audit: { grade: string; caps: unknown[] }; url: string };
+    expect(body.agent.grade).toBe('A'); // honest minimal manifest: capped by no permissions + no source
+    expect(body.agent.score).toBe(body.audit.grade === 'A' ? body.agent.score : null);
+    expect(body.audit.caps.length).toBe(2);
     expect(body.agent.successRate).toBeNull();
     expect(body.agent.author).toBe('testuser');
     expect(body.url).toBe('https://agenthive.sh/agents/jira-triage-bot');
@@ -128,5 +137,36 @@ benchmark:
     const res = await post('/api/v1/agents', manifest({ metadata: { ...manifest().metadata, version: '1.0.0' } }), { authorization: `Bearer ${other.key}` });
     expect(res.status).toBe(409);
     expect(((await res.json()) as { code: string }).code).toBe('NAME_TAKEN');
+  });
+});
+
+describe('audit', () => {
+  it('refuses a manifest that leaks a credential and stores nothing', async () => {
+    const res = await post('/api/v1/agents', manifest({ metadata: { ...manifest().metadata, name: 'leaky-bot' }, readme: 'use AKIAIOSFODNN7EXAMPLE' }));
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { code: string; audit: { blocked: boolean; findings: { severity: string }[] } };
+    expect(body.code).toBe('AUDIT_BLOCKED');
+    expect(body.audit.findings[0].severity).toBe('blocker');
+    expect((await req('/agents/leaky-bot/agent.json')).status).toBe(404);
+  });
+
+  it('serves the public report and lets the owner re-run once per hour', async () => {
+    const pub = (await (await req('/agents/jira-triage-bot/audit.json')).json()) as { grade: string; report: { findings: unknown[]; checks: unknown[] } };
+    expect(pub.grade).toBe('A');
+    expect(pub.report.checks.length).toBe(5);
+    const seed = (await (await req('/agents/pg-query-optimizer/audit.json')).json()) as { report: { illustrative: boolean } };
+    expect(seed.report.illustrative).toBe(true);
+
+    const rerun = await req('/api/v1/agents/jira-triage-bot/audit', { method: 'POST', headers: authz });
+    expect(rerun.status).toBe(200);
+    expect(((await rerun.json()) as { audit: { grade: string } }).audit.grade).toBe('A');
+    expect((await req('/api/v1/agents/jira-triage-bot/audit', { method: 'POST', headers: authz })).status).toBe(429);
+    expect((await req('/api/v1/agents/pg-query-optimizer/audit', { method: 'POST', headers: authz })).status).toBe(403);
+  });
+
+  it('reaches AA with declared permissions', async () => {
+    const res = await post('/api/v1/agents', manifest({ metadata: { ...manifest().metadata, name: 'tidy-bot' }, spec: { framework: 'CrewAI', permissions: { network: ['api.example.com'], filesystem: 'none', shell: false, env: [] } } }));
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as { agent: { grade: string } }).agent.grade).toBe('AA');
   });
 });

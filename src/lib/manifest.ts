@@ -4,7 +4,7 @@ import { stringify } from 'yaml';
 
 export const MANIFEST_API_VERSION = 'agenthive.sh/v1';
 /** Pinned so generated configs never auto-upgrade to an unreviewed release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.1.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.2.0';
 
 /** The manifest document as the registry serves it (and as `agent-cli push` sends it, minus the server-owned blocks). */
 export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
@@ -33,7 +33,7 @@ export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
     readme: a.readme,
     useCases: a.useCases,
     // Server-owned. Ignored on push.
-    security: { grade: a.grade, auditedAt: a.grade === 'pending' ? null : a.publishedAt },
+    security: { grade: a.grade, score: a.score, auditedAt: a.auditedAt, report: `${origin}/agents/${a.name}/audit.json` },
     benchmark: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
     registry: { url: `${origin}/agents/${a.name}`, agentCard: `${origin}/agents/${a.name}/agent.json`, publishedAt: a.publishedAt },
   };
@@ -105,6 +105,7 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
       framework: a.framework,
       category: a.category,
       securityGrade: a.grade,
+      audit: { grade: a.grade, score: a.score, auditedAt: a.auditedAt, report: `${origin}/agents/${a.name}/audit.json`, criteria: `${origin}/docs/grading` },
       model: a.model,
       license: a.license,
       tools: a.tools,
@@ -133,6 +134,8 @@ export function buildRegistryIndex(agents: Agent[], origin = 'https://agenthive.
       framework: a.framework,
       category: a.category,
       grade: a.grade,
+      score: a.score,
+      auditedAt: a.auditedAt,
       successRate: a.successRate,
       costPerRun: a.costPerRun,
       tools: a.tools,

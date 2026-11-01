@@ -1,12 +1,12 @@
-import type { AgentCard, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, SearchOptions } from './types.js';
+import type { AgentCard, AuditReport, AuditResponse, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, SearchOptions } from './types.js';
 
 export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
 /** Pinned package specs for generated install snippets: an unpinned npx would pick up any later (or squatted) release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.1.0';
-export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.1.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.2.0';
+export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.2.0';
 
 export class RegistryError extends Error {
   constructor(
@@ -14,6 +14,8 @@ export class RegistryError extends Error {
     public readonly status?: number,
     /** Field-level problems for a 422 on publish. */
     public readonly issues?: ManifestIssue[],
+    /** The audit report when a publish was refused by a blocker finding. */
+    public readonly audit?: AuditReport,
   ) {
     super(message);
     this.name = 'RegistryError';
@@ -56,7 +58,22 @@ export class RegistryClient {
     return (await res.json()) as Me;
   }
 
-  /** Publish a manifest (YAML or JSON text). 422 surfaces as RegistryError.issues. */
+  /** Latest public audit report for an agent. */
+  async audit(name: string): Promise<AuditResponse> {
+    assertName(name);
+    return this.getJson<AuditResponse>(`/agents/${name}/audit.json`);
+  }
+
+  /** Re-run the audit on your own agent (once per hour). */
+  async rerunAudit(name: string): Promise<{ audit: AuditReport }> {
+    assertName(name);
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/agents/${name}/audit`, { method: 'POST', headers: { accept: 'application/json', ...this.authHeaders() } });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; audit?: AuditReport };
+    if (!res.ok || !body.audit) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status);
+    return { audit: body.audit };
+  }
+
+  /** Publish a manifest (YAML or JSON text). 422 surfaces as RegistryError.issues or RegistryError.audit. */
   async publish(manifest: string): Promise<PublishResponse> {
     const isJson = manifest.trimStart().startsWith('{');
     const res = await this.fetchImpl(`${this.baseUrl}/api/v1/agents`, {
@@ -64,8 +81,8 @@ export class RegistryClient {
       headers: { accept: 'application/json', 'content-type': isJson ? 'application/json' : 'application/yaml', ...this.authHeaders() },
       body: manifest,
     });
-    const body = (await res.json().catch(() => ({}))) as { error?: string; issues?: ManifestIssue[] } & Partial<PublishResponse>;
-    if (!res.ok) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status, body.issues);
+    const body = (await res.json().catch(() => ({}))) as { error?: string; issues?: ManifestIssue[]; audit?: AuditReport } & Partial<PublishResponse>;
+    if (!res.ok) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status, body.issues, body.audit?.blocked ? body.audit : undefined);
     return body as PublishResponse;
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, FileCode2, TerminalSquare, Download, X } from 'lucide-react';
+import { BookOpen, FileCode2, TerminalSquare, Download, X, ShieldCheck } from 'lucide-react';
 import { agentPath } from '../lib/router';
 import { CopyButton } from './ui/CodeBlock';
 import type { Agent } from '../types';
@@ -9,8 +9,9 @@ import { Badge, FrameworkBadge, GradeBadge } from './ui/Badge';
 import { OverviewTab } from './tabs/OverviewTab';
 import { ManifestTab } from './tabs/ManifestTab';
 import { SandboxView } from './tabs/SandboxView';
+import { AuditTab } from './tabs/AuditTab';
 
-type TabId = 'overview' | 'manifest' | 'sandbox';
+type TabId = 'overview' | 'audit' | 'manifest' | 'sandbox';
 
 export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const [tab, setTab] = useState<TabId>('overview');
@@ -46,7 +47,9 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <FrameworkBadge framework={agent.framework} />
               <Badge mono={false}>{agent.category}</Badge>
-              <GradeBadge grade={agent.grade} />
+              <button type="button" onClick={() => setTab('audit')} className="rounded-md" aria-label="Open audit">
+                <GradeBadge grade={agent.grade} title={agent.isSeed ? 'Illustrative seed grade' : agent.grade === 'pending' ? 'Audit pending' : `Computed by the registry audit · ${agent.score}/100`} />
+              </button>
               <button
                 type="button"
                 onClick={() => setTab('manifest')}
@@ -60,6 +63,7 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
           <Tabs<TabId>
             tabs={[
               { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
+              { id: 'audit', label: 'Audit', icon: <ShieldCheck size={14} /> },
               { id: 'manifest', label: 'A2A & MCP Manifest', icon: <FileCode2 size={14} /> },
               { id: 'sandbox', label: 'Sandbox (simulated)', icon: <TerminalSquare size={14} /> },
             ]}
@@ -69,6 +73,7 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
 
           <div className="flex-1 overflow-auto p-5" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
             {tab === 'overview' && <OverviewTab agent={agent} />}
+            {tab === 'audit' && <AuditTab agent={agent} />}
             {tab === 'manifest' && <ManifestTab agent={agent} />}
             {tab === 'sandbox' && <SandboxView agent={agent} />}
           </div>

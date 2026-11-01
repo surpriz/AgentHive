@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { KeyRound, Plus, Trash2, Loader2, Copy, Check, Package, AlertCircle } from 'lucide-react';
+import { KeyRound, Plus, Trash2, Loader2, Copy, Check, Package, AlertCircle, RefreshCw } from 'lucide-react';
 import type { Agent } from '../types';
 import { api, type ApiKeySummary, type Me } from '../lib/api';
 import { agentPath } from '../lib/router';
@@ -15,6 +15,8 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
   const [creating, setCreating] = useState(false);
   const [fresh, setFresh] = useState<{ key: string; name: string | null } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [rerunning, setRerunning] = useState<string | null>(null);
+  const [rerunMsg, setRerunMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +52,20 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
     if (!window.confirm('Revoke this key? Anything using it stops working immediately.')) return;
     await api.revokeKey(id);
     setKeys(await api.keys());
+  };
+
+  const rerun = async (name: string) => {
+    setRerunning(name);
+    setRerunMsg(null);
+    try {
+      const r = await api.rerunAudit(name);
+      setRerunMsg(`${name}: grade ${r.audit.grade} · ${r.audit.score}/100 · ${r.audit.findings.length} finding(s)`);
+      setMe(await api.me());
+    } catch (e) {
+      setRerunMsg(e instanceof Error ? e.message : 'audit failed');
+    } finally {
+      setRerunning(null);
+    }
   };
 
   const copy = async () => {
@@ -93,21 +109,34 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
             </div>
           </div>
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-            {me.agents.map((a) => (
-              <li key={a.id}>
-                <button type="button" onClick={() => onOpenAgent(a)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-mono text-[13px] font-semibold text-fg">{a.name}</span>
-                    <span className="block truncate text-[12px] text-muted">{a.value}</span>
-                  </span>
-                  <Badge>v{a.version}</Badge>
-                  <FrameworkBadge framework={a.framework} />
-                  <GradeBadge grade={a.grade} />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {rerunMsg && <p role="status" className="mb-2 font-mono text-[12px] text-muted">{rerunMsg}</p>}
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+              {me.agents.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 pr-2">
+                  <button type="button" onClick={() => onOpenAgent(a)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-[13px] font-semibold text-fg">{a.name}</span>
+                      <span className="block truncate text-[12px] text-muted">{a.value}</span>
+                    </span>
+                    <Badge>v{a.version}</Badge>
+                    <FrameworkBadge framework={a.framework} />
+                    <GradeBadge grade={a.grade} title={a.score === null ? 'Audit pending' : `Computed grade · ${a.score}/100`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rerun(a.name)}
+                    disabled={rerunning === a.name}
+                    className="shrink-0 rounded p-1.5 text-dim hover:text-fg disabled:opacity-50"
+                    aria-label={`Re-run audit for ${a.name}`}
+                    title="Re-run audit (once per hour)"
+                  >
+                    {rerunning === a.name ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 

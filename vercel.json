@@ -9,6 +9,10 @@
       "destination": "/api/index?__path=/api/:ahp*"
     },
     {
+      "source": "/docs/grading",
+      "destination": "/api/index?__path=/docs/grading"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/index?__path=/sitemap.xml"
     },
@@ -19,6 +23,10 @@
     {
       "source": "/agents/:ahname/agent.yaml",
       "destination": "/api/index?__path=/agents/:ahname/agent.yaml"
+    },
+    {
+      "source": "/agents/:ahname/audit.json",
+      "destination": "/api/index?__path=/agents/:ahname/audit.json"
     },
     {
       "source": "/agents/:ahname",

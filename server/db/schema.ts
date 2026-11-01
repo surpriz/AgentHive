@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 
 export const GRADES = ['pending', 'B', 'A', 'AA', 'AAA'] as const;
@@ -18,6 +18,9 @@ export const agents = pgTable(
     framework: varchar('framework', { length: 32 }).notNull(),
     category: varchar('category', { length: 32 }).notNull(),
     grade: varchar('grade', { length: 8 }).$type<Grade>().notNull().default('pending'),
+    /** Audit score 0–100; null until audited. Seeds carry illustrative values. */
+    score: integer('score'),
+    auditedAt: timestamp('audited_at', { withTimezone: true }),
     successRate: real('success_rate'),
     costPerRun: real('cost_per_run'),
     avgLatencyMs: integer('avg_latency_ms'),
@@ -55,5 +58,22 @@ export const agentVersions = pgTable(
   (t) => [uniqueIndex('agent_versions_agent_version_idx').on(t.agentId, t.version)],
 );
 
+export const audits = pgTable(
+  'audits',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    version: varchar('version', { length: 32 }).notNull(),
+    grade: varchar('grade', { length: 8 }).$type<Grade>().notNull(),
+    score: integer('score').notNull(),
+    report: jsonb('report').$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('audits_agent_created_idx').on(t.agentId, t.createdAt)],
+);
+
+export type AuditRow = typeof audits.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type NewAgentRow = typeof agents.$inferInsert;
