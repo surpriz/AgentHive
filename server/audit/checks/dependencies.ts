@@ -46,6 +46,8 @@ const PIP_FLAGS: Record<string, null | RegExp> = {
   '--hash': /^(sha256|sha384|sha512):[0-9a-fA-F]+$/,
 };
 const CANONICAL_INDEX = 'https://pypi.org/simple';
+/** Strict PEP 440 public version: no local segments, no archive-looking suffixes. */
+const PEP440 = /^\d+(\.\d+)*((a|b|rc)\d+)?(\.post\d+)?(\.dev\d+)?$/;
 const PIP_LINE_SPLIT = /\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]/;
 
 /**
@@ -57,8 +59,8 @@ function harmlessOptionTokens(tokens: string[]): boolean {
     const t = tokens[i];
     const eq = t.indexOf('=');
     const name = eq === -1 ? t : t.slice(0, eq);
+    if (!Object.hasOwn(PIP_FLAGS, name)) return false;
     const rule = PIP_FLAGS[name];
-    if (rule === undefined) return false;
     if (rule === null) {
       if (eq !== -1) return false;
       continue;
@@ -72,6 +74,8 @@ function harmlessOptionTokens(tokens: string[]): boolean {
 /** requirements.txt: `name==1.2.3` (optionally followed by --hash tokens) is queryable; everything else counts as unpinned. */
 export function depsFromRequirements(text: string): ParsedDeps {
   const out: ParsedDeps = { deps: [], unpinned: 0 };
+  // pip honours encoding declarations and BOMs; rather than model that, anything beyond plain ASCII is unverifiable.
+  if (/[^\x09\x0a\x0d\x20-\x7e]/.test(text)) return { deps: [], unpinned: 0, parseError: 'requirements.txt: non-ASCII content' };
   for (const raw of text.split(PIP_LINE_SPLIT)) {
     const line = raw.replace(/(^|\s+)#.*$/, '').trim();
     if (!line) continue;
@@ -92,8 +96,8 @@ export function depsFromRequirements(text: string): ParsedDeps {
       out.unpinned++;
       continue;
     }
-    const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?==([0-9][0-9A-Za-z.+-]*)$/.exec(tokens[0]);
-    if (m && harmlessOptionTokens(tokens.slice(1))) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
+    const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?==([0-9A-Za-z.]+)$/.exec(tokens[0]);
+    if (m && PEP440.test(m[2]) && harmlessOptionTokens(tokens.slice(1))) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
     else out.unpinned++;
   }
   return out;
@@ -113,16 +117,15 @@ export function depsFromPyproject(text: string): ParsedDeps {
   const project = doc.project as { dependencies?: unknown } | undefined;
   for (const item of Array.isArray(project?.dependencies) ? project.dependencies : []) {
     const m = typeof item === 'string' ? PEP508.exec(item.trim()) : null;
-    const pin = m ? /^==\s*([0-9][0-9A-Za-z.+-]*)\s*(?:;.*)?$/.exec(m[2]) : null;
-    if (m && pin) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: pin[1] });
+    const pin = m ? /^==\s*([0-9A-Za-z.]+)\s*(?:;.*)?$/.exec(m[2]) : null;
+    if (m && pin && PEP440.test(pin[1])) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: pin[1] });
     else out.unpinned++;
   }
   const poetry = ((doc.tool as Record<string, unknown> | undefined)?.poetry as { dependencies?: Record<string, unknown> } | undefined)?.dependencies ?? {};
   for (const [name, spec] of Object.entries(poetry)) {
     if (name === 'python') continue;
     const v = typeof spec === 'string' ? spec : typeof spec === 'object' && spec && typeof (spec as { version?: unknown }).version === 'string' ? (spec as { version: string }).version : '';
-    const m = EXACT.exec(v.trim());
-    if (m) out.deps.push({ ecosystem: 'PyPI', name: name.toLowerCase(), version: m[1] });
+    if (PEP440.test(v.trim())) out.deps.push({ ecosystem: 'PyPI', name: name.toLowerCase(), version: v.trim() });
     else out.unpinned++;
   }
   return out;

@@ -112,7 +112,10 @@ describe('dependency parsing', () => {
       ],
       unpinned: 12,
     });
-    expect(depsFromRequirements('a==1.0.0\r\nb==2.0.0\u2028c>=1').unpinned).toBe(1);
+    expect(depsFromRequirements('a==1.0.0\r\nb==2.0.0\u2028c>=1').parseError).toMatch(/non-ASCII/);
+    expect(depsFromRequirements('a==1.0.0\r\nb==2.0.0\nc>=1')).toEqual({ deps: [{ ecosystem: 'PyPI', name: 'a', version: '1.0.0' }, { ecosystem: 'PyPI', name: 'b', version: '2.0.0' }], unpinned: 1 });
+    expect(depsFromRequirements('x==1.0.0+local\ny==1.0.0.tar.gz\nz==1.0rc1\n--__proto__ 1').unpinned).toBe(3);
+    expect(depsFromRequirements('x==1.0.0+local\ny==1.0.0.tar.gz\nz==1.0rc1\n--__proto__ 1').deps).toEqual([{ ecosystem: 'PyPI', name: 'z', version: '1.0rc1' }]);
     expect(depsFromPyproject('[project]\nname = "x"\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n  "rich==13.7.0; python_version < \'4\'",\n]\n[tool.poetry.dependencies]\npython = "^3.11"\nrequests = "2.31.0"\nflask = { version = "^3" }\n')).toEqual({
       deps: [
         { ecosystem: 'PyPI', name: 'httpx', version: '0.27.0' },
