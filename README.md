@@ -87,7 +87,7 @@ AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive-sh/mcp smoke  
 AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive-sh/cli smoke
 ```
 
-Not published to npm yet (waiting for the domain). `agent-cli serve` and the `.claude.json` snippets point at the run gateway and fail with a clear message today.
+Published on npm as `@agenthive-sh/registry-client`, `@agenthive-sh/mcp` and `@agenthive-sh/cli` (0.1.0). `agent-cli serve` and the `.claude.json` snippets point at the run gateway and fail with a clear message today.
 
 ## Roadmap
 

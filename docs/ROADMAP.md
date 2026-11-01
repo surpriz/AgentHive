@@ -38,11 +38,13 @@ Simulated today, and labelled as such in the UI:
 
 ## Closing v0
 
-1. Attach `agenthive.sh` to the Vercel project. Blocked on the domain.
-2. Publish the three packages to npm, in order: registry-client, then mcp
-   and cli.
-3. Pre-render `/agents/<name>` so Open Graph tags are per agent. Today every
-   agent shares the home page meta when crawled by Twitter or LinkedIn.
+All done.
+
+1. `agenthive.sh` attached to the Vercel project. Done 2026-11-01.
+2. Packages on npm as `@agenthive-sh/*` 0.1.0 (the `@agenthive` scope
+   belongs to an unrelated account). Done 2026-11-01.
+3. Per-agent pre-rendering with Open Graph tags. Done 2026-10-31, moved to
+   request time with v1.
 4. Onboarding: "How it works" modal, plain-language value line under each
    agent name, "try example" in the sandbox, explicit "simulated" labelling.
    Done 2026-10-31.
