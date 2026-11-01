@@ -91,7 +91,7 @@ describe('dependency parsing', () => {
         { ecosystem: 'PyPI', name: 'requests', version: '2.31.0' },
         { ecosystem: 'PyPI', name: 'numpy', version: '1.26.4' },
       ],
-      unpinned: 8,
+      unpinned: 9,
     });
     expect(depsFromPyproject('[project]\nname = "x"\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n  "rich==13.7.0; python_version < \'4\'",\n]\n[tool.poetry.dependencies]\npython = "^3.11"\nrequests = "2.31.0"\nflask = { version = "^3" }\n')).toEqual({
       deps: [
