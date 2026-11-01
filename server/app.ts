@@ -9,6 +9,8 @@ import { createAuth, type Auth, type AuthEnv } from './auth';
 import { parseManifest } from './manifest';
 import { latestAudit, publishManifest, reauditAgent } from './publish';
 import { defaultContext, illustrativeReport, type AuditContext } from './audit';
+import { createSafeFetch } from './audit/net';
+import { ensureSecret, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -25,6 +27,8 @@ export interface AppOptions {
   migrate?: boolean;
   /** Audit engine context factory; tests inject fakes, production uses real fetch/dns with budgets. */
   auditContext?: () => AuditContext;
+  /** Outbound fetch for the run gateway; tests inject a fake upstream. Defaults to the pinned safe fetch. */
+  gatewayFetch?: typeof fetch;
 }
 
 export interface AppContext {
@@ -63,11 +67,22 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   const publishHits = new Map<string, number[]>();
   const reauditAt = new Map<string, number>();
   const auditCtx = opts.auditContext ?? (() => defaultContext());
+  const gatewayFetch = opts.gatewayFetch ?? createSafeFetch({ timeoutMs: RUN_LIMITS.upstreamTimeoutMs });
 
-  const loadAgents = async (): Promise<Agent[]> => (await db.select().from(agents).orderBy(asc(agents.isSeed), asc(agents.createdAt))).map(rowToAgent);
+  /** Non-seed agents get numbers measured over the gateway; seeds keep their illustrative ones. */
+  const withMeasured = async (rows: (typeof agents.$inferSelect)[]): Promise<Agent[]> => {
+    const measured = rows.some((r) => !r.isSeed) ? await measuredMetrics(db) : new Map();
+    return rows.map((r) => {
+      const a = rowToAgent(r);
+      if (r.isSeed) return a;
+      const m = measured.get(r.id);
+      return { ...a, runs30d: m?.runs30d ?? 0, successRate: m?.successRate ?? null, avgLatencyMs: m?.avgLatencyMs ?? null, costPerRun: null };
+    });
+  };
+  const loadAgents = async (): Promise<Agent[]> => withMeasured(await db.select().from(agents).orderBy(asc(agents.isSeed), asc(agents.createdAt)));
   const loadAgent = async (name: string): Promise<Agent | null> => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, name) });
-    return row ? rowToAgent(row) : null;
+    return row ? (await withMeasured([row]))[0] : null;
   };
 
   const viewer = async (c: Context): Promise<Viewer | null> => {
@@ -135,6 +150,28 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
 
   app.get('/docs/grading', (c) => c.redirect(GRADING_URL, 302));
 
+  // Public test upstream: point a manifest's endpoint here to try the gateway end to end.
+  app.post('/api/v1/echo', async (c) => {
+    const body = await c.req.text();
+    if (Buffer.byteLength(body, 'utf8') > RUN_LIMITS.requestBytes) return c.json({ error: 'too large' }, 413);
+    let input: unknown;
+    try {
+      input = JSON.parse(body || 'null');
+    } catch {
+      return c.json({ error: 'echo expects JSON' }, 400);
+    }
+    const h = (k: string) => c.req.header(k) ?? null;
+    const ts = h('x-agenthive-timestamp');
+    const sig = h('x-agenthive-signature');
+    const agentRef = h('x-agenthive-agent');
+    let signatureValid: boolean | null = null;
+    if (ts && sig && agentRef) {
+      const row = await db.query.agents.findFirst({ where: eq(agents.name, agentRef.split('@')[0] ?? ''), columns: { gatewaySecret: true } });
+      signatureValid = row?.gatewaySecret ? verifyRunSignature(row.gatewaySecret, ts, body, sig) : null;
+    }
+    return c.json({ echo: input, received: { runId: h('x-agenthive-run-id'), caller: h('x-agenthive-caller'), agent: agentRef, timestamp: ts, signatureValid }, from: 'agenthive.sh/api/v1/echo' });
+  });
+
   app.get('/sitemap.xml', async (c) => {
     const urls = ['/', ...(await loadAgents()).map((a) => `/agents/${a.name}`)]
       .map((p) => `  <url><loc>${opts.origin}${p}</loc><changefreq>daily</changefreq></url>`)
@@ -194,6 +231,48 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if (!report) return c.json({ error: 'no manifest stored for this agent' }, 500);
     const fresh = await db.query.agents.findFirst({ where: eq(agents.id, row.id) });
     return c.json({ agent: fresh ? rowToAgent(fresh) : null, audit: report });
+  });
+
+  v1.post('/run/:name', async (c) => {
+    const me = c.get('viewer');
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return c.json({ error: 'not found' }, 404);
+    const body = await c.req.text();
+    const out = await runAgent(db, { fetch: gatewayFetch }, row, { id: me.id, login: me.login, via: me.via }, body);
+    if (out.kind === 'rejected') return c.json({ error: out.error, ...(out.retryAfterMs ? { retryAfterMs: out.retryAfterMs } : {}) }, out.status);
+    c.header('x-agenthive-run-id', out.runId);
+    c.header('x-agenthive-latency-ms', String(Math.round(out.latencyMs)));
+    if (out.kind === 'failed') return c.json({ error: out.error, runId: out.runId }, out.status);
+    return c.body(out.body, out.status as 200, { 'content-type': 'application/json; charset=utf-8' });
+  });
+
+  v1.get('/runs', async (c) => c.json({ runs: await recentRuns(db, { callerId: c.get('viewer').id }) }));
+
+  const ownedAgent = async (c: Context<{ Variables: { viewer: Viewer } }>) => {
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name') ?? '') });
+    if (!row) return { error: c.json({ error: 'not found' }, 404) };
+    if (row.ownerId !== c.get('viewer').id) return { error: c.json({ error: 'only the owner can do this' }, 403) };
+    return { row };
+  };
+
+  v1.get('/agents/:name/runs', async (c) => {
+    const r = await ownedAgent(c);
+    if ('error' in r) return r.error;
+    return c.json({ runnable: runnableReason(r.row) === null, reason: runnableReason(r.row), runs: await recentRuns(db, { agentId: r.row.id }) });
+  });
+
+  v1.get('/agents/:name/secret', async (c) => {
+    const r = await ownedAgent(c);
+    if ('error' in r) return r.error;
+    if (c.get('viewer').via !== 'session') return c.json({ error: 'the gateway secret is only shown from the dashboard' }, 403);
+    return c.json({ secret: await ensureSecret(db, r.row.id), recipe: 'hex(hmac_sha256(secret, `${x-agenthive-timestamp}.${raw body}`)) == x-agenthive-signature' });
+  });
+
+  v1.post('/agents/:name/secret/rotate', async (c) => {
+    const r = await ownedAgent(c);
+    if ('error' in r) return r.error;
+    if (c.get('viewer').via !== 'session') return c.json({ error: 'the gateway secret is only managed from the dashboard' }, 403);
+    return c.json({ secret: await rotateSecret(db, r.row.id) });
   });
 
   v1.get('/keys', async (c) => {

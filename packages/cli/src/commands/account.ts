@@ -25,6 +25,53 @@ export function printAudit(a: AuditReport): void {
 
 export function registerAccount(program: Command, client: () => Promise<RegistryClient>, baseUrl: () => string) {
   program
+    .command('run <name>')
+    .description('call an agent through the gateway (signed, logged, quota-limited) and print its JSON answer')
+    .option('-i, --input <json>', 'JSON input (default: read stdin)')
+    .option('-f, --input-file <file>', 'read the JSON input from a file')
+    .action(async (name: string, opts: { input?: string; inputFile?: string }) => {
+      let raw = opts.input;
+      if (opts.inputFile) raw = await readFile(opts.inputFile, 'utf8');
+      if (raw === undefined) {
+        if (process.stdin.isTTY) throw new Error('give the input with --input, --input-file, or pipe it on stdin');
+        raw = await new Promise<string>((resolve) => {
+          let buf = '';
+          process.stdin.setEncoding('utf8').on('data', (d) => (buf += d)).on('end', () => resolve(buf));
+        });
+      }
+      let input: unknown;
+      try {
+        input = JSON.parse(raw);
+      } catch (e) {
+        throw new Error(`input is not valid JSON: ${(e as Error).message}`);
+      }
+      const res = await (await client()).run(name, input);
+      console.error(c.dim(`run ${res.runId} · upstream ${res.status} · ${res.latencyMs}ms`));
+      console.log(typeof res.output === 'string' ? sanitize(res.output) : JSON.stringify(res.output, null, 2));
+      if (res.status >= 400) process.exitCode = 1;
+    });
+
+  program
+    .command('runs [name]')
+    .description('your recent gateway calls, or the calls received by an agent you own')
+    .option('--json', 'raw log')
+    .action(async (name: string | undefined, opts: { json?: boolean }) => {
+      const list = await (await client()).runs(name);
+      if (opts.json) return console.log(JSON.stringify(list, null, 2));
+      if (list.length === 0) return console.log(c.dim('no runs yet'));
+      const rows = list.map((r) => [
+        r.createdAt.slice(0, 19).replace('T', ' '),
+        sanitize(name ? r.callerLogin : r.agentName),
+        r.status === 'ok' ? c.green(r.status) : c.red(r.status),
+        r.httpStatus === null ? '—' : String(r.httpStatus),
+        `${r.latencyMs}ms`,
+        c.dim(sanitize(r.error ?? '').slice(0, 50)),
+      ]);
+      const { table } = await import('../ui.js');
+      console.log(table(rows, ['WHEN', name ? 'CALLER' : 'AGENT', 'STATUS', 'HTTP', 'LATENCY', 'ERROR']));
+    });
+
+  program
     .command('audit <name>')
     .description('show the registry audit report behind an agent grade (see agenthive.sh/docs/grading)')
     .option('--rerun', 're-run the audit on your own agent (once per hour)')

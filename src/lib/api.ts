@@ -80,6 +80,28 @@ export interface AuditResponse {
   report: AuditReport | null;
 }
 
+export interface RunLog {
+  id: string;
+  agentName: string;
+  agentVersion: string;
+  callerLogin: string;
+  via: 'api-key' | 'session';
+  status: 'ok' | 'upstream_error' | 'timeout' | 'blocked' | 'bad_request';
+  httpStatus: number | null;
+  latencyMs: number;
+  requestBytes: number;
+  responseBytes: number;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface RunResult {
+  runId: string;
+  status: number;
+  latencyMs: number;
+  output: unknown;
+}
+
 export interface ManifestIssue {
   path: string;
   message: string;
@@ -97,6 +119,19 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   revokeKey: (id: string) => request<null>(`/api/v1/keys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  run: async (name: string, input: unknown): Promise<RunResult> => {
+    const res = await fetch(`/api/v1/run/${encodeURIComponent(name)}`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
+    const text = await res.text();
+    const output: unknown = safeJson(text);
+    const runId = res.headers.get('x-agenthive-run-id') ?? '';
+    if (!runId) throw new ApiError((output as { error?: string } | null)?.error ?? `${res.status} ${res.statusText}`, res.status, output);
+    if (res.status === 502 || res.status === 504) throw new ApiError(`${(output as { error?: string }).error ?? 'upstream failed'} (run ${runId})`, res.status, output);
+    return { runId, status: res.status, latencyMs: Number(res.headers.get('x-agenthive-latency-ms') ?? 0), output };
+  },
+  myRuns: () => request<{ runs: RunLog[] }>('/api/v1/runs', { cache: 'no-store' }).then((r) => r.runs),
+  agentRuns: (name: string) => request<{ runnable: boolean; reason: string | null; runs: RunLog[] }>(`/api/v1/agents/${encodeURIComponent(name)}/runs`, { cache: 'no-store' }),
+  gatewaySecret: (name: string) => request<{ secret: string; recipe: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret`, { cache: 'no-store' }),
+  rotateGatewaySecret: (name: string) => request<{ secret: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret/rotate`, { method: 'POST' }),
   audit: (name: string) => request<AuditResponse>(`/agents/${encodeURIComponent(name)}/audit.json`, { cache: 'no-store' }),
   rerunAudit: (name: string) => request<{ agent: Agent | null; audit: AuditReport }>(`/api/v1/agents/${encodeURIComponent(name)}/audit`, { method: 'POST' }),
   publish: (manifest: Record<string, unknown>) =>

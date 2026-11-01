@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, FileCode2, TerminalSquare, Download, X, ShieldCheck } from 'lucide-react';
+import { BookOpen, FileCode2, TerminalSquare, Download, X, ShieldCheck, Play } from 'lucide-react';
 import { agentPath } from '../lib/router';
 import { CopyButton } from './ui/CodeBlock';
 import type { Agent } from '../types';
@@ -10,10 +10,11 @@ import { OverviewTab } from './tabs/OverviewTab';
 import { ManifestTab } from './tabs/ManifestTab';
 import { SandboxView } from './tabs/SandboxView';
 import { AuditTab } from './tabs/AuditTab';
+import { RunTab, runnableReason } from './tabs/RunTab';
 
-type TabId = 'overview' | 'audit' | 'manifest' | 'sandbox';
+type TabId = 'overview' | 'run' | 'audit' | 'manifest' | 'sandbox';
 
-export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
+export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent: Agent | null; onClose: () => void; signedIn: boolean; onSignIn: () => void }) {
   const [tab, setTab] = useState<TabId>('overview');
 
   useEffect(() => {
@@ -63,9 +64,10 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
           <Tabs<TabId>
             tabs={[
               { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
+              ...(runnableReason(agent) === null ? [{ id: 'run' as const, label: 'Run', icon: <Play size={14} /> }] : []),
               { id: 'audit', label: 'Audit', icon: <ShieldCheck size={14} /> },
               { id: 'manifest', label: 'A2A & MCP Manifest', icon: <FileCode2 size={14} /> },
-              { id: 'sandbox', label: 'Sandbox (simulated)', icon: <TerminalSquare size={14} /> },
+              ...(agent.isSeed ? [{ id: 'sandbox' as const, label: 'Sandbox (simulated)', icon: <TerminalSquare size={14} /> }] : []),
             ]}
             active={tab}
             onChange={setTab}
@@ -73,6 +75,7 @@ export function AgentDetailModal({ agent, onClose }: { agent: Agent | null; onCl
 
           <div className="flex-1 overflow-auto p-5" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
             {tab === 'overview' && <OverviewTab agent={agent} />}
+            {tab === 'run' && <RunTab agent={agent} signedIn={signedIn} onSignIn={onSignIn} />}
             {tab === 'audit' && <AuditTab agent={agent} />}
             {tab === 'manifest' && <ManifestTab agent={agent} />}
             {tab === 'sandbox' && <SandboxView agent={agent} />}

@@ -71,8 +71,8 @@ export function registerAdd(program: Command, client: () => RegistryClient) {
     .description('run an agent as a local MCP server (V1 runtime, not available yet)')
     .action((ref: string) => {
       const { name } = parseRef(ref);
-      console.error(`${c.red('✗')} "${name}" cannot run locally yet: the managed runtime ships in AgentHive V1.`);
-      console.error(c.dim(`  catalog access works today: agent-cli info ${name} · agent-cli setup`));
+      console.error(`${c.red('✗')} "${name}" cannot be served as a local MCP server yet.`);
+      console.error(c.dim(`  call it through the gateway instead: agent-cli run ${name} --input '{...}'`));
       process.exitCode = 2;
     });
 }

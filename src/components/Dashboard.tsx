@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { KeyRound, Plus, Trash2, Loader2, Copy, Check, Package, AlertCircle, RefreshCw } from 'lucide-react';
+import { KeyRound, Plus, Trash2, Loader2, Copy, Check, Package, AlertCircle, RefreshCw, Activity, Eye, EyeOff } from 'lucide-react';
 import type { Agent } from '../types';
-import { api, type ApiKeySummary, type Me } from '../lib/api';
+import { api, type ApiKeySummary, type Me, type RunLog } from '../lib/api';
 import { agentPath } from '../lib/router';
 import { CLI_PACKAGE_SPEC } from '../lib/manifest';
 import { CodeBlock } from './ui/CodeBlock';
@@ -17,6 +17,7 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
   const [copied, setCopied] = useState(false);
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [rerunMsg, setRerunMsg] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -113,7 +114,8 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
             {rerunMsg && <p role="status" className="mb-2 font-mono text-[12px] text-muted">{rerunMsg}</p>}
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
               {me.agents.map((a) => (
-                <li key={a.id} className="flex items-center gap-2 pr-2">
+                <li key={a.id}>
+                  <div className="flex items-center gap-2 pr-2">
                   <button type="button" onClick={() => onOpenAgent(a)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-mono text-[13px] font-semibold text-fg">{a.name}</span>
@@ -125,6 +127,16 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
                   </button>
                   <button
                     type="button"
+                    onClick={() => setOpen(open === a.name ? null : a.name)}
+                    className="shrink-0 rounded p-1.5 text-dim hover:text-fg"
+                    aria-label={`Runs and gateway secret for ${a.name}`}
+                    aria-expanded={open === a.name}
+                    title="Runs and gateway secret"
+                  >
+                    <Activity size={14} />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => rerun(a.name)}
                     disabled={rerunning === a.name}
                     className="shrink-0 rounded p-1.5 text-dim hover:text-fg disabled:opacity-50"
@@ -133,6 +145,8 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
                   >
                     {rerunning === a.name ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   </button>
+                  </div>
+                  {open === a.name && <AgentOps name={a.name} />}
                 </li>
               ))}
             </ul>
@@ -203,6 +217,67 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
           </p>
         </div>
       </aside>
+    </div>
+  );
+}
+
+const STATUS_CLS: Record<RunLog['status'], string> = { ok: 'text-ok', upstream_error: 'text-danger', timeout: 'text-warn', blocked: 'text-danger', bad_request: 'text-warn' };
+
+/** Per-agent operations: recent gateway runs and the signing secret. */
+function AgentOps({ name }: { name: string }) {
+  const [data, setData] = useState<{ runnable: boolean; reason: string | null; runs: RunLog[] } | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.agentRuns(name).then(setData).catch((e) => setErr(e instanceof Error ? e.message : 'failed'));
+  }, [name]);
+
+  const reveal = async () => {
+    if (!secret) setSecret((await api.gatewaySecret(name)).secret);
+    setShown((v) => !v);
+  };
+  const rotate = async () => {
+    if (!window.confirm('Rotate the gateway secret? Your endpoint must switch to the new one.')) return;
+    setSecret((await api.rotateGatewaySecret(name)).secret);
+    setShown(true);
+  };
+
+  return (
+    <div className="space-y-3 border-t border-border bg-surface-2/60 px-4 py-3" data-testid={`ops-${name}`}>
+      {err && <p className="font-mono text-[12px] text-danger">{err}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-dim">gateway secret</span>
+        <button type="button" onClick={reveal} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 font-mono text-[11px] text-muted hover:text-fg">
+          {shown ? <EyeOff size={11} /> : <Eye size={11} />} {shown ? 'hide' : 'reveal'}
+        </button>
+        <button type="button" onClick={rotate} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 font-mono text-[11px] text-muted hover:text-danger">
+          <RefreshCw size={11} /> rotate
+        </button>
+        {shown && secret && <code className="min-w-0 break-all font-mono text-[11px] text-fg">{secret}</code>}
+      </div>
+      <p className="font-mono text-[11px] text-dim">
+        verify on your side: hex(hmac_sha256(secret, timestamp + "." + raw_body)) == x-agenthive-signature, reject if |now − timestamp| &gt; 5 min
+      </p>
+      <div>
+        <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-dim">recent runs{data ? ` · ${data.runs.length}` : ''}</p>
+        {data && !data.runnable && <p className="text-[12px] text-muted">Not callable through the gateway: {data.reason}.</p>}
+        {data && data.runs.length === 0 && data.runnable && <p className="text-[12px] text-muted">No runs yet. Try it from the Run tab or `agent-cli run {name}`.</p>}
+        {data && data.runs.length > 0 && (
+          <ul className="max-h-56 divide-y divide-border overflow-auto rounded-md border border-border font-mono text-[11px]">
+            {data.runs.map((r) => (
+              <li key={r.id} className="flex items-center gap-3 px-2 py-1.5">
+                <span className="text-dim">{r.createdAt.slice(5, 19).replace('T', ' ')}</span>
+                <span className="text-muted">{r.callerLogin}</span>
+                <span className={STATUS_CLS[r.status]}>{r.status}</span>
+                <span className="text-dim">{r.httpStatus ?? '—'}</span>
+                <span className="ml-auto text-dim">{r.latencyMs}ms</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

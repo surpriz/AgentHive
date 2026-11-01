@@ -1,12 +1,12 @@
-import type { AgentCard, AuditReport, AuditResponse, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, SearchOptions } from './types.js';
+import type { AgentCard, AuditReport, AuditResponse, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, SearchOptions } from './types.js';
 
 export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
 /** Pinned package specs for generated install snippets: an unpinned npx would pick up any later (or squatted) release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.2.0';
-export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.2.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.3.0';
+export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.3.0';
 
 export class RegistryError extends Error {
   constructor(
@@ -56,6 +56,44 @@ export class RegistryClient {
     const res = await this.fetchImpl(`${this.baseUrl}/api/v1/me`, { headers: { accept: 'application/json', ...this.authHeaders() } });
     if (!res.ok) throw new RegistryError(res.status === 401 ? 'invalid or revoked API key' : `registry returned ${res.status}`, res.status);
     return (await res.json()) as Me;
+  }
+
+  /**
+   * Call an agent through the gateway. The input is sent verbatim to the author's endpoint;
+   * the registry signs it, logs it and enforces quotas. Non-2xx upstream answers resolve too
+   * (status carries the upstream code); gateway refusals throw RegistryError.
+   */
+  async run<T = unknown>(name: string, input: unknown): Promise<RunResult<T>> {
+    assertName(name);
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/run/${name}`, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json', ...this.authHeaders() },
+      body: JSON.stringify(input),
+    });
+    const text = await res.text();
+    const runId = res.headers.get('x-agenthive-run-id') ?? '';
+    const latencyMs = Number(res.headers.get('x-agenthive-latency-ms') ?? 0);
+    let output: unknown = text;
+    try {
+      output = JSON.parse(text);
+    } catch {
+      /* upstream body stays raw */
+    }
+    if (!runId || res.status === 401 || res.status === 404 || res.status === 409 || res.status === 413 || res.status === 429 || res.status === 400) {
+      const err = (output as { error?: string } | null)?.error ?? `gateway returned ${res.status}`;
+      throw new RegistryError(err, res.status);
+    }
+    if (res.status === 502 || res.status === 504) throw new RegistryError(`${(output as { error?: string }).error ?? 'upstream failed'} (run ${runId})`, res.status);
+    return { runId, status: res.status, latencyMs, output: output as T };
+  }
+
+  /** Runs you made (no name) or runs received by an agent you own. */
+  async runs(name?: string): Promise<RunLog[]> {
+    if (name) assertName(name);
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/${name ? `agents/${name}/runs` : 'runs'}`, { headers: { accept: 'application/json', ...this.authHeaders() } });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; runs?: RunLog[] };
+    if (!res.ok || !body.runs) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status);
+    return body.runs;
   }
 
   /** Latest public audit report for an agent. */

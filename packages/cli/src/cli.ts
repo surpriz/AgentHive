@@ -10,7 +10,7 @@ import { c } from './ui.js';
 export function buildProgram(): Command {
   const program = new Command('agent-cli')
     .description('agenthive.sh — search, inspect and install interoperable AI agents')
-    .version('0.2.0')
+    .version('0.3.0')
     .option('-r, --registry <url>', `registry base URL (env AGENTHIVE_REGISTRY, default ${DEFAULT_REGISTRY})`)
     .showHelpAfterError()
     .configureOutput({ writeErr: (s) => process.stderr.write(s) });

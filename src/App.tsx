@@ -193,7 +193,7 @@ export default function App() {
         </div>
       </footer>
 
-      <AgentDetailModal agent={selected} onClose={closeDetail} />
+      <AgentDetailModal agent={selected} onClose={closeDetail} signedIn={user !== null} onSignIn={signIn} />
       <PublishModal
         open={publishOpen}
         onClose={closePublish}

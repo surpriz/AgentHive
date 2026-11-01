@@ -37,6 +37,8 @@ export const agents = pgTable(
     transport: varchar('transport', { length: 32 }).notNull().default('a2a/http+json'),
     endpoint: text('endpoint'),
     latestVersion: varchar('latest_version', { length: 32 }).notNull(),
+    /** HMAC key the gateway signs upstream requests with; shown to the owner, rotatable. */
+    gatewaySecret: text('gateway_secret'),
     isSeed: boolean('is_seed').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -74,6 +76,34 @@ export const audits = pgTable(
   (t) => [index('audits_agent_created_idx').on(t.agentId, t.createdAt)],
 );
 
+export const RUN_STATUSES = ['ok', 'upstream_error', 'timeout', 'blocked', 'bad_request'] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+export const runs = pgTable(
+  'runs',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    agentVersion: varchar('agent_version', { length: 32 }).notNull(),
+    callerId: text('caller_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    callerLogin: varchar('caller_login', { length: 64 }).notNull(),
+    via: varchar('via', { length: 16 }).notNull(),
+    status: varchar('status', { length: 16 }).$type<RunStatus>().notNull(),
+    httpStatus: integer('http_status'),
+    latencyMs: integer('latency_ms').notNull(),
+    requestBytes: integer('request_bytes').notNull().default(0),
+    responseBytes: integer('response_bytes').notNull().default(0),
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('runs_agent_created_idx').on(t.agentId, t.createdAt), index('runs_caller_created_idx').on(t.callerId, t.createdAt)],
+);
+
+export type RunRow = typeof runs.$inferSelect;
 export type AuditRow = typeof audits.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type NewAgentRow = typeof agents.$inferInsert;

@@ -116,3 +116,27 @@ export interface AuditResponse {
   criteria: string;
   report: AuditReport | null;
 }
+
+/** One gateway call, as logged by the registry. */
+export interface RunLog {
+  id: string;
+  agentName: string;
+  agentVersion: string;
+  callerLogin: string;
+  via: 'api-key' | 'session';
+  status: 'ok' | 'upstream_error' | 'timeout' | 'blocked' | 'bad_request';
+  httpStatus: number | null;
+  latencyMs: number;
+  requestBytes: number;
+  responseBytes: number;
+  error: string | null;
+  createdAt: string;
+}
+
+/** Result of POST /api/v1/run/<name>: the upstream body, parsed, plus gateway metadata. */
+export interface RunResult<T = unknown> {
+  runId: string;
+  status: number;
+  latencyMs: number;
+  output: T;
+}

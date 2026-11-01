@@ -4,6 +4,7 @@ import { agentVersions, agents, audits } from './db/schema';
 import { compareSemver, type Manifest } from './manifest';
 import { manifestToColumns, rowToAgent } from './registry';
 import { runAudit, type AuditContext, type Report } from './audit';
+import { newGatewaySecret } from './gateway';
 import type { Agent } from '../src/types';
 
 export type PublishResult =
@@ -54,7 +55,7 @@ export async function publishManifest(db: Db, who: Publisher, manifest: Manifest
   } else {
     [row] = await db
       .insert(agents)
-      .values({ id: newId(), ownerId: who.userId, author: who.login, ...cols, ...stamp })
+      .values({ id: newId(), ownerId: who.userId, author: who.login, gatewaySecret: newGatewaySecret(), ...cols, ...stamp })
       .returning();
     created = true;
   }

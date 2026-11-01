@@ -63,12 +63,15 @@ before billing. Items 1 and 2 shipped 2026-10-31 (v1.0, see
    grade assigned from public criteria.
 4. Run gateway: `POST api.agenthive.sh/v1/run/<agent>` that proxies to the
    author's own endpoint, with auth, quotas, timeouts, retries and completion
-   webhooks. AgentHive exposes agents, it does not host them. This is the A2A
+   webhooks. Shipped 2026-11-01 (v1.2) as `POST /api/v1/run/<name>` with
+   signing, quotas, logs and measured metrics; async runs and webhooks still
+   open. See `GATEWAY.md`. AgentHive exposes agents, it does not host them. This is the A2A
    assumption (the agent card points at the provider's URL), it is an order of
    magnitude cheaper than a managed runtime, and it keeps the customer
    relationship and the usage data on our side.
 5. Usage metering per key and per agent, call logs (latency, errors, declared
-   tokens), a logs console.
+   tokens), a logs console. Logs and console shipped with v1.2; token
+   metering open.
 6. Automated benchmark: a task set per category, run at every publish,
    success rate displayed. The security grade is computed, never declared.
 7. Supply bootstrap: port 20 to 30 existing open-source agents (well-known MCP

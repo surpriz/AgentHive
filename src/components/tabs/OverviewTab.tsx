@@ -20,10 +20,10 @@ export function OverviewTab({ agent }: { agent: Agent }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.successRate)} hint={agent.successRate === null ? "not yet benchmarked" : "benchmark, 500 runs"} />
-        <Metric icon={<Coins size={12} className="text-accent" />} label="Cost / run" value={fmtCost(agent.costPerRun)} hint="avg, 30d" />
-        <Metric icon={<Timer size={12} className="text-accent-2" />} label="Latency" value={fmtLatency(agent.avgLatencyMs)} hint="p50" />
-        <Metric icon={<BarChart3 size={12} className="text-violet" />} label="Runs" value={fmtRuns(agent.runs30d)} hint="last 30 days" />
+        <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.successRate)} hint={agent.isSeed ? "illustrative" : agent.successRate === null ? "measured after 20 gateway runs" : "measured over the gateway, 30d"} />
+        <Metric icon={<Coins size={12} className="text-accent" />} label="Cost / run" value={fmtCost(agent.costPerRun)} hint={agent.isSeed ? "illustrative" : "no billing yet"} />
+        <Metric icon={<Timer size={12} className="text-accent-2" />} label="Latency" value={fmtLatency(agent.avgLatencyMs)} hint={agent.isSeed ? "illustrative" : "mean of ok runs, 30d"} />
+        <Metric icon={<BarChart3 size={12} className="text-violet" />} label="Runs" value={fmtRuns(agent.runs30d)} hint={agent.isSeed ? "illustrative" : "through the gateway, 30d"} />
       </div>
 
       <section>
