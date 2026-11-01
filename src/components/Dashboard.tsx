@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { KeyRound, Plus, Trash2, Loader2, Copy, Check, Package, AlertCircle, RefreshCw, Activity, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, Plus, Trash2, Loader2, Copy, Check, Package, AlertCircle, RefreshCw, Activity, Eye, EyeOff, FlaskConical } from 'lucide-react';
 import type { Agent } from '../types';
 import { api, type ApiKeySummary, type Me, type RunLog } from '../lib/api';
 import { agentPath } from '../lib/router';
@@ -238,6 +238,17 @@ function AgentOps({ name }: { name: string }) {
     if (!secret) setSecret((await api.gatewaySecret(name)).secret);
     setShown((v) => !v);
   };
+  const [bench, setBench] = useState<string | null>(null);
+  const runBench = async () => {
+    setBench('running…');
+    try {
+      const r = await api.runBenchmark(name);
+      setBench(`${r.benchmark.passed}/${r.benchmark.total} passed · ${r.benchmark.passRate}%`);
+    } catch (e) {
+      setBench(e instanceof Error ? e.message : 'benchmark failed');
+    }
+  };
+
   const rotate = async () => {
     if (!window.confirm('Rotate the gateway secret? Your endpoint must switch to the new one.')) return;
     setSecret((await api.rotateGatewaySecret(name)).secret);
@@ -256,6 +267,13 @@ function AgentOps({ name }: { name: string }) {
           <RefreshCw size={11} /> rotate
         </button>
         {shown && secret && <code className="min-w-0 break-all font-mono text-[11px] text-fg">{secret}</code>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-dim">benchmark</span>
+        <button type="button" onClick={runBench} disabled={bench === 'running…'} className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 font-mono text-[11px] text-muted hover:text-fg disabled:opacity-60">
+          <FlaskConical size={11} /> run now
+        </button>
+        {bench && <span className="font-mono text-[11px] text-muted" role="status">{bench}</span>}
       </div>
       <p className="font-mono text-[11px] text-dim">
         verify on your side: hex(hmac_sha256(secret, timestamp + "." + raw_body)) == x-agenthive-signature, reject if |now − timestamp| &gt; 5 min

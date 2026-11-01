@@ -18,7 +18,16 @@ test('an agent with a real endpoint runs through the gateway from the Run tab an
     data: {
       apiVersion: 'agenthive.sh/v1',
       metadata: { name, version: '0.1.0', category: 'DevOps', value: 'Echoes whatever it receives, to try the gateway.', tagline: 'Points at the public echo endpoint of the registry.' },
-      spec: { framework: 'Custom A2A', transport: 'a2a/http+json', endpoint: 'https://agenthive.sh/api/v1/echo', permissions: { network: ['agenthive.sh'], filesystem: 'none', shell: false, env: [] } },
+      spec: {
+        framework: 'Custom A2A',
+        transport: 'a2a/http+json',
+        endpoint: 'https://agenthive.sh/api/v1/echo',
+        permissions: { network: ['agenthive.sh'], filesystem: 'none', shell: false, env: [] },
+        tests: [
+          { name: 'echoes the task', input: { task: 'bench' }, expect: { contains: '"task":"bench"', jsonPath: { path: 'echo.task', equals: 'bench' } } },
+          { name: 'wrong on purpose', input: { task: 'x' }, expect: { contains: 'never-there' } },
+        ],
+      },
     },
   });
   expect(res.status()).toBe(201);
@@ -36,10 +45,19 @@ test('an agent with a real endpoint runs through the gateway from the Run tab an
   await expect(status).toContainText('"caller": "testuser"');
   await expect(status).toContainText('"signatureValid"');
 
+  // The publish queued a benchmark against the echo: 2 probes + 2 cases + latency, one case fails on purpose.
+  await expect
+    .poll(async () => ((await (await page.request.get(`/agents/${name}/benchmark.json`)).json()) as { benchmark: { passed?: number; total?: number } | null }).benchmark?.total ?? 0, { timeout: 30_000 })
+    .toBe(5);
+  await page.goto(`/agents/${name}`);
+  const bench = page.getByTestId('benchmark-section');
+  await expect(bench).toContainText('4/5 passed');
+  await expect(bench).toContainText('wrong on purpose');
+
   await page.goto('/dashboard');
   await page.getByRole('button', { name: `Runs and gateway secret for ${name}` }).click();
   const ops = page.getByTestId(`ops-${name}`);
-  await expect(ops).toContainText('recent runs · 1');
+  await expect(ops).toContainText(/recent runs · \d+/);
   await expect(ops).toContainText('ok');
   await ops.getByRole('button', { name: 'reveal' }).click();
   await expect(ops.locator('code')).toContainText('ahgw_');

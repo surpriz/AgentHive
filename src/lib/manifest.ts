@@ -4,7 +4,7 @@ import { stringify } from 'yaml';
 
 export const MANIFEST_API_VERSION = 'agenthive.sh/v1';
 /** Pinned so generated configs never auto-upgrade to an unreviewed release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.3.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.4.0';
 
 /** The manifest document as the registry serves it (and as `agent-cli push` sends it, minus the server-owned blocks). */
 export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
@@ -34,7 +34,8 @@ export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
     useCases: a.useCases,
     // Server-owned. Ignored on push.
     security: { grade: a.grade, score: a.score, auditedAt: a.auditedAt, report: `${origin}/agents/${a.name}/audit.json` },
-    benchmark: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
+    benchmark: { passRate: a.benchmark?.passRate ?? null, ranAt: a.benchmark?.ranAt ?? null, report: `${origin}/agents/${a.name}/benchmark.json` },
+    availability: { successRate: a.successRate, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
     registry: { url: `${origin}/agents/${a.name}`, agentCard: `${origin}/agents/${a.name}/agent.json`, publishedAt: a.publishedAt },
   };
 }
@@ -109,7 +110,8 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
       model: a.model,
       license: a.license,
       tools: a.tools,
-      benchmark: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
+      benchmark: { passRate: a.benchmark?.passRate ?? null, ranAt: a.benchmark?.ranAt ?? null, report: `${origin}/agents/${a.name}/benchmark.json` },
+      availability: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
       transport: a.transport,
       isSeed: a.isSeed,
       inputSchema: a.inputSchema,
@@ -137,6 +139,7 @@ export function buildRegistryIndex(agents: Agent[], origin = 'https://agenthive.
       score: a.score,
       auditedAt: a.auditedAt,
       successRate: a.successRate,
+      benchmarkPassRate: a.benchmark?.passRate ?? null,
       costPerRun: a.costPerRun,
       tools: a.tools,
       tags: a.tags,

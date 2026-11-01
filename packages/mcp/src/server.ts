@@ -4,6 +4,9 @@ import { RegistryClient, RegistryError, installSnippet } from '@agenthive-sh/reg
 import type { RegistryEntry } from '@agenthive-sh/registry-client';
 
 const FRAMEWORKS = ['LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
+/** Kept in sync with package.json by the release bump. */
+export const MCP_VERSION = '0.4.0';
+
 const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;
 
 const summary = (a: RegistryEntry) =>
@@ -13,7 +16,7 @@ const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] });
 const fail = (e: unknown) => ({ content: [{ type: 'text' as const, text: e instanceof RegistryError ? e.message : String(e) }], isError: true });
 
 export function createServer(client = new RegistryClient()): McpServer {
-  const server = new McpServer({ name: 'agenthive', version: '0.1.0' });
+  const server = new McpServer({ name: 'agenthive', version: MCP_VERSION });
 
   server.registerTool(
     'search_agents',

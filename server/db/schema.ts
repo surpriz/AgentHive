@@ -39,6 +39,9 @@ export const agents = pgTable(
     latestVersion: varchar('latest_version', { length: 32 }).notNull(),
     /** HMAC key the gateway signs upstream requests with; shown to the owner, rotatable. */
     gatewaySecret: text('gateway_secret'),
+    /** Latest benchmark, mirrored for the index. */
+    benchmarkPassRate: real('benchmark_pass_rate'),
+    benchmarkAt: timestamp('benchmark_at', { withTimezone: true }),
     isSeed: boolean('is_seed').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -103,6 +106,25 @@ export const runs = pgTable(
   (t) => [index('runs_agent_created_idx').on(t.agentId, t.createdAt), index('runs_caller_created_idx').on(t.callerId, t.createdAt)],
 );
 
+export const benchmarks = pgTable(
+  'benchmarks',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    version: varchar('version', { length: 32 }).notNull(),
+    passed: integer('passed').notNull(),
+    total: integer('total').notNull(),
+    passRate: real('pass_rate').notNull(),
+    trigger: varchar('trigger', { length: 16 }).notNull(),
+    results: jsonb('results').$type<Record<string, unknown>[]>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('benchmarks_agent_created_idx').on(t.agentId, t.createdAt)],
+);
+
+export type BenchmarkRow = typeof benchmarks.$inferSelect;
 export type RunRow = typeof runs.$inferSelect;
 export type AuditRow = typeof audits.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;

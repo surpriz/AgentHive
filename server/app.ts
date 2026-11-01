@@ -10,7 +10,8 @@ import { parseManifest } from './manifest';
 import { latestAudit, publishManifest, reauditAgent } from './publish';
 import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
-import { ensureSecret, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
+import { ensureSecret, ensureSystemUser, measuredMetrics, recentRuns, rotateSecret, runAgent, runnableReason, verifyRunSignature, RUN_LIMITS } from './gateway';
+import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -29,6 +30,10 @@ export interface AppOptions {
   auditContext?: () => AuditContext;
   /** Outbound fetch for the run gateway; tests inject a fake upstream. Defaults to the pinned safe fetch. */
   gatewayFetch?: typeof fetch;
+  /** Runs work after the response is sent (Vercel waitUntil). Default: await inline. */
+  background?: (p: Promise<unknown>) => void;
+  /** Bearer token protecting /api/cron/*. Unset disables the cron routes. */
+  cronSecret?: string;
 }
 
 export interface AppContext {
@@ -60,6 +65,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   const { db, migrate } = await createDb(opts.databaseUrl);
   if (opts.migrate ?? isPglite) await migrate();
   await seedIfEmpty(db);
+  await ensureSystemUser(db);
 
   const devLogin = isPglite && process.env.NODE_ENV !== 'production';
   const auth = createAuth(db, { ...opts.auth, passwordLogin: devLogin });
@@ -68,6 +74,12 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   const reauditAt = new Map<string, number>();
   const auditCtx = opts.auditContext ?? (() => defaultContext());
   const gatewayFetch = opts.gatewayFetch ?? createSafeFetch({ timeoutMs: RUN_LIMITS.upstreamTimeoutMs });
+  const background = opts.background ?? ((p) => p.catch((e) => console.error('background task failed', e)));
+  const benchmarkAt = new Map<string, number>();
+  const benchmarkAgent = async (agentId: string, trigger: BenchmarkTrigger) => {
+    const row = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    return row ? runBenchmark(db, { fetch: gatewayFetch }, row, trigger) : null;
+  };
 
   /** Non-seed agents get numbers measured over the gateway; seeds keep their illustrative ones. */
   const withMeasured = async (rows: (typeof agents.$inferSelect)[]): Promise<Agent[]> => {
@@ -148,6 +160,26 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     return publicJson(c, { agent: a.name, version: a.version, grade: a.grade, score: a.score, criteria: `${opts.origin}/docs/grading`, report: report ?? null });
   });
 
+  app.get('/agents/:name/benchmark.json', async (c) => {
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return publicJson(c, { error: 'not found' }, 404);
+    const a = rowToAgent(row);
+    return publicJson(c, { agent: a.name, version: a.version, illustrative: row.isSeed, benchmark: row.isSeed ? a.benchmark : await latestBenchmark(db, row.id), runnable: runnableReason(row) === null, reason: runnableReason(row) });
+  });
+
+  // Daily continuous benchmark, protected by CRON_SECRET (Vercel cron sends it as a bearer token).
+  app.get('/api/cron/benchmark', async (c) => {
+    if (!opts.cronSecret || c.req.header('authorization') !== `Bearer ${opts.cronSecret}`) return c.json({ error: 'forbidden' }, 403);
+    const rows = await db.select().from(agents).where(eq(agents.isSeed, false));
+    const runnable = rows.filter((r) => runnableReason(r) === null);
+    background(
+      (async () => {
+        for (const r of runnable) await runBenchmark(db, { fetch: gatewayFetch }, r, 'cron');
+      })(),
+    );
+    return c.json({ scheduled: runnable.length });
+  });
+
   app.get('/docs/grading', (c) => c.redirect(GRADING_URL, 302));
 
   // Public test upstream: point a manifest's endpoint here to try the gateway end to end.
@@ -215,7 +247,9 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest, auditCtx());
     if (!res.ok) return c.json(res.code === 'AUDIT_BLOCKED' ? { error: res.message, code: res.code, audit: res.audit } : { error: res.message, code: res.code }, res.status);
     const entry = buildRegistryIndex([res.agent], opts.origin).agents[0];
-    return c.json({ agent: res.agent, entry, audit: res.audit, url: `${opts.origin}/agents/${res.agent.name}` }, res.created ? 201 : 200);
+    const benchmarkQueued = runnableReason({ isSeed: false, transport: res.agent.transport, endpoint: res.agent.endpoint } as Parameters<typeof runnableReason>[0]) === null;
+    if (benchmarkQueued) background(benchmarkAgent(res.agent.id, 'publish'));
+    return c.json({ agent: res.agent, entry, audit: res.audit, benchmarkQueued, url: `${opts.origin}/agents/${res.agent.name}` }, res.created ? 201 : 200);
   });
 
   v1.post('/agents/:name/audit', async (c) => {
@@ -259,6 +293,18 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const r = await ownedAgent(c);
     if ('error' in r) return r.error;
     return c.json({ runnable: runnableReason(r.row) === null, reason: runnableReason(r.row), runs: await recentRuns(db, { agentId: r.row.id }) });
+  });
+
+  v1.post('/agents/:name/benchmark', async (c) => {
+    const r = await ownedAgent(c);
+    if ('error' in r) return r.error;
+    const reason = runnableReason(r.row);
+    if (reason) return c.json({ error: reason }, 409);
+    const last = benchmarkAt.get(r.row.id) ?? 0;
+    if (Date.now() - last < REAUDIT_WINDOW_MS) return c.json({ error: 'benchmark already ran recently', retryAfterMs: REAUDIT_WINDOW_MS - (Date.now() - last) }, 429);
+    benchmarkAt.set(r.row.id, Date.now());
+    const report = await runBenchmark(db, { fetch: gatewayFetch }, r.row, 'owner');
+    return c.json({ benchmark: report });
   });
 
   v1.get('/agents/:name/secret', async (c) => {

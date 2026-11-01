@@ -72,7 +72,7 @@ before billing. Items 1 and 2 shipped 2026-10-31 (v1.0, see
 5. Usage metering per key and per agent, call logs (latency, errors, declared
    tokens), a logs console. Logs and console shipped with v1.2; token
    metering open.
-6. Automated benchmark: a task set per category, run at every publish,
+6. Automated benchmark (v1.3 shipped 2026-11-01: author-declared cases + registry probes, after publish, daily, on demand; category task sets still open): a task set per category, run at every publish,
    success rate displayed. The security grade is computed, never declared.
 7. Supply bootstrap: port 20 to 30 existing open-source agents (well-known MCP
    servers, LangGraph and CrewAI templates) together with their authors. This

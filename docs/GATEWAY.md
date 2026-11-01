@@ -80,3 +80,27 @@ agent-cli runs                # calls you made
 
 Follow redirects, connect to private or reserved addresses, retry after
 your endpoint has received the body, stream, or call `mcp/stdio` agents.
+
+## Benchmark
+
+The registry benchmarks every runnable agent after each publish, daily
+(03:15 UTC) and on demand from the dashboard or `agent-cli benchmark
+<name> --run`. It always sends two probes (`{}` must not 5xx; an
+unexpected field must not 5xx) and then the cases you declare:
+
+```yaml
+spec:
+  tests:
+    - name: suggests an index
+      input: { sql: "select * from orders where customer_id = 42" }
+      expect:
+        status: 200                     # default: any 2xx
+        contains: "CREATE INDEX"        # substring of the JSON answer
+        jsonPath: { path: suggestions.length, min: 1 }
+        maxLatencyMs: 5000
+```
+
+Up to 10 cases, 10 s each. The pass rate is the "success" number on your
+card; the full report is public at `/agents/<name>/benchmark.json`.
+Benchmark calls carry `x-agenthive-caller: agenthive-benchmark` and are
+not counted in your quotas or availability.

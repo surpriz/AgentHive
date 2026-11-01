@@ -31,6 +31,8 @@ export async function seedIfEmpty(db: Db): Promise<boolean> {
       grade: a.grade,
       score: a.score,
       auditedAt: a.auditedAt ? new Date(a.auditedAt) : null,
+      benchmarkPassRate: a.benchmark?.passRate ?? null,
+      benchmarkAt: a.benchmark ? new Date(a.benchmark.ranAt) : null,
       successRate: a.successRate,
       costPerRun: a.costPerRun,
       avgLatencyMs: a.avgLatencyMs,

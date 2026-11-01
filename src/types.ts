@@ -32,8 +32,10 @@ export interface Agent {
   /** Audit score 0–100 behind the grade; null while pending. */
   score: number | null;
   auditedAt: string | null;
-  /** Benchmark figures are null until the registry has measured the agent. */
+  /** Gateway availability over 30 days (ok runs / runs), null below 20 runs. */
   successRate: number | null;
+  /** Correctness measured by the registry benchmark; null until one ran. */
+  benchmark: { passRate: number; passed: number; total: number; ranAt: string } | null;
   costPerRun: number | null;
   avgLatencyMs: number | null;
   runs30d: number;

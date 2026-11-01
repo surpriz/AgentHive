@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, ne, sql } from 'drizzle-orm';
+import { user } from './db/auth-schema';
 import type { Db } from './db/client';
 import { agents, runs, type AgentRow, type RunStatus } from './db/schema';
 import { readCapped } from './audit/net';
@@ -33,7 +34,15 @@ export function verifyRunSignature(secret: string, timestamp: string, body: stri
 export interface Caller {
   id: string;
   login: string;
-  via: 'api-key' | 'session';
+  via: 'api-key' | 'session' | 'benchmark';
+}
+
+export const SYSTEM_CALLER: Caller = { id: 'system-benchmark', login: 'agenthive-benchmark', via: 'benchmark' };
+
+/** The benchmark runs as a system user so its calls are logged with a real foreign key. */
+export async function ensureSystemUser(db: Db): Promise<void> {
+  const now = new Date();
+  await db.insert(user).values({ id: SYSTEM_CALLER.id, name: SYSTEM_CALLER.login, login: SYSTEM_CALLER.login, email: 'benchmark@system.agenthive.sh', emailVerified: true, createdAt: now, updatedAt: now }).onConflictDoNothing();
 }
 
 export type RunOutcome =
@@ -53,7 +62,7 @@ async function quotaExceeded(db: Db, agentId: string, callerId: string, now: Dat
   const [[m], [cd], [ad]] = await Promise.all([
     db.select({ n: count() }).from(runs).where(and(eq(runs.callerId, callerId), gt(runs.createdAt, minuteAgo))),
     db.select({ n: count() }).from(runs).where(and(eq(runs.callerId, callerId), gt(runs.createdAt, dayAgo))),
-    db.select({ n: count() }).from(runs).where(and(eq(runs.agentId, agentId), gt(runs.createdAt, dayAgo))),
+    db.select({ n: count() }).from(runs).where(and(eq(runs.agentId, agentId), gt(runs.createdAt, dayAgo), ne(runs.via, 'benchmark'))),
   ]);
   if (Number(m.n) >= RUN_LIMITS.perCallerPerMinute) return { error: `rate limited: ${RUN_LIMITS.perCallerPerMinute} runs per minute per caller`, retryAfterMs: 60_000 };
   if (Number(cd.n) >= RUN_LIMITS.perCallerPerDay) return { error: `daily quota reached: ${RUN_LIMITS.perCallerPerDay} runs per caller`, retryAfterMs: 86_400_000 };
@@ -84,8 +93,10 @@ export async function runAgent(db: Db, deps: GatewayDeps, agent: AgentRow, calle
   } catch {
     return { kind: 'rejected', status: 400, error: 'request body must be valid JSON' };
   }
-  const quota = await quotaExceeded(db, agent.id, caller.id, new Date(now()));
-  if (quota) return { kind: 'rejected', status: 429, ...quota };
+  if (caller.via !== 'benchmark') {
+    const quota = await quotaExceeded(db, agent.id, caller.id, new Date(now()));
+    if (quota) return { kind: 'rejected', status: 429, ...quota };
+  }
 
   const secret = agent.gatewaySecret ?? (await ensureSecret(db, agent.id));
   const runId = randomUUID();
@@ -176,7 +187,7 @@ export async function measuredMetrics(db: Db, now = new Date()): Promise<Map<str
       avgOkLatency: sql<number | null>`avg(case when ${runs.status} = 'ok' then ${runs.latencyMs} end)`,
     })
     .from(runs)
-    .where(gt(runs.createdAt, since))
+    .where(and(gt(runs.createdAt, since), ne(runs.via, 'benchmark')))
     .groupBy(runs.agentId);
   const out = new Map<string, Measured>();
   for (const r of rows) {

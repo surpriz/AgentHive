@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import type { Command } from 'commander';
-import { RegistryClient, RegistryError, type AuditReport } from '@agenthive-sh/registry-client';
+import { RegistryClient, RegistryError, type AuditReport, type BenchmarkReport } from '@agenthive-sh/registry-client';
 import { clearCredentials, credentialsPath, writeCredentials } from '../credentials.js';
 import { c, gradeColor, sanitize } from '../ui.js';
 
@@ -23,7 +23,30 @@ export function printAudit(a: AuditReport): void {
   for (const f of a.findings) console.log(`  ${SEV[f.severity](f.severity.padEnd(7))} ${sanitize(f.check)}: ${sanitize(f.message)}${f.hint ? c.dim(` — ${sanitize(f.hint)}`) : ''}`);
 }
 
+function printBenchmark(b: BenchmarkReport): void {
+  console.log(`${b.passed}/${b.total} passed · ${b.passRate}% · ${b.ranAt.slice(0, 16).replace('T', ' ')} · trigger ${b.trigger} · v${sanitize(b.version)}`);
+  for (const r of b.results) console.log(`  ${r.passed ? c.green('✓') : c.red('✗')} ${sanitize(r.name)} ${c.dim(`[${r.kind}] ${r.status ?? '—'} ${r.latencyMs}ms`)}${r.reason ? c.dim(` — ${sanitize(r.reason)}`) : ''}`);
+}
+
 export function registerAccount(program: Command, client: () => Promise<RegistryClient>, baseUrl: () => string) {
+  program
+    .command('benchmark <name>')
+    .description('registry benchmark behind the success rate (probes + the cases declared in spec.tests)')
+    .option('--run', 'run it now on your own agent (once per hour)')
+    .option('--json', 'raw report')
+    .action(async (name: string, opts: { run?: boolean; json?: boolean }) => {
+      if (opts.run) {
+        const b = await (await client()).runBenchmark(name);
+        return opts.json ? console.log(JSON.stringify(b, null, 2)) : printBenchmark(b);
+      }
+      const res = await new RegistryClient({ baseUrl: baseUrl() }).benchmark(name);
+      if (opts.json) return console.log(JSON.stringify(res, null, 2));
+      if (res.illustrative) return console.log(c.dim(`${sanitize(name)}: illustrative seed numbers, no benchmark`));
+      if (!res.runnable) return console.log(c.dim(`${sanitize(name)}: not benchmarked (${sanitize(res.reason ?? '')})`));
+      if (!res.benchmark || !('results' in res.benchmark)) return console.log(c.dim(`${sanitize(name)}: no benchmark yet`));
+      printBenchmark(res.benchmark);
+    });
+
   program
     .command('run <name>')
     .description('call an agent through the gateway (signed, logged, quota-limited) and print its JSON answer')

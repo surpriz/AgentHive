@@ -15,6 +15,7 @@ export function rowToAgent(r: AgentRow): Agent {
     grade: r.grade,
     score: r.score,
     auditedAt: r.auditedAt ? r.auditedAt.toISOString() : null,
+    benchmark: r.benchmarkPassRate === null || !r.benchmarkAt ? null : { passRate: r.benchmarkPassRate, passed: -1, total: -1, ranAt: r.benchmarkAt.toISOString() },
     successRate: r.successRate,
     costPerRun: r.costPerRun,
     avgLatencyMs: r.avgLatencyMs,

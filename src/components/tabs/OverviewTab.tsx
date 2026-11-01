@@ -1,7 +1,9 @@
-import { Activity, Coins, Timer, BarChart3, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Activity, Coins, Timer, BarChart3, CheckCircle2, XCircle, FlaskConical, Loader2 } from 'lucide-react';
+import { api, type BenchmarkReport } from '../../lib/api';
 import type { Agent } from '../../types';
 import { CodeBlock } from '../ui/CodeBlock';
-import { fmtCost, fmtLatency, fmtPct, fmtRuns } from '../../lib/format';
+import { fmtLatency, fmtPct, fmtRuns } from '../../lib/format';
 
 function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint?: string }) {
   return (
@@ -20,11 +22,13 @@ export function OverviewTab({ agent }: { agent: Agent }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.successRate)} hint={agent.isSeed ? "illustrative" : agent.successRate === null ? "measured after 20 gateway runs" : "measured over the gateway, 30d"} />
-        <Metric icon={<Coins size={12} className="text-accent" />} label="Cost / run" value={fmtCost(agent.costPerRun)} hint={agent.isSeed ? "illustrative" : "no billing yet"} />
+        <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.benchmark?.passRate ?? null)} hint={agent.isSeed ? "illustrative" : agent.benchmark ? `benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : "no benchmark yet"} />
+        <Metric icon={<Coins size={12} className="text-accent" />} label="Availability" value={fmtPct(agent.successRate)} hint={agent.isSeed ? "illustrative" : agent.successRate === null ? "after 20 gateway runs" : "ok runs over 30d"} />
         <Metric icon={<Timer size={12} className="text-accent-2" />} label="Latency" value={fmtLatency(agent.avgLatencyMs)} hint={agent.isSeed ? "illustrative" : "mean of ok runs, 30d"} />
         <Metric icon={<BarChart3 size={12} className="text-violet" />} label="Runs" value={fmtRuns(agent.runs30d)} hint={agent.isSeed ? "illustrative" : "through the gateway, 30d"} />
       </div>
+
+      {!agent.isSeed && <BenchmarkSection agent={agent} />}
 
       <section>
         <h3 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">README</h3>
@@ -59,5 +63,43 @@ export function OverviewTab({ agent }: { agent: Agent }) {
         <div><span className="text-dim">tools</span><br />{agent.tools.length}</div>
       </section>
     </div>
+  );
+}
+
+function BenchmarkSection({ agent }: { agent: Agent }) {
+  const [data, setData] = useState<{ runnable: boolean; reason: string | null; benchmark: BenchmarkReport | null } | null>(null);
+  useEffect(() => {
+    api.benchmark(agent.name).then((r) => setData({ runnable: r.runnable, reason: r.reason, benchmark: (r.benchmark as BenchmarkReport | null) ?? null })).catch(() => setData({ runnable: false, reason: 'unavailable', benchmark: null }));
+  }, [agent.name]);
+  return (
+    <section data-testid="benchmark-section">
+      <h3 className="mb-2 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-dim">
+        <FlaskConical size={12} /> Benchmark
+      </h3>
+      {!data ? (
+        <p className="flex items-center gap-2 font-mono text-[12px] text-dim"><Loader2 size={12} className="animate-spin" /> loading…</p>
+      ) : !data.runnable ? (
+        <p className="text-[12.5px] text-muted">Not benchmarked: {data.reason}.</p>
+      ) : !data.benchmark || !('results' in data.benchmark) ? (
+        <p className="text-[12.5px] text-muted">No benchmark yet. It runs after each publish, daily, and on demand from the dashboard. Declare cases in <span className="font-mono text-fg">spec.tests</span> to measure more than liveness.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="font-mono text-[11.5px] text-dim">
+            {data.benchmark.passed}/{data.benchmark.total} passed · {data.benchmark.passRate}% · {data.benchmark.ranAt.slice(0, 16).replace('T', ' ')} · trigger {data.benchmark.trigger} · v{data.benchmark.version}
+          </p>
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {data.benchmark.results.map((r) => (
+              <li key={r.name} className="flex items-center gap-2 px-3 py-1.5 text-[12.5px]">
+                {r.passed ? <CheckCircle2 size={13} className="shrink-0 text-ok" /> : <XCircle size={13} className="shrink-0 text-danger" />}
+                <span className="text-fg">{r.name}</span>
+                <span className="font-mono text-[10px] uppercase text-dim">{r.kind}</span>
+                {r.reason && <span className="truncate text-[12px] text-muted">· {r.reason}</span>}
+                <span className="ml-auto shrink-0 font-mono text-[11px] text-dim">{r.status ?? '—'} · {r.latencyMs}ms</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }

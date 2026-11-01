@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { waitUntil } from '@vercel/functions';
 import { createApp, type AppContext } from './app';
 import { optionsFromEnv } from './env';
 
@@ -39,11 +40,14 @@ export function resolveRequestUrl(rawUrl: string, headers: Headers): URL {
 async function handler(req: Request): Promise<Response> {
   const url = resolveRequestUrl(req.url, req.headers);
   const request = url.href === req.url ? req : new Request(url, req);
-  ready ??= createApp(optionsFromEnv(process.env, { template: () => loadTemplate(url.origin) }));
+  ready ??= createApp(optionsFromEnv(process.env, { template: () => loadTemplate(url.origin), background: (p) => waitUntil(p.catch((e) => console.error('background task failed', e))) }));
   const { app } = await ready;
   return app.fetch(request);
 }
 
 // Vercel only uses the web-standard (Request → Response) signature for named HTTP method exports;
 // a default export would be invoked Node-style with (req, res).
+/** Vercel: benchmark runs continue after the response, up to this many seconds. */
+export const maxDuration = 60;
+
 export { handler as GET, handler as POST, handler as PUT, handler as PATCH, handler as DELETE, handler as OPTIONS, handler as HEAD };

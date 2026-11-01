@@ -13,6 +13,7 @@ export function optionsFromEnv(env: NodeJS.ProcessEnv, overrides: Partial<AppOpt
     databaseUrl,
     origin: env.PUBLIC_ORIGIN ?? baseURL,
     auth: { secret, baseURL, github, trustedOrigins: [baseURL] },
+    cronSecret: env.CRON_SECRET,
     ...overrides,
   };
 }

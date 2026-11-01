@@ -102,6 +102,17 @@ export interface RunResult {
   output: unknown;
 }
 
+export interface BenchmarkReport {
+  version: string;
+  trigger: 'publish' | 'owner' | 'cron';
+  ranAt: string;
+  passed: number;
+  total: number;
+  passRate: number;
+  results: { name: string; kind: 'probe' | 'case'; passed: boolean; latencyMs: number; status: number | null; reason: string | null }[];
+  skipped?: string;
+}
+
 export interface ManifestIssue {
   path: string;
   message: string;
@@ -132,6 +143,8 @@ export const api = {
   agentRuns: (name: string) => request<{ runnable: boolean; reason: string | null; runs: RunLog[] }>(`/api/v1/agents/${encodeURIComponent(name)}/runs`, { cache: 'no-store' }),
   gatewaySecret: (name: string) => request<{ secret: string; recipe: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret`, { cache: 'no-store' }),
   rotateGatewaySecret: (name: string) => request<{ secret: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret/rotate`, { method: 'POST' }),
+  benchmark: (name: string) => request<{ illustrative: boolean; runnable: boolean; reason: string | null; benchmark: BenchmarkReport | Agent['benchmark'] | null }>(`/agents/${encodeURIComponent(name)}/benchmark.json`, { cache: 'no-store' }),
+  runBenchmark: (name: string) => request<{ benchmark: BenchmarkReport }>(`/api/v1/agents/${encodeURIComponent(name)}/benchmark`, { method: 'POST' }),
   audit: (name: string) => request<AuditResponse>(`/agents/${encodeURIComponent(name)}/audit.json`, { cache: 'no-store' }),
   rerunAudit: (name: string) => request<{ agent: Agent | null; audit: AuditReport }>(`/api/v1/agents/${encodeURIComponent(name)}/audit`, { method: 'POST' }),
   publish: (manifest: Record<string, unknown>) =>

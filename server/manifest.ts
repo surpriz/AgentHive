@@ -58,6 +58,24 @@ export const manifestSchema = z.object({
         env: z.array(z.string().trim().regex(/^[A-Z][A-Z0-9_]*$/, 'env names are UPPER_SNAKE')).max(32).default([]),
       })
       .optional(),
+    /** Author-declared test cases the registry runs through the gateway. Declared, but never self-graded. */
+    tests: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1).max(80),
+          input: z.record(z.string(), z.unknown()),
+          expect: z
+            .object({
+              status: z.number().int().min(100).max(599).optional(),
+              contains: z.string().min(1).max(500).optional(),
+              jsonPath: z.object({ path: z.string().min(1).max(200), min: z.number().optional(), equals: z.unknown().optional() }).optional(),
+              maxLatencyMs: z.number().int().min(100).max(10_000).optional(),
+            })
+            .default({}),
+        }),
+      )
+      .max(10)
+      .default([]),
     /** Public repository holding the agent's code; lets the audit check dependencies. */
     source: z
       .object({

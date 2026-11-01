@@ -40,9 +40,9 @@ export function AgentCard({ agent, onOpen, isNew }: { agent: Agent; onOpen: (a: 
       </div>
 
       <div className="mt-auto grid grid-cols-2 gap-2 border-t border-border pt-3 font-mono text-[12px]">
-        <div className="flex items-center gap-1.5 text-muted" title="Benchmark success rate">
+        <div className="flex items-center gap-1.5 text-muted" title={agent.isSeed ? 'Illustrative benchmark' : agent.benchmark ? `Registry benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : 'No benchmark yet'}>
           <Activity size={13} className="text-ok" />
-          <span className="text-fg">{fmtPct(agent.successRate)}</span> success
+          <span className="text-fg">{fmtPct(agent.benchmark?.passRate ?? null)}</span> success
         </div>
         <div className="flex items-center gap-1.5 text-muted" title="Average cost per execution">
           <Coins size={13} className="text-accent" />

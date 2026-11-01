@@ -29,6 +29,10 @@
       "destination": "/api/index?__path=/agents/:ahname/audit.json"
     },
     {
+      "source": "/agents/:ahname/benchmark.json",
+      "destination": "/api/index?__path=/agents/:ahname/benchmark.json"
+    },
+    {
       "source": "/agents/:ahname",
       "destination": "/api/index?__path=/agents/:ahname"
     },
@@ -63,6 +67,12 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/benchmark",
+      "schedule": "15 3 * * *"
     }
   ]
 }

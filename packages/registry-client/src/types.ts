@@ -140,3 +140,24 @@ export interface RunResult<T = unknown> {
   latencyMs: number;
   output: T;
 }
+
+export interface BenchmarkReport {
+  version: string;
+  trigger: 'publish' | 'owner' | 'cron';
+  ranAt: string;
+  passed: number;
+  total: number;
+  passRate: number;
+  results: { name: string; kind: 'probe' | 'case'; passed: boolean; latencyMs: number; status: number | null; reason: string | null }[];
+  skipped?: string;
+}
+
+/** GET /agents/<name>/benchmark.json */
+export interface BenchmarkResponse {
+  agent: string;
+  version: string;
+  illustrative: boolean;
+  runnable: boolean;
+  reason: string | null;
+  benchmark: BenchmarkReport | { passRate: number; ranAt: string } | null;
+}

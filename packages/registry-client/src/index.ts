@@ -1,12 +1,12 @@
-import type { AgentCard, AuditReport, AuditResponse, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, SearchOptions } from './types.js';
+import type { AgentCard, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, SearchOptions } from './types.js';
 
 export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
 /** Pinned package specs for generated install snippets: an unpinned npx would pick up any later (or squatted) release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.3.0';
-export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.3.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.4.0';
+export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.4.0';
 
 export class RegistryError extends Error {
   constructor(
@@ -94,6 +94,21 @@ export class RegistryClient {
     const body = (await res.json().catch(() => ({}))) as { error?: string; runs?: RunLog[] };
     if (!res.ok || !body.runs) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status);
     return body.runs;
+  }
+
+  /** Latest public benchmark for an agent. */
+  async benchmark(name: string): Promise<BenchmarkResponse> {
+    assertName(name);
+    return this.getJson<BenchmarkResponse>(`/agents/${name}/benchmark.json`);
+  }
+
+  /** Run the benchmark on your own agent now (once per hour). */
+  async runBenchmark(name: string): Promise<BenchmarkReport> {
+    assertName(name);
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/agents/${name}/benchmark`, { method: 'POST', headers: { accept: 'application/json', ...this.authHeaders() } });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; benchmark?: BenchmarkReport };
+    if (!res.ok || !body.benchmark) throw new RegistryError(body.error ?? `registry returned ${res.status}`, res.status);
+    return body.benchmark;
   }
 
   /** Latest public audit report for an agent. */
