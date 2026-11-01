@@ -4,6 +4,10 @@ export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
+/** Pinned package specs for generated install snippets: an unpinned npx would pick up any later (or squatted) release. */
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.1.0';
+export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.1.0';
+
 export class RegistryError extends Error {
   constructor(
     message: string,
@@ -140,7 +144,7 @@ export function searchEntries(agents: RegistryEntry[], opts: SearchOptions = {})
 export function mcpServerEntry(entry: Pick<RegistryEntry, 'name' | 'author' | 'version'>) {
   return {
     command: 'npx',
-    args: ['-y', '@agenthive-sh/cli', 'serve', `${entry.author}/${entry.name}@${entry.version}`],
+    args: ['-y', CLI_PACKAGE_SPEC, 'serve', `${entry.author}/${entry.name}@${entry.version}`],
     env: { AGENTHIVE_TOKEN: '${AGENTHIVE_TOKEN}' },
   };
 }

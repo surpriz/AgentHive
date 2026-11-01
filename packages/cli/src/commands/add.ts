@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { installSnippet, mcpServerEntry, type RegistryClient } from '@agenthive-sh/registry-client';
+import { MCP_PACKAGE_SPEC, installSnippet, mcpServerEntry, type RegistryClient } from '@agenthive-sh/registry-client';
 import { TARGETS, mergeMcpServer, readConfig, targetPath, writeConfig, type Target } from '../config.js';
 import { c } from '../ui.js';
 
@@ -60,7 +60,7 @@ export function registerAdd(program: Command, client: () => RegistryClient) {
       const file = opts.path ?? targetPath(opts.target as Target);
       const env: Record<string, string> = {};
       if (process.env.AGENTHIVE_REGISTRY) env.AGENTHIVE_REGISTRY = process.env.AGENTHIVE_REGISTRY;
-      const next = mergeMcpServer(await readConfig(file), 'agenthive', { command: 'npx', args: ['-y', '@agenthive-sh/mcp'], ...(Object.keys(env).length ? { env } : {}) });
+      const next = mergeMcpServer(await readConfig(file), 'agenthive', { command: 'npx', args: ['-y', MCP_PACKAGE_SPEC], ...(Object.keys(env).length ? { env } : {}) });
       if (opts.dryRun) return console.log(JSON.stringify(next, null, 2));
       await writeConfig(file, next);
       console.log(`${c.green('✓')} agenthive catalog server added to ${file}`);

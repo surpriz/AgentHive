@@ -3,6 +3,8 @@ import type { Agent } from '../types';
 import { stringify } from 'yaml';
 
 export const MANIFEST_API_VERSION = 'agenthive.sh/v1';
+/** Pinned so generated configs never auto-upgrade to an unreviewed release. */
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.1.0';
 
 /** The manifest document as the registry serves it (and as `agent-cli push` sends it, minus the server-owned blocks). */
 export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
@@ -47,7 +49,7 @@ export function buildClaudeJson(a: Agent): string {
       mcpServers: {
         [a.name]: {
           command: 'npx',
-          args: ['-y', '@agenthive-sh/cli', 'serve', `${a.author}/${a.name}@${a.version}`],
+          args: ['-y', CLI_PACKAGE_SPEC, 'serve', `${a.author}/${a.name}@${a.version}`],
           env: { AGENTHIVE_TOKEN: '${AGENTHIVE_TOKEN}' },
         },
       },
