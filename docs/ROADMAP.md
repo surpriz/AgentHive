@@ -25,7 +25,7 @@ Live at the Vercel preview, source on GitHub. Real today:
 - catalog, filters, per-agent deep links, SEO meta, sitemap
 - one manifest per agent, served as YAML and as an A2A agent card
 - JSON registry endpoints (`/api/agents.json`, `/agents/<name>/agent.json`)
-- `@agenthive/registry-client`, `@agenthive/mcp`, `@agenthive/cli` packages
+- `@agenthive-sh/registry-client`, `@agenthive-sh/mcp`, `@agenthive-sh/cli` packages
   (not yet published to npm)
 - CI with unit and end-to-end tests
 

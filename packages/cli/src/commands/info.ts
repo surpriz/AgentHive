@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import type { RegistryClient } from '@agenthive/registry-client';
+import type { RegistryClient } from '@agenthive-sh/registry-client';
 import { c, gradeColor, num, sanitize } from '../ui.js';
 
 export function registerInfo(program: Command, client: () => RegistryClient) {

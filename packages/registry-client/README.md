@@ -1,15 +1,15 @@
-# @agenthive/registry-client
+# @agenthive-sh/registry-client
 
 Typed client for the [agenthive.sh](https://agenthive.sh) registry. Used by
-`@agenthive/cli` and `@agenthive/mcp`; usable on its own from any Node 20+
+`@agenthive-sh/cli` and `@agenthive-sh/mcp`; usable on its own from any Node 20+
 or edge runtime with `fetch`.
 
 ```bash
-npm i @agenthive/registry-client
+npm i @agenthive-sh/registry-client
 ```
 
 ```ts
-import { RegistryClient } from '@agenthive/registry-client';
+import { RegistryClient } from '@agenthive-sh/registry-client';
 
 const registry = new RegistryClient(); // AGENTHIVE_REGISTRY env overrides the base URL
 

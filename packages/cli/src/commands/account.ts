@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import type { Command } from 'commander';
-import { RegistryClient, RegistryError } from '@agenthive/registry-client';
+import { RegistryClient, RegistryError } from '@agenthive-sh/registry-client';
 import { clearCredentials, credentialsPath, writeCredentials } from '../credentials.js';
 import { c, gradeColor, sanitize } from '../ui.js';
 

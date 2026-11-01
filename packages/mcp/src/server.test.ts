@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { RegistryClient } from '@agenthive/registry-client';
-import type { RegistryIndex } from '@agenthive/registry-client';
+import { RegistryClient } from '@agenthive-sh/registry-client';
+import type { RegistryIndex } from '@agenthive-sh/registry-client';
 import { createServer } from './server.js';
 
 const index: RegistryIndex = {
@@ -32,7 +32,7 @@ async function connect() {
 
 const textOf = (r: Awaited<ReturnType<Client['callTool']>>) => (r.content as { type: string; text: string }[])[0].text;
 
-describe('@agenthive/mcp', () => {
+describe('@agenthive-sh/mcp', () => {
   it('lists four tools and one resource', async () => {
     const c = await connect();
     expect((await c.listTools()).tools.map((t) => t.name).sort()).toEqual(['get_agent', 'get_manifest', 'install_snippet', 'search_agents']);

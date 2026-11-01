@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { DEFAULT_REGISTRY, RegistryClient, RegistryError } from '@agenthive/registry-client';
+import { DEFAULT_REGISTRY, RegistryClient, RegistryError } from '@agenthive-sh/registry-client';
 import { registerSearch } from './commands/search.js';
 import { registerInfo } from './commands/info.js';
 import { registerAdd } from './commands/add.js';

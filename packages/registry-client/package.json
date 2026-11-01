@@ -1,5 +1,5 @@
 {
-  "name": "@agenthive/registry-client",
+  "name": "@agenthive-sh/registry-client",
   "version": "0.1.0",
   "description": "Typed client for the agenthive.sh registry (index, agent cards, manifests, install snippets).",
   "keywords": [

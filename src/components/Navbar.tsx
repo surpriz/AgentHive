@@ -4,7 +4,7 @@ import { GithubIcon } from './ui/GithubIcon';
 import type { SessionUser } from '../lib/auth-client';
 import { CopyButton } from './ui/CodeBlock';
 
-const INSTALL_CMD = 'npm i -g @agenthive/cli';
+const INSTALL_CMD = 'npm i -g @agenthive-sh/cli';
 
 export interface NavbarSession {
   user: SessionUser | null;

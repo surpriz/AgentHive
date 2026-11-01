@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { RegistryClient, RegistryError, installSnippet } from '@agenthive/registry-client';
-import type { RegistryEntry } from '@agenthive/registry-client';
+import { RegistryClient, RegistryError, installSnippet } from '@agenthive-sh/registry-client';
+import type { RegistryEntry } from '@agenthive-sh/registry-client';
 
 const FRAMEWORKS = ['LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
 const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;

@@ -12,7 +12,7 @@
     "test:e2e": "playwright test",
     "og": "node scripts/generate-og.mjs",
     "typecheck": "tsc -b",
-    "build:packages": "pnpm -r --filter \"@agenthive/*\" build",
+    "build:packages": "pnpm -r --filter \"@agenthive-sh/*\" build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "auth:schema": "npx @better-auth/cli@latest generate --config server/auth.cli.ts --output server/db/auth-schema.ts -y",

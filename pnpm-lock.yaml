@@ -242,7 +242,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@agenthive/registry-client':
+      '@agenthive-sh/registry-client':
         specifier: workspace:*
         version: link:../registry-client
       commander:
@@ -261,7 +261,7 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@agenthive/registry-client':
+      '@agenthive-sh/registry-client':
         specifier: workspace:*
         version: link:../registry-client
       '@modelcontextprotocol/sdk':

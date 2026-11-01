@@ -1,4 +1,4 @@
-# @agenthive/mcp
+# @agenthive-sh/mcp
 
 MCP server (stdio) that puts the agenthive.sh registry inside Claude Code, Cursor or any MCP client. Catalog only in V0: search, inspect, get install snippets. Running agents arrives with the V1 runtime.
 
@@ -20,7 +20,7 @@ Resource `agenthive://registry` returns the whole index as JSON.
   "mcpServers": {
     "agenthive": {
       "command": "npx",
-      "args": ["-y", "@agenthive/mcp"]
+      "args": ["-y", "@agenthive-sh/mcp"]
     }
   }
 }

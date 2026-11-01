@@ -1,5 +1,5 @@
 {
-  "name": "@agenthive/mcp",
+  "name": "@agenthive-sh/mcp",
   "version": "0.1.0",
   "description": "MCP server exposing the agenthive.sh registry: search agents, read manifests, get install snippets.",
   "keywords": [
@@ -42,7 +42,7 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
-    "@agenthive/registry-client": "workspace:*",
+    "@agenthive-sh/registry-client": "workspace:*",
     "@modelcontextprotocol/sdk": "~1.32.1",
     "zod": "^4.6.7"
   },

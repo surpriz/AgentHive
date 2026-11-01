@@ -1,7 +1,7 @@
-# @agenthive/cli · `agent-cli`
+# @agenthive-sh/cli · `agent-cli`
 
 ```sh
-npx @agenthive/cli search sql
+npx @agenthive-sh/cli search sql
 agent-cli search -g AAA -c "Security & Audit"
 agent-cli info pg-query-optimizer
 agent-cli manifest eu-ai-act-auditor
@@ -9,7 +9,7 @@ agent-cli add pg-query-optimizer                      # → ~/.claude.json
 agent-cli add dbforge/pg-query-optimizer@3.0.4 -t claude-project   # → ./.mcp.json
 agent-cli add pg-query-optimizer -t cursor            # → ./.cursor/mcp.json
 agent-cli add pg-query-optimizer --print --target cursor   # .cursorrules block
-agent-cli setup                                       # installs the catalog MCP server (@agenthive/mcp)
+agent-cli setup                                       # installs the catalog MCP server (@agenthive-sh/mcp)
 ```
 
 `add` merges one `mcpServers` entry into the target file and leaves everything else untouched. `--dry-run` prints the result instead of writing.

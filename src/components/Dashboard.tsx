@@ -167,7 +167,7 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
 
         <div className="rounded-lg border border-border p-3">
           <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">from the terminal</p>
-          <CodeBlock lang="bash" code={`npm i -g @agenthive/cli\nagent-cli login\nagent-cli push ./agent.yaml`} />
+          <CodeBlock lang="bash" code={`npm i -g @agenthive-sh/cli\nagent-cli login\nagent-cli push ./agent.yaml`} />
           <p className="mt-2 font-mono text-[11px] text-dim">
             manifest example: <a className="text-accent hover:underline" href={agentPath('pg-query-optimizer') + '/agent.yaml'} target="_blank" rel="noreferrer">pg-query-optimizer/agent.yaml</a>
           </p>

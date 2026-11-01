@@ -77,14 +77,14 @@ e2e/                           Playwright specs (desktop + mobile projects)
 
 | Package | What |
 |---|---|
-| `@agenthive/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
-| `@agenthive/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
-| `@agenthive/cli` | `agent-cli search | info | manifest | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
+| `@agenthive-sh/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
+| `@agenthive-sh/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
+| `@agenthive-sh/cli` | `agent-cli search | info | manifest | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
 
 ```sh
 pnpm -r --include-workspace-root build && pnpm -r --include-workspace-root test   # includes the web app at the root
-AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive/mcp smoke   # needs pnpm dev running
-AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive/cli smoke
+AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive-sh/mcp smoke   # needs pnpm dev running
+AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive-sh/cli smoke
 ```
 
 Not published to npm yet (waiting for the domain). `agent-cli serve` and the `.claude.json` snippets point at the run gateway and fail with a clear message today.

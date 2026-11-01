@@ -140,7 +140,7 @@ export function searchEntries(agents: RegistryEntry[], opts: SearchOptions = {})
 export function mcpServerEntry(entry: Pick<RegistryEntry, 'name' | 'author' | 'version'>) {
   return {
     command: 'npx',
-    args: ['-y', '@agenthive/cli', 'serve', `${entry.author}/${entry.name}@${entry.version}`],
+    args: ['-y', '@agenthive-sh/cli', 'serve', `${entry.author}/${entry.name}@${entry.version}`],
     env: { AGENTHIVE_TOKEN: '${AGENTHIVE_TOKEN}' },
   };
 }

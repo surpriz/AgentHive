@@ -47,7 +47,7 @@ export function buildClaudeJson(a: Agent): string {
       mcpServers: {
         [a.name]: {
           command: 'npx',
-          args: ['-y', '@agenthive/cli', 'serve', `${a.author}/${a.name}@${a.version}`],
+          args: ['-y', '@agenthive-sh/cli', 'serve', `${a.author}/${a.name}@${a.version}`],
           env: { AGENTHIVE_TOKEN: '${AGENTHIVE_TOKEN}' },
         },
       },

@@ -43,7 +43,7 @@ describe('add author check', () => {
   it('refuses a reference whose author does not match the registry', async () => {
     const { registerAdd } = await import('./commands/add.js');
     const { Command } = await import('commander');
-    const { RegistryClient } = await import('@agenthive/registry-client');
+    const { RegistryClient } = await import('@agenthive-sh/registry-client');
     const index = { apiVersion: 'v0', generatedAt: '', count: 1, agents: [{ name: 'pg', version: '1.0.0', author: 'dbforge', tagline: '', framework: 'MCP Server', category: '', grade: 'AA', successRate: 1, costPerRun: 1, tools: [], tags: [], capabilities: [], url: '', agentCard: '', install: '' }] };
     const fetchStub = (async () => new Response(JSON.stringify(index))) as unknown as typeof fetch;
     const client = new RegistryClient({ baseUrl: 'https://reg.test', fetch: fetchStub });
