@@ -41,7 +41,13 @@ export function depsFromRequirements(text: string): ParsedDeps {
   const out: ParsedDeps = { deps: [], unpinned: 0 };
   for (const raw of text.split('\n')) {
     const line = raw.split('#')[0].trim();
-    if (!line || line.startsWith('-')) continue; // blank, -r includes, --flags
+    if (!line) continue;
+    // Includes, constraints, editable and VCS/URL requirements pull in packages we cannot query: unverifiable.
+    if (/^(-r|--requirement|-c|--constraint|-e|--editable)\b/.test(line) || /^(git\+|https?:\/\/|svn\+|hg\+|\.)/.test(line)) {
+      out.unpinned++;
+      continue;
+    }
+    if (line.startsWith('-')) continue; // pure options: --index-url, --hash, --no-binary…
     const m = /^([A-Za-z0-9_.-]+)(?:\[[^\]]*\])?\s*==\s*([0-9][0-9A-Za-z.+-]*)\s*$/.exec(line);
     if (m) out.deps.push({ ecosystem: 'PyPI', name: m[1].toLowerCase(), version: m[2] });
     else out.unpinned++;

@@ -82,12 +82,12 @@ describe('dependency parsing', () => {
       unpinned: 1,
     });
     expect(depsFromPackageJson('{oops').parseError).toMatch(/package.json/);
-    expect(depsFromRequirements('Requests==2.31.0  # http\nflask>=2\n-r base.txt\nnumpy[extra]==1.26.4')).toEqual({
+    expect(depsFromRequirements('Requests==2.31.0  # http\nflask>=2\n-r base.txt\n-e .\ngit+https://github.com/x/y\n--index-url https://pypi.org/simple\nnumpy[extra]==1.26.4')).toEqual({
       deps: [
         { ecosystem: 'PyPI', name: 'requests', version: '2.31.0' },
         { ecosystem: 'PyPI', name: 'numpy', version: '1.26.4' },
       ],
-      unpinned: 1,
+      unpinned: 4,
     });
     expect(depsFromPyproject('[project]\nname = "x"\ndependencies = [\n  "httpx==0.27.0",\n  "pydantic>=2",\n  "rich==13.7.0; python_version < \'4\'",\n]\n[tool.poetry.dependencies]\npython = "^3.11"\nrequests = "2.31.0"\nflask = { version = "^3" }\n')).toEqual({
       deps: [
