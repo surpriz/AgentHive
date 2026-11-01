@@ -60,8 +60,9 @@ export async function computeLeaderboard(db: Db, now = new Date()): Promise<Lead
       illustrative.push({ name: r.name, category: r.category, grade: r.grade });
       continue;
     }
+    // latestBenchmark already serves only the current version; the audit score is recomputed on every publish. Checked again here on purpose.
     const b = await latestBenchmark(db, r.id);
-    if (!b || r.grade === 'pending' || r.score === null) continue;
+    if (!b || b.version !== r.latestVersion || r.grade === 'pending' || r.score === null) continue;
     const m: Measured | undefined = measured.get(r.id);
     const benchmark = b.cases > 0 ? b.passRate : Math.min(PROBES_ONLY_CAP, b.passRate);
     const components = { benchmark, audit: r.score, availability: m?.successRate ?? null };
