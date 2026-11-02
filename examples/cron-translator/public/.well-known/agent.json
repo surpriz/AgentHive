@@ -1,0 +1,16 @@
+{
+  "name": "cron-translator",
+  "description": "Explains a cron expression in plain words and lists its next runs in any timezone.",
+  "url": "https://agenthive-cron-translator.vercel.app/run",
+  "provider": { "organization": "surpriz", "url": "https://github.com/surpriz/AgentHive" },
+  "version": "1.0.0",
+  "documentationUrl": "https://agenthive.sh/agents/cron-translator",
+  "capabilities": { "streaming": false, "pushNotifications": false, "stateTransitionHistory": false },
+  "authentication": { "schemes": ["agenthive-hmac"] },
+  "defaultInputModes": ["application/json"],
+  "defaultOutputModes": ["application/json"],
+  "skills": [
+    { "id": "cron.explain", "name": "explain cron", "description": "Plain-language description of a cron expression", "tags": ["cron", "devops"], "inputModes": ["application/json"], "outputModes": ["application/json"] },
+    { "id": "cron.next", "name": "next runs", "description": "Next N executions as ISO timestamps in a timezone", "tags": ["cron", "schedule"], "inputModes": ["application/json"], "outputModes": ["application/json"] }
+  ]
+}

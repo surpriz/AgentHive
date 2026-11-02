@@ -1,0 +1,96 @@
+apiVersion: agenthive.sh/v1
+kind: Agent
+metadata:
+  name: cron-translator
+  version: 1.0.0
+  license: Apache-2.0
+  category: DevOps
+  value: Explains any cron expression in plain words and tells you exactly when it will run next, in your timezone.
+  tagline: Parses 5- or 6-field cron expressions with cron-parser, describes them with cronstrue and returns the next N executions as ISO timestamps.
+  tags: [cron, scheduling, devops, deterministic]
+spec:
+  framework: Custom A2A
+  model: none
+  transport: a2a/http+json
+  endpoint: https://agenthive-cron-translator.vercel.app/run
+  capabilities: [cron.explain, cron.next]
+  tools: [cron-parser, cronstrue]
+  io:
+    input:
+      type: object
+      required: [expression]
+      properties:
+        expression: { type: string, description: "cron expression, 5 or 6 fields" }
+        timezone: { type: string, default: UTC }
+        count: { type: integer, minimum: 1, maximum: 20, default: 5 }
+        from: { type: string, format: date-time }
+    output:
+      type: object
+      properties:
+        description: { type: string }
+        timezone: { type: string }
+        next: { type: array, items: { type: string, format: date-time } }
+        fields: { type: object }
+  permissions:
+    network: []
+    filesystem: none
+    shell: false
+    env: [AGENTHIVE_GATEWAY_SECRET]
+  source:
+    repo: https://github.com/surpriz/AgentHive
+    ref: main
+    path: examples/cron-translator
+  tests:
+    - name: every five minutes
+      input: { expression: "*/5 * * * *", from: "2026-01-01T00:00:00Z", count: 2 }
+      expect:
+        contains: "Every 5 minutes"
+        jsonPath: { path: next.0, equals: "2026-01-01T00:05:00.000Z" }
+        maxLatencyMs: 3000
+    - name: weekday mornings in Paris
+      input: { expression: "0 9 * * 1-5", timezone: Europe/Paris, from: "2026-11-02T06:00:00Z", count: 1 }
+      expect:
+        jsonPath: { path: next.0, equals: "2026-11-02T08:00:00.000Z" }
+    - name: next runs count
+      input: { expression: "0 0 1 * *", count: 12, from: "2026-01-15T00:00:00Z" }
+      expect:
+        jsonPath: { path: next.length, equals: 12 }
+    - name: invalid expression is a clean 422
+      input: { expression: "every tuesday maybe" }
+      expect:
+        status: 422
+        contains: "invalid cron expression"
+readme: |
+  # cron-translator
+
+  Reference agent for the AgentHive gateway. Send a cron expression, get a
+  plain-language description and the next executions in the timezone you
+  choose. Deterministic: no model, no network, no state.
+
+  ## Input
+
+      { "expression": "*/15 9-17 * * 1-5", "timezone": "Europe/Paris", "count": 3 }
+
+  `count` 1–20 (default 5), `from` optional ISO date (default now).
+
+  ## Output
+
+      { "description": "Every 15 minutes, between 09:00 and 17:59, Monday through Friday",
+        "timezone": "Europe/Paris",
+        "next": ["2026-11-02T09:00:00.000Z", "…"],
+        "fields": { "minute": "*/15", "hour": "9-17", "dayOfMonth": "*", "month": "*", "dayOfWeek": "1-5" } }
+
+  Errors come back as `{ "error": "…" }` with 400 (bad input) or 422
+  (unparseable expression or timezone), never 5xx.
+
+  ## Verification
+
+  The endpoint only accepts requests signed by the AgentHive gateway
+  (HMAC-SHA256 over `timestamp.body` with the agent's gateway secret), so
+  callers go through `agent-cli run cron-translator`.
+
+  Source: https://github.com/surpriz/AgentHive/tree/main/examples/cron-translator
+useCases:
+  - Turn a cron line from a legacy crontab into a sentence for a runbook.
+  - Check when a Vercel or GitHub Actions schedule fires next in your local timezone.
+  - Validate user-entered schedules in a form before saving them.

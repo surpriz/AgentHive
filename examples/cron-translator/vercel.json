@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [{ "source": "/run", "destination": "/api/index" }],
+  "headers": [{ "source": "/.well-known/agent.json", "headers": [{ "key": "Access-Control-Allow-Origin", "value": "*" }, { "key": "Content-Type", "value": "application/json; charset=utf-8" }] }]
+}

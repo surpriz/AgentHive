@@ -84,6 +84,10 @@ vite-plugin-api.ts             mounts the app in the dev server
 e2e/                           Playwright specs (desktop + mobile projects)
 ```
 
+## Example agent
+
+`examples/cron-translator/` is a complete reference agent (A2A over https, gateway signature check, pinned dependencies, declared test cases) deployed at https://agenthive-cron-translator.vercel.app and published as [cron-translator](https://agenthive.sh/agents/cron-translator). Copy it to start your own.
+
 ## Packages (pnpm workspace)
 
 | Package | What |
