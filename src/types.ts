@@ -44,6 +44,8 @@ export interface Agent {
   readme: string;
   useCases: string[];
   inputSchema: Record<string, unknown>;
+  /** First author-declared test input; the Run tab starts from it. Absent on seeds and agents without tests. */
+  exampleInput?: Record<string, unknown> | null;
   outputSchema: Record<string, unknown>;
   capabilities: string[];
   model: string;

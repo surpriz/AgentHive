@@ -3,6 +3,7 @@ import { Play, Loader2, AlertCircle, Zap } from 'lucide-react';
 import type { Agent } from '../../types';
 import { api, type RunResult, type RunView } from '../../lib/api';
 import { CodeBlock } from '../ui/CodeBlock';
+import { exampleInputFor } from '../../lib/exampleInput';
 
 /** Why an agent cannot be called through the gateway, mirrored from the server rule. */
 export function runnableReason(a: Agent): string | null {
@@ -13,7 +14,7 @@ export function runnableReason(a: Agent): string | null {
 }
 
 export function RunTab({ agent, signedIn, onSignIn }: { agent: Agent; signedIn: boolean; onSignIn: () => void }) {
-  const [input, setInput] = useState('{\n  "task": "hello"\n}');
+  const [input, setInput] = useState(() => JSON.stringify(exampleInputFor(agent), null, 2));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -31,6 +31,8 @@ export const agents = pgTable(
     readme: text('readme').notNull().default(''),
     useCases: jsonb('use_cases').$type<string[]>().notNull().default([]),
     inputSchema: jsonb('input_schema').$type<Record<string, unknown>>().notNull().default({}),
+    /** First author test input, offered as the ready-to-run example on the Run tab. */
+    exampleInput: jsonb('example_input').$type<Record<string, unknown>>(),
     outputSchema: jsonb('output_schema').$type<Record<string, unknown>>().notNull().default({}),
     model: varchar('model', { length: 64 }).notNull().default('unspecified'),
     license: varchar('license', { length: 64 }).notNull().default('UNLICENSED'),

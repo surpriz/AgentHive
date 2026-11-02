@@ -76,6 +76,9 @@ describe('benchmark', () => {
     expect(idx.agents.find((a) => a.name === 'good-agent')?.benchmarkPassRate).toBe(66.7);
     const card = (await (await req('/agents/good-agent/agent.json')).json()) as { 'x-agenthive': { benchmark: { passRate: number } } };
     expect(card['x-agenthive'].benchmark.passRate).toBe(66.7);
+    // the first author case doubles as the ready-to-run example on the Run tab
+    const catalog = (await (await req('/api/catalog.json')).json()) as { agents: { name: string; exampleInput: unknown }[] };
+    expect(catalog.agents.find((a) => a.name === 'good-agent')?.exampleInput).toEqual({ sql: 'select 1' });
   });
 
   it('flags a 5xx on unexpected input and keeps benchmark calls out of the measured metrics', async () => {
