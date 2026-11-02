@@ -2,7 +2,27 @@
 
 Working notes on where the project goes after v0 and why. Decisions are
 recorded here so they do not get re-argued every month. Last update:
-2026-10-31.
+2026-11-02.
+
+## Direction change, 2026-11-02
+
+Decided by the project owner, and it overrides the sections below where they
+disagree. Design: `specs/2026-11-02-v2-hub-design.md` (draft).
+
+- AgentHive is the Hugging Face of AI agents, and does not depend on GitHub.
+- Community and free for now. No billing until usage is proven, then a paid offer
+  for teams. The marketplace and creator payouts are dropped.
+- Agents are uploaded packages, tested on the site, retrieved in one click, then
+  forked and republished. This reverses "AgentHive exposes agents, it does not
+  host them".
+- An agent packages its prompt, plugs into MCP servers and uses skills.
+- The audience is vibe coders, tech professionals, product managers and founders,
+  along with experienced developers. Not the general public.
+- Fictional agents go, replaced by real ones. Sandbox and fork come first.
+- The first goal covered is code and security audit.
+
+The validated vision and the proposed steps are in `VISION.md`, which takes
+precedence over everything below.
 
 ## Positioning, in one paragraph
 
