@@ -7,7 +7,7 @@ recorded here so they do not get re-argued every month. Last update:
 ## Direction change, 2026-11-02
 
 Decided by the project owner, and it overrides the sections below where they
-disagree. Design: `specs/2026-11-02-v2-hub-design.md` (draft).
+disagree. Design: `specs/2026-11-02-v2-hub-design.md`.
 
 - AgentHive is the Hugging Face of AI agents, and does not depend on GitHub.
 - Community and free for now. No billing until usage is proven, then a paid offer

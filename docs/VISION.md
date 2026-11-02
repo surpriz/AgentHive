@@ -50,6 +50,10 @@ cet assemblage transparent et facile.
   une fois l'usage prouvé.
 - **Plafond du modèle et du sandbox :** environ 300 EUR/mois, à confirmer une fois les prix
   vérifiés. Au-delà, les tests en direct s'arrêtent et les exemples enregistrés restent.
+- **Agents déclaratifs d'abord :** pas de code dans l'agent, le code vit dans les MCP. Les
+  agents avec code restent en mode hébergé par l'auteur, sans fork.
+- **Noms `owner/name` :** chaque artefact vit sous un utilisateur ou une organisation, les
+  noms plats redirigent. Conception détaillée dans `specs/2026-11-02-v2-hub-design.md`.
 
 ## Stratégie
 
@@ -201,8 +205,8 @@ my-agent/
   examples/           entrées et données d'exemple pour le sandbox
 ```
 
-- **Déclaratif d'abord :** pas de code à exécuter dans l'agent, ce qui rend le fork,
-  le test et l'audit beaucoup plus simples. Le code vit dans les serveurs MCP.
+- **Déclaratif d'abord (décidé) :** pas de code à exécuter dans l'agent, ce qui rend le
+  fork, le test et l'audit beaucoup plus simples. Le code vit dans les serveurs MCP.
 - **Skills copiées dans le package :** un fork reste complet même si la skill d'origine
   change. Pas de scripts dans les skills pour commencer.
 - **MCP référencés et épinglés :** par version exacte. Le package déclare les noms des
