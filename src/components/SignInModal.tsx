@@ -16,6 +16,7 @@ export function SignInModal({ open, onClose, config, onSocial }: { open: boolean
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [unverified, setUnverified] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,7 +34,11 @@ export function SignInModal({ open, onClose, config, onSocial }: { open: boolean
         setNotice(`If ${email} has an account, a reset link is on its way.`);
       } else {
         const r = await authClient.signIn.email({ email, password, callbackURL: '/dashboard' });
-        if (r.error) throw new Error(r.error.status === 403 ? 'Email not verified yet: open the link we sent you, then try again.' : (r.error.message ?? 'sign-in failed'));
+        if (r.error?.status === 403) {
+          setUnverified(true);
+          throw new Error('Email not verified yet: open the link we sent you, then try again.');
+        }
+        if (r.error) throw new Error(r.error.message ?? 'sign-in failed');
         onClose();
         window.location.assign('/dashboard');
       }
@@ -75,6 +80,11 @@ export function SignInModal({ open, onClose, config, onSocial }: { open: boolean
               <input type="password" required minLength={8} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="password, 8 characters or more" aria-label="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={field} />
             )}
             {error && <p role="alert" className="font-mono text-[12px] text-danger">{error}</p>}
+            {unverified && (
+              <button type="button" onClick={() => void authClient.sendVerificationEmail({ email, callbackURL: '/dashboard' }).then(() => setNotice(`A new link is on its way to ${email}.`))} className="font-mono text-[11px] text-accent hover:underline">
+                send the link again
+              </button>
+            )}
             {notice && <p role="status" className="font-mono text-[12px] text-ok">{notice}</p>}
             <button type="submit" disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-[13px] font-medium text-black hover:bg-accent/90 disabled:opacity-60">
               {busy && <Loader2 size={14} className="animate-spin" />}

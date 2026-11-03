@@ -8,7 +8,7 @@ import { user as userTable } from './db/auth-schema';
 import { publishLocalAgents } from './dev/localAgents';
 import { withSnapshot } from './ssr';
 import { agentSnapshot, homeSnapshot, leaderboardSnapshot } from '../src/ssr/snapshot';
-import { createAuth, type Auth, type AuthEnv } from './auth';
+import { createAuth, type Auth, type AuthEnv, purgeUnverifiedUsers } from './auth';
 import { parseManifest, isV2, validatePackageFiles, MAX_PACKAGE_BYTES } from './manifest';
 import { latestAudit, publishManifest, reauditAgent, latestVersion } from './publish';
 import { defaultContext, offlineContext, type AuditContext } from './audit';
@@ -68,6 +68,8 @@ export const TEST_USER = { email: 'test@agenthive.local', password: 'test-passwo
 const PUBLIC_CACHE = 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600';
 const PUBLISH_LIMIT = { max: 30, windowMs: 60 * 60 * 1000 };
 const REAUDIT_WINDOW_MS = 60 * 60 * 1000;
+/** A password sign-up that never verifies its email is deleted after this, freeing the address. */
+const UNVERIFIED_TTL_MS = 24 * 60 * 60 * 1000;
 export const GRADING_URL = 'https://github.com/surpriz/AgentHive/blob/main/docs/GRADING.md';
 
 export async function createApp(opts: AppOptions): Promise<AppContext> {
@@ -211,6 +213,11 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
           await sweepRuns(db);
         } catch (e) {
           console.error('run sweep failed', e);
+        }
+        try {
+          await purgeUnverifiedUsers(db, UNVERIFIED_TTL_MS);
+        } catch (e) {
+          console.error('unverified purge failed', e);
         }
       })(),
     );
