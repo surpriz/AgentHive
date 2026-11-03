@@ -1,5 +1,5 @@
 import type { AgentBricks, AgentSetting } from '../../src/types';
-import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 
 export const GRADES = ['pending', 'B', 'A', 'AA', 'AAA'] as const;
@@ -50,7 +50,6 @@ export const agents = pgTable(
     /** Latest benchmark, mirrored for the index. */
     benchmarkPassRate: real('benchmark_pass_rate'),
     benchmarkAt: timestamp('benchmark_at', { withTimezone: true }),
-    isSeed: boolean('is_seed').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

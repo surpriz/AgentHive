@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_FILTERS, filterAgents, isFiltered } from './filters';
-import { mockAgents } from '../data/mockAgents';
+import { fixtureAgents as mockAgents } from '../test/fixtures';
 
 describe('filterAgents', () => {
   it('returns everything with empty filters', () => {

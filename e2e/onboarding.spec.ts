@@ -7,24 +7,14 @@ test('how it works opens from the navbar and lists the four steps', async ({ pag
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('1. Find an agent by goal')).toBeVisible();
   await expect(dialog.getByText('3. Get it into your tool')).toBeVisible();
-  await expect(dialog.getByText('Illustrative:')).toBeVisible();
+  await expect(dialog.getByText('Not yet:')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
 
 test('cards show a plain-language value line above the technical tagline', async ({ page }) => {
   await page.goto('/');
-  const card = page.getByRole('button', { name: 'Open pg-query-optimizer' });
-  await expect(card).toContainText('Makes a slow Postgres query fast');
-  await expect(card).toContainText('Reads EXPLAIN ANALYZE output');
-});
-
-test('sandbox is labelled simulated and try example runs without typing', async ({ page }) => {
-  await page.goto('/agents/smart-contract-sentinel');
-  await page.getByRole('tab', { name: /Sandbox/ }).click();
-  await expect(page.getByText('Simulated run.')).toBeVisible();
-  await page.getByRole('button', { name: 'try example' }).click();
-  await expect(page.getByLabel('Test prompt')).toHaveValue(/ethereum mainnet/);
-  await expect(page.getByRole('button', { name: 'try example' })).toHaveCount(0);
-  await expect(page.getByText('Final Result')).toBeVisible({ timeout: 20_000 });
+  const card = page.getByRole('button', { name: 'Open secret-exposure-hunter' });
+  await expect(card).toContainText('Finds real credentials leaked in your source');
+  await expect(card).toContainText('Scans the working tree and git history');
 });

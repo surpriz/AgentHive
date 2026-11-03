@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import path from 'node:path';
 import { createApp, type AppContext } from './app';
+import { otherUserKey } from './test/users';
 import { RUN_LIMITS, verifyRunSignature } from './gateway';
 
 /** Fake upstream + fake webhook receiver. */
@@ -34,6 +36,7 @@ beforeAll(async () => {
   (RUN_LIMITS as { webhookBackoffMs: number[] }).webhookBackoffMs = [0, 10, 20];
   ctx = await createApp({
     databaseUrl: 'pglite://memory',
+    localAgentsDir: path.resolve(__dirname, '../agents'),
     origin: 'https://agenthive.sh',
     auth: { secret: 'x'.repeat(40), baseURL: 'http://localhost' },
     auditContext: () => ({ fetch: (async () => new Response('', { status: 404 })) as typeof fetch, lookup: async () => [{ address: '93.184.216.34', family: 4 }], callTimeoutMs: 100, deadline: Date.now() + 5000, now: () => Date.now() }),
@@ -68,14 +71,13 @@ describe('async runs', () => {
     const done = await poll(runId, (v) => v.status === 'ok');
     expect(done.status).toBe('ok');
     expect(done.output).toEqual({ done: true, got: { task: 'later' } });
-    const other = await ctx.auth.api.createApiKey({ body: { name: 'other', userId: 'seed-dbforge' } });
-    expect((await req(`/api/v1/runs/${runId}`, { headers: { authorization: `Bearer ${other.key}` } })).status).toBe(404);
+    expect((await req(`/api/v1/runs/${runId}`, { headers: { authorization: `Bearer ${await otherUserKey(ctx)}` } })).status).toBe(404);
     expect((await req('/api/v1/runs/00000000-0000-0000-0000-000000000000', { headers: authz })).status).toBe(404);
   });
 
   it('still prechecks before queueing', async () => {
     expect((await req('/api/v1/run/slow-agent', { method: 'POST', headers: { 'content-type': 'application/json', 'x-agenthive-async': '1', ...authz }, body: 'nope' })).status).toBe(400);
-    expect((await req('/api/v1/run/pg-query-optimizer', { method: 'POST', headers: { 'content-type': 'application/json', 'x-agenthive-async': '1', ...authz }, body: '{}' })).status).toBe(409);
+    expect((await req('/api/v1/run/vibe-app-security-triage', { method: 'POST', headers: { 'content-type': 'application/json', 'x-agenthive-async': '1', ...authz }, body: '{}' })).status).toBe(409);
     expect((await req('/api/v1/run/slow-agent', { method: 'POST', headers: { 'content-type': 'application/json', 'x-agenthive-webhook': 'https://hooks.example/hook', ...authz }, body: '{}' })).status).toBe(400);
     expect((await req('/api/v1/run/slow-agent', { method: 'POST', headers: { 'content-type': 'application/json', 'x-agenthive-async': '1', 'x-agenthive-webhook': 'http://hooks.example/hook', ...authz }, body: '{}' })).status).toBe(400);
   });

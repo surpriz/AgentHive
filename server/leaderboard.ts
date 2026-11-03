@@ -31,8 +31,6 @@ export interface Leaderboard {
   generatedAt: string;
   formula: string;
   categories: Record<string, LeaderboardEntry[]>;
-  /** Seeds, unranked. */
-  illustrative: { name: string; category: string; grade: string }[];
 }
 
 export function compositeScore(c: { benchmark: number | null; audit: number | null; availability: number | null }): number | null {
@@ -53,13 +51,8 @@ export async function computeLeaderboard(db: Db, now = new Date()): Promise<Lead
   const prevRank = new Map(previous.map((p) => [`${p.category}:${p.agentId}`, p.rank]));
 
   const categories: Record<string, LeaderboardEntry[]> = Object.fromEntries(CATEGORIES.map((c) => [c, []]));
-  const illustrative: Leaderboard['illustrative'] = [];
   const candidates: (Omit<LeaderboardEntry, 'rank' | 'delta' | 'previousRank'> & { id: string; benchmarkAt: string })[] = [];
   for (const r of rows) {
-    if (r.isSeed) {
-      illustrative.push({ name: r.name, category: r.category, grade: r.grade });
-      continue;
-    }
     // latestBenchmark already serves only the current version; the audit score is recomputed on every publish. Checked again here on purpose.
     const b = await latestBenchmark(db, r.id);
     if (!b || b.version !== r.latestVersion || r.grade === 'pending' || r.score === null) continue;
@@ -82,7 +75,7 @@ export async function computeLeaderboard(db: Db, now = new Date()): Promise<Lead
       return { ...rest, rank: i + 1, previousRank: prev, delta: prev === null ? null : prev - (i + 1) };
     });
   }
-  return { generatedAt: now.toISOString(), formula: '0.5·benchmark + 0.3·audit + 0.2·availability, weights renormalised when availability is missing', categories, illustrative };
+  return { generatedAt: now.toISOString(), formula: '0.5·benchmark + 0.3·audit + 0.2·availability, weights renormalised when availability is missing', categories };
 }
 
 async function previousSnapshotDay(db: Db, beforeDay: string): Promise<string | null> {

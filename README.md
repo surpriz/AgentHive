@@ -18,7 +18,7 @@ BASE_URL=https://agenthive-omega.vercel.app pnpm test:e2e   # same suite against
 pnpm og         # regenerate public/og.png from scripts/og-template.html
 ```
 
-Without a `.env.local`, `pnpm dev` runs on an in-memory database with the seed agents, a test user and password sign-in (the "Sign in" button uses it when GitHub OAuth is not configured). The dev server prints a test API key at boot.
+Without a `.env.local`, `pnpm dev` runs on an in-memory database with the agents from `agents/` published at boot, a test user and password sign-in (the "Sign in" button uses it when GitHub OAuth is not configured). The dev server prints a test API key at boot.
 
 ```sh
 cp .env.example .env.local   # DATABASE_URL (Neon dev branch), BETTER_AUTH_SECRET, GITHUB_CLIENT_ID/SECRET
@@ -49,7 +49,7 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/api/auth/*` | better-auth (GitHub and Google OAuth, env-gated) |
 | `/sitemap.xml`, `/robots.txt`, `/og.png` | SEO |
 
-All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `vite-plugin-api.ts` and exported by `api/index.ts` on Vercel. Publishing rules: first publisher owns the name, re-publish needs a greater semver, seeds are read-only. Every publish runs the audit in `server/audit/` (secrets, endpoint, permissions, dependencies via OSV, completeness); the grade is computed from it, the report is public at `/agents/<name>/audit.json`, criteria in [docs/GRADING.md](docs/GRADING.md). For non-seed agents the numbers on the card are measured: success = benchmark pass rate, availability = gateway ok-rate after 20 runs, latency and runs over 30 days; cost stays null until billing exists.
+All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `vite-plugin-api.ts` and exported by `api/index.ts` on Vercel. Publishing rules: first publisher owns the name, re-publish needs a greater semver. Every publish runs the audit in `server/audit/` (secrets, endpoint, permissions, dependencies via OSV, completeness); the grade is computed from it, the report is public at `/agents/<name>/audit.json`, criteria in [docs/GRADING.md](docs/GRADING.md). The numbers on a hosted agent's card are measured: success = benchmark pass rate, availability = gateway ok-rate after 20 runs, latency and runs over 30 days; cost stays null until billing exists.
 
 ## Deploy
 
@@ -61,7 +61,6 @@ Vercel project `agenthive`, Neon project `agenthive` (branch `main` → producti
 src/
   App.tsx                      state: filters, selected agent, publish modal
   types.ts                     Agent, Framework, Category, SecurityGrade, SandboxStep
-  data/mockAgents.ts           6 seed agents
   data/sandboxScenarios.ts     scripted reasoning chains per agent
   lib/filters.ts               search + chip filters
   lib/manifest.ts              YAML manifest, A2A agent card, registry index, install snippets
@@ -79,7 +78,7 @@ server/
   benchmark.ts                 registry probes + author cases, pass rate shown as success
   leaderboard.ts               composite ranking per category, daily snapshots
   audit/                       checks, grading, report (see docs/GRADING.md)
-  db/schema.ts, db/auth-schema.ts, db/migrations/, db/seed.ts
+  db/schema.ts, db/auth-schema.ts, db/migrations/
 api/index.ts                   Vercel function
 vite-plugin-api.ts             mounts the app in the dev server
 e2e/                           Playwright specs (desktop + mobile projects)

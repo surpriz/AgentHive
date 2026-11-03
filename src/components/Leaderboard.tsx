@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Trophy, ArrowUp, ArrowDown, Minus, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { CATEGORIES } from '../types';
 import { api, type Leaderboard as Board, type LeaderboardEntry } from '../lib/api';
-import { agentPath } from '../lib/router';
 import { GradeBadge } from './ui/Badge';
 
 const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
@@ -96,22 +95,6 @@ export function Leaderboard({ onOpen }: { onOpen: (name: string) => void }) {
           </section>
         );
       })}
-
-      {board.illustrative.length > 0 && (
-        <section>
-          <h2 className="mb-2 font-mono text-[12px] uppercase tracking-wider text-dim">illustrative seeds · not ranked</h2>
-          <p className="mb-2 text-[12.5px] text-muted">Shipped with the registry to show the format; their numbers were never measured.</p>
-          <ul className="flex flex-wrap gap-2">
-            {board.illustrative.map((s) => (
-              <li key={s.name}>
-                <a href={agentPath(s.name)} onClick={(ev) => { ev.preventDefault(); onOpen(s.name); }} className="inline-flex items-center gap-2 rounded-md border border-border px-2.5 py-1 font-mono text-[12px] text-muted hover:text-fg">
-                  {s.name} <GradeBadge grade={s.grade as 'AAA'} title="Illustrative seed grade" />
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <p className="font-mono text-[11px] text-dim">
         {board.formula} · generated {board.generatedAt.slice(0, 16).replace('T', ' ')} UTC ·{' '}

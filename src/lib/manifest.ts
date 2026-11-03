@@ -94,7 +94,6 @@ export function buildAgentCard(a: Agent, origin = 'https://agenthive.sh') {
       benchmark: { passRate: a.benchmark?.passRate ?? null, ranAt: a.benchmark?.ranAt ?? null, report: `${origin}/agents/${a.name}/benchmark.json` },
       availability: { successRate: a.successRate, avgCostUsd: a.costPerRun, avgLatencyMs: a.avgLatencyMs, runs30d: a.runs30d },
       transport: a.transport,
-      isSeed: a.isSeed,
       inputSchema: a.inputSchema,
       outputSchema: a.outputSchema,
       publishedAt: a.publishedAt,

@@ -46,13 +46,11 @@ export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { o
           </span>
         </a>
 
-        <div className="hidden items-center gap-2 font-mono text-[11px] text-muted md:flex" title="Registry mesh status">
+        <div className="hidden items-center gap-2 font-mono text-[11px] text-muted md:flex" title="Registry status">
           <span className="relative inline-flex h-2 w-2 rounded-full bg-ok animate-pulse-dot" aria-hidden />
-          <span>mesh online</span>
+          <span>{nodeCount} agents</span>
           <span className="text-dim">·</span>
-          <span>{nodeCount} nodes</span>
-          <span className="text-dim">·</span>
-          <span>v0.1</span>
+          <span>first trial soon</span>
         </div>
 
         <nav className="flex items-center gap-2">

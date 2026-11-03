@@ -19,7 +19,6 @@ async function promptSecret(question: string): Promise<string> {
 const SEV = { blocker: (s: string) => c.red(s), high: (s: string) => c.red(s), medium: (s: string) => c.yellow(s), low: (s: string) => c.dim(s) };
 
 export function printAudit(a: AuditReport): void {
-  if (a.illustrative) return console.log(c.dim('  illustrative seed grade, no audit'));
   for (const cap of a.caps) console.log(`  ${c.yellow('cap ' + cap.grade)} ${sanitize(cap.reason)}`);
   if (a.findings.length === 0) console.log(c.dim('  no findings'));
   for (const f of a.findings) console.log(`  ${SEV[f.severity](f.severity.padEnd(7))} ${sanitize(f.check)}: ${sanitize(f.message)}${f.hint ? c.dim(` — ${sanitize(f.hint)}`) : ''}`);
@@ -51,7 +50,6 @@ export function registerAccount(program: Command, client: () => Promise<Registry
       }
       const res = await new RegistryClient({ baseUrl: baseUrl() }).benchmark(name);
       if (opts.json) return console.log(JSON.stringify(res, null, 2));
-      if (res.illustrative) return console.log(c.dim(`${sanitize(name)}: illustrative seed numbers, no benchmark`));
       if (!res.runnable) return console.log(c.dim(`${sanitize(name)}: not benchmarked (${sanitize(res.reason ?? '')})`));
       if (!res.benchmark || !('results' in res.benchmark)) return console.log(c.dim(`${sanitize(name)}: no benchmark yet`));
       printBenchmark(res.benchmark);

@@ -90,7 +90,6 @@ async function quotaExceeded(db: Db, agentId: string, callerId: string, now: Dat
 
 /** Why an agent cannot be called through the gateway, or null. */
 export function runnableReason(a: AgentRow): string | null {
-  if (a.isSeed) return 'seed agents are illustrative and have no real endpoint';
   if (a.transport !== 'a2a/http+json') return `transport ${a.transport} is not callable over http; only a2a/http+json agents run through the gateway`;
   if (!a.endpoint) return 'this agent declares no endpoint';
   return null;

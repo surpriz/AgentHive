@@ -7,7 +7,7 @@ test.describe('mobile', () => {
     await page.goto('/');
     const [scrollW, innerW] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     expect(scrollW).toBeLessThanOrEqual(innerW);
-    await page.getByRole('button', { name: 'Open eu-ai-act-auditor' }).click();
+    await page.getByRole('button', { name: 'Open vibe-app-security-triage' }).click();
     const box = await page.getByRole('dialog').boundingBox();
     expect(box?.width).toBe(innerW);
   });

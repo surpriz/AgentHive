@@ -26,7 +26,7 @@ export function AgentCard({ agent, onOpen, isNew }: { agent: Agent; onOpen: (a: 
             v{agent.version} <span className="mx-1">·</span> by <span className="text-muted">{agent.author}</span>
           </p>
         </div>
-        <TrustBadge agent={agent} title={agent.isSeed ? 'Illustrative seed grade' : agent.grade === 'pending' ? 'Audit pending' : `Security grade, computed by the registry · ${agent.score}/100`} />
+        <TrustBadge agent={agent} title={agent.grade === 'pending' ? 'Audit pending' : agent.apiVersion === 'v2' ? `Checks · ${agent.score}/100` : `Security grade, computed by the registry · ${agent.score}/100`} />
       </div>
 
       <div className="space-y-1">
@@ -40,7 +40,7 @@ export function AgentCard({ agent, onOpen, isNew }: { agent: Agent; onOpen: (a: 
       </div>
 
       <div className="mt-auto grid grid-cols-2 gap-2 border-t border-border pt-3 font-mono text-[12px]">
-        <div className="flex items-center gap-1.5 text-muted" title={agent.isSeed ? 'Illustrative benchmark' : agent.benchmark ? `Registry benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : 'No benchmark yet'}>
+        <div className="flex items-center gap-1.5 text-muted" title={agent.benchmark ? `Registry benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : 'No benchmark yet'}>
           <Activity size={13} className="text-ok" />
           <span className="text-fg">{fmtPct(agent.benchmark?.passRate ?? null)}</span> success
         </div>

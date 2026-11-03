@@ -30,10 +30,10 @@ export function OverviewTab({ agent }: { agent: Agent }) {
         </div>
       ) : (
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.benchmark?.passRate ?? null)} hint={agent.isSeed ? "illustrative" : agent.benchmark ? `benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : "no benchmark yet"} />
-        <Metric icon={<Coins size={12} className="text-accent" />} label="Availability" value={fmtPct(agent.successRate)} hint={agent.isSeed ? "illustrative" : agent.successRate === null ? "after 20 gateway runs" : "ok runs over 30d"} />
-        <Metric icon={<Timer size={12} className="text-accent-2" />} label="Latency" value={fmtLatency(agent.avgLatencyMs)} hint={agent.isSeed ? "illustrative" : "mean of ok runs, 30d"} />
-        <Metric icon={<BarChart3 size={12} className="text-violet" />} label="Runs" value={fmtRuns(agent.runs30d)} hint={agent.isSeed ? "illustrative" : "through the gateway, 30d"} />
+        <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.benchmark?.passRate ?? null)} hint={agent.benchmark ? `benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : "no benchmark yet"} />
+        <Metric icon={<Coins size={12} className="text-accent" />} label="Availability" value={fmtPct(agent.successRate)} hint={agent.successRate === null ? "after 20 gateway runs" : "ok runs over 30d"} />
+        <Metric icon={<Timer size={12} className="text-accent-2" />} label="Latency" value={fmtLatency(agent.avgLatencyMs)} hint="mean of ok runs, 30d" />
+        <Metric icon={<BarChart3 size={12} className="text-violet" />} label="Runs" value={fmtRuns(agent.runs30d)} hint="through the gateway, 30d" />
       </div>
       )}
 
@@ -42,7 +42,7 @@ export function OverviewTab({ agent }: { agent: Agent }) {
           A package: prompt, skills and pinned MCP servers that run inside your own tool with your own model. No benchmark yet; recorded runs and a sandbox are next on the roadmap.
         </p>
       ) : (
-        !agent.isSeed && <BenchmarkSection agent={agent} />
+        <BenchmarkSection agent={agent} />
       )}
 
       <section>

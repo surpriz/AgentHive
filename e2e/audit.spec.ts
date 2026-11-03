@@ -6,13 +6,6 @@ async function signIn(page: Page) {
   await expect(page.getByRole('button', { name: /Account menu/ })).toBeVisible();
 }
 
-test('seed agents show an illustrative audit and a link to the criteria', async ({ page }) => {
-  await page.goto('/agents/pg-query-optimizer');
-  await page.getByRole('tab', { name: 'Audit' }).click();
-  await expect(page.getByText('Illustrative grade.')).toBeVisible();
-  await expect(page.getByRole('link', { name: /how grades are computed/ })).toHaveAttribute('href', /grading/);
-});
-
 test('publishing computes a grade, shows the report, and the public report endpoint agrees', async ({ page, request }) => {
   await signIn(page);
   const name = `graded-bot-${Date.now().toString(36)}`;

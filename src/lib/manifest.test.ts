@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildAgentCard, buildClaudeJson, buildCursorRules, buildManifestYaml, buildRegistryIndex, buildCliInstall } from './manifest';
-import { mockAgents } from '../data/mockAgents';
+import { fixtureAgents as mockAgents } from '../test/fixtures';
 
 const pg = mockAgents.find((a) => a.name === 'pg-query-optimizer')!;
 const li = mockAgents.find((a) => a.name === 'linkedin-outreach-agent')!;

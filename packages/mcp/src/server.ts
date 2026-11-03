@@ -92,7 +92,7 @@ export function createServer(client = new RegistryClient()): McpServer {
           for (const e of entries) lines.push(`  #${e.rank} ${e.name}@${e.version} by ${e.author} · score ${e.score} · grade ${e.grade} · benchmark ${e.components.benchmark ?? '—'}%${e.benchmarkCases === 0 ? ' (probes only)' : ''} · availability ${e.components.availability ?? '—'}% · ${e.runs30d} runs/30d · https://agenthive.sh/agents/${e.name}`);
         }
         if (lines.length === 0) lines.push('Nobody ranked yet: an agent enters once it has a computed grade and a benchmark for its current version.');
-        lines.push(`Formula: ${board.formula}. Seeds shown on the site are illustrative and never ranked.`);
+        lines.push(`Formula: ${board.formula}.`);
         return text(lines.join('\n'));
       } catch (e) {
         return fail(e);

@@ -1,24 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-test('manifest tab shows yaml, agent card and install snippets', async ({ page }) => {
-  await page.goto('/agents/pg-query-optimizer');
-  await page.getByRole('tab', { name: /Manifest/ }).click();
-  await expect(page.getByRole('tab', { name: /Manifest/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByText('apiVersion: agenthive.sh/v1')).toBeVisible();
-  await expect(page.locator('pre', { hasText: 'agent-cli run pg-query-optimizer' }).first()).toBeVisible();
-  await expect(page.locator('pre', { hasText: 'hosted by its author' }).first()).toBeVisible();
+test('a repository package shows its prompt, skills and the pull command', async ({ page }) => {
+  await page.goto('/agents/secret-exposure-hunter');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'secret-exposure-hunter' })).toBeVisible();
+  await expect(dialog.getByTestId('package-summary')).toContainText('code-audit');
+
+  await dialog.getByRole('tab', { name: 'Package' }).click();
+  await expect(dialog.getByRole('tab', { name: 'Package' })).toHaveAttribute('aria-selected', 'true');
+  await expect(dialog.getByText('skills/secret-patterns/SKILL.md')).toBeVisible();
+
+  await dialog.getByRole('tab', { name: 'Get it' }).click();
+  await expect(dialog.locator('pre', { hasText: 'agent-cli pull secret-exposure-hunter --target claude' })).toBeVisible();
 });
 
-test('sandbox runs the scripted chain to a final result and accrues tokens', async ({ page }) => {
-  await page.goto('/agents/pg-query-optimizer');
-  await page.getByRole('tab', { name: /Sandbox/ }).click();
-  await page.getByLabel('Test prompt').fill('orders join customers is slow');
-  await page.getByRole('button', { name: 'Execute Agent' }).click();
-  await expect(page.getByRole('button', { name: 'Execute Agent' })).toBeDisabled();
-  await expect(page.getByText('Final Result')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText('orders join customers is slow').nth(1)).toBeVisible();
-  await expect(page.getByText('done', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Execute Agent' })).toBeEnabled();
-  const tokens = await page.locator('text=tokens').locator('..').innerText();
-  expect(Number(tokens.replace(/\D/g, ''))).toBeGreaterThan(500);
+test('the checks tab lists what was verified and links to the criteria', async ({ page }) => {
+  await page.goto('/agents/vibe-app-security-triage');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('tab', { name: 'Checks' }).click();
+  await expect(dialog.getByTestId('checks-note')).toContainText('checks passed');
+  await expect(dialog.getByRole('link', { name: /how grades are computed/ })).toHaveAttribute('href', /grading|checks/);
 });

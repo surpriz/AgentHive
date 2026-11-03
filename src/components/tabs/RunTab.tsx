@@ -7,7 +7,6 @@ import { exampleInputFor } from '../../lib/exampleInput';
 
 /** Why an agent cannot be called through the gateway, mirrored from the server rule. */
 export function runnableReason(a: Agent): string | null {
-  if (a.isSeed) return 'seed agents are illustrative and have no real endpoint';
   if (a.transport !== 'a2a/http+json') return `transport ${a.transport} is not callable over http`;
   if (!a.endpoint) return 'this agent declares no endpoint';
   return null;

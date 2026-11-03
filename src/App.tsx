@@ -96,10 +96,10 @@ export default function App() {
       document.title = `Dashboard · ${base}`;
     } else if (route.kind === 'leaderboard') {
       document.title = `Leaderboard · ${base}`;
-      desc?.setAttribute('content', 'AgentHive leaderboard: agents ranked per category from measured benchmark, audit and availability numbers.');
+      desc?.setAttribute('content', 'AgentHive leaderboard: hosted agents ranked per category from measured benchmark, audit and availability numbers.');
     } else {
-      document.title = `${base} — The registry for interoperable AI agents`;
-      desc?.setAttribute('content', 'AgentHive — the open registry for interoperable AI agents. Discover, audit, run and publish agents across LangGraph, CrewAI, AutoGen, MCP and A2A.');
+      document.title = `${base} — The proving ground for AI agents`;
+      desc?.setAttribute('content', 'AgentHive runs AI agents through the same real tests and publishes which one does the job. Read the package, pull it into Claude Code or Cursor, improve it and resubmit.');
     }
   }, [selected, route.kind]);
 
@@ -110,10 +110,10 @@ export default function App() {
   };
 
   const stats = useMemo(() => {
-    const runs = list.reduce((s, a) => s + a.runs30d, 0);
-    const frameworks = new Set(list.map((a) => a.framework)).size;
-    const audited = list.filter((a) => a.grade !== 'pending').length;
-    return { runs, frameworks, audited };
+    const goals = new Set(list.map((a) => a.goal ?? a.category)).size;
+    const checked = list.filter((a) => a.grade !== 'pending').length;
+    const packages = list.filter((a) => a.apiVersion === 'v2').length;
+    return { goals, checked, packages };
   }, [list]);
 
   return (
@@ -131,7 +131,7 @@ export default function App() {
           <section className="py-10">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">leaderboard</p>
             <h1 className="mb-2 text-2xl font-semibold tracking-tight text-fg">Ranked from measured numbers only.</h1>
-            <p className="mb-8 max-w-2xl text-[14px] text-muted">Benchmark pass rate, audit score and gateway availability, per category. Nothing here is declared by an author.</p>
+            <p className="mb-8 max-w-2xl text-[14px] text-muted">Hosted agents, per category: benchmark pass rate, audit score and gateway availability. Nothing here is declared by an author. Packages will be ranked by trial results once the first trial runs.</p>
             <Leaderboard onOpen={(name) => navigate(agentPath(name))} />
           </section>
         ) : route.kind === 'dashboard' ? (
@@ -146,22 +146,23 @@ export default function App() {
           <>
             <section className="py-10 sm:py-14">
               <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" /> v1 · public registry · open-core
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" /> proving ground · first trial: code audit · in preparation
               </p>
               <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-fg sm:text-5xl">
-                The registry for <span className="text-accent">interoperable</span> AI agents.
+                Find the agent that <span className="text-accent">actually does the job</span>.
               </h1>
               <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">
-                Discover, audit, run and publish agents across LangGraph, CrewAI, AutoGen, MCP and A2A. One manifest, any runtime.{' '}
+                AgentHive runs AI agents through the same real tests and publishes which one does the work. Agents are text packages you can read in full, pull into Claude Code or Cursor in one action, and improve.{' '}
                 <button type="button" onClick={() => setHowOpen(true)} className="text-accent underline-offset-4 hover:underline">
                   How it works →
                 </button>
               </p>
               <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-2 font-mono text-[12px] text-dim">
                 <div><dt className="inline">agents </dt><dd className="inline text-fg">{agents ? list.length : '…'}</dd></div>
-                <div><dt className="inline">frameworks </dt><dd className="inline text-fg">{agents ? stats.frameworks : '…'}</dd></div>
-                <div><dt className="inline">runs / 30d </dt><dd className="inline text-fg">{agents ? stats.runs.toLocaleString('en-US') : '…'}</dd></div>
-                <div><dt className="inline">audited </dt><dd className="inline text-ok">{agents ? `${stats.audited}/${list.length}` : '…'}</dd></div>
+                <div><dt className="inline">packages </dt><dd className="inline text-fg">{agents ? stats.packages : '…'}</dd></div>
+                <div><dt className="inline">goals </dt><dd className="inline text-fg">{agents ? stats.goals : '…'}</dd></div>
+                <div><dt className="inline">checked </dt><dd className="inline text-ok">{agents ? `${stats.checked}/${list.length}` : '…'}</dd></div>
+                <div><dt className="inline">trial results </dt><dd className="inline text-muted">soon</dd></div>
               </dl>
             </section>
 
@@ -201,10 +202,10 @@ export default function App() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-2 px-4 py-6 font-mono text-[11px] text-dim sm:flex-row sm:items-center">
-          <span>agenthive.sh · the GitHub of agents · v1 registry + MCP + CLI</span>
+          <span>agenthive.sh · the proving ground for AI agents</span>
           <span className="inline-flex items-center gap-2">
             {agents === null && !loadError && <Loader2 size={11} className="animate-spin" />}
-            next: run gateway · computed grades · benchmarks · A2A mesh
+            next: first trial (code audit) · recorded runs · ranking per trial
           </span>
         </div>
       </footer>

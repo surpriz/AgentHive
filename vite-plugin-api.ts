@@ -26,6 +26,8 @@ export function apiPlugin(): Plugin {
         (ready ??= createApp(
           optionsFromEnv(process.env, {
             template: async () => server.transformIndexHtml('/', fs.readFileSync(path.join(root, 'index.html'), 'utf8')),
+            // In-memory database: the catalog shows the repository's own agents, published at boot.
+            ...((process.env.DATABASE_URL ?? 'pglite://memory').startsWith('pglite://') ? { localAgentsDir: path.join(root, 'agents') } : {}),
           }),
         ).then((ctx) => {
           if (ctx.testApiKey) server.config.logger.info(`  ➜  test api key: ${ctx.testApiKey}`);

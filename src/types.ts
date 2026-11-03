@@ -72,7 +72,7 @@ export interface Agent {
   readme: string;
   useCases: string[];
   inputSchema: Record<string, unknown>;
-  /** First author-declared test input; the Run tab starts from it. Absent on seeds and agents without tests. */
+  /** First author-declared test input; the Run tab starts from it. Absent on agents without tests. */
   exampleInput?: Record<string, unknown> | null;
   /** `v2`: a declarative package (prompt, skills, MCP bricks) retrieved into the user's tool. `v1`: hosted by the author behind an endpoint. */
   apiVersion: 'v1' | 'v2';
@@ -87,8 +87,6 @@ export interface Agent {
   /** Author-hosted endpoint declared in the manifest. Stored, never called in v1.0. */
   endpoint: string | null;
   publishedAt: string;
-  /** Illustrative agent shipped with the registry, not published by a third party. */
-  isSeed: boolean;
 }
 
 export type StepKind = 'thought' | 'tool_call' | 'action' | 'observation' | 'result';

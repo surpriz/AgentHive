@@ -89,8 +89,8 @@ test('an async run returns a ticket and the Run tab polls it to completion', asy
   await expect(ws.locator('code')).toContainText('ahwh_');
 });
 
-test('seeds and endpoint-less agents have no Run tab', async ({ page }) => {
-  await page.goto('/agents/pg-query-optimizer');
+test('packages have no Run tab, they are pulled into your tool instead', async ({ page }) => {
+  await page.goto('/agents/secret-exposure-hunter');
   await expect(page.getByRole('tab', { name: 'Run' })).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: /Sandbox/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Get it' })).toBeVisible();
 });

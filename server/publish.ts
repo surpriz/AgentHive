@@ -10,7 +10,7 @@ import type { Agent } from '../src/types';
 
 export type PublishResult =
   | { ok: true; agent: Agent; created: boolean; audit: Report }
-  | { ok: false; status: 409 | 403; code: 'NAME_TAKEN' | 'VERSION_NOT_GREATER' | 'SEED_READONLY'; message: string }
+  | { ok: false; status: 409 | 403; code: 'NAME_TAKEN' | 'VERSION_NOT_GREATER'; message: string }
   | { ok: false; status: 422; code: 'AUDIT_BLOCKED'; message: string; audit: Report };
 
 export interface Publisher {
@@ -36,7 +36,6 @@ export async function publishManifest(db: Db, who: Publisher, manifest: Manifest
   const existing = await db.query.agents.findFirst({ where: eq(agents.name, cols.name) });
 
   if (existing) {
-    if (existing.isSeed) return { ok: false, status: 403, code: 'SEED_READONLY', message: `"${cols.name}" is a registry seed and cannot be overwritten` };
     if (existing.ownerId !== who.userId) return { ok: false, status: 409, code: 'NAME_TAKEN', message: `"${cols.name}" is owned by ${existing.author}` };
     if (compareSemver(cols.latestVersion, existing.latestVersion) <= 0) {
       return { ok: false, status: 409, code: 'VERSION_NOT_GREATER', message: `version ${cols.latestVersion} must be greater than published ${existing.latestVersion}` };

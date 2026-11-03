@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type AppContext } from './app';
+import { otherUserKey } from './test/users';
 import { MIN_RUNS_FOR_RATE, RUN_LIMITS, signRun, verifyRunSignature } from './gateway';
 
 /** Fake upstream: records what it received, answers by path. */
@@ -65,7 +66,7 @@ describe('run gateway', () => {
   it('requires auth and rejects agents that cannot run', async () => {
     expect((await run('echo-agent', { q: 1 }, {})).status).toBe(401);
     expect((await run('nope', { q: 1 })).status).toBe(404);
-    for (const name of ['no-endpoint-agent', 'stdio-agent', 'pg-query-optimizer']) {
+    for (const name of ['no-endpoint-agent', 'stdio-agent']) {
       const res = await run(name, { q: 1 });
       expect(res.status, name).toBe(409);
     }
@@ -115,8 +116,7 @@ describe('run gateway', () => {
     const body = (await res.json()) as { runnable: boolean; runs: { callerLogin: string }[] };
     expect(body.runnable).toBe(true);
     expect(body.runs[0].callerLogin).toBe('testuser');
-    const other = await ctx.auth.api.createApiKey({ body: { name: 'other', userId: 'seed-dbforge' } });
-    expect((await req('/api/v1/agents/echo-agent/runs', { headers: { authorization: `Bearer ${other.key}` } })).status).toBe(403);
+    expect((await req('/api/v1/agents/echo-agent/runs', { headers: { authorization: `Bearer ${await otherUserKey(ctx)}` } })).status).toBe(403);
   });
 
   it('publishes measured metrics once enough runs exist, and enforces the per-minute quota', async () => {

@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import path from 'node:path';
 import { createApp, type AppContext } from './app';
+import { otherUserKey } from './test/users';
 
 const TEMPLATE = `<!doctype html><html><head><meta name="description" content="home" /><link rel="canonical" href="https://agenthive.sh/" /><meta property="og:title" content="home" /><meta property="og:description" content="home" /><meta property="og:url" content="https://agenthive.sh/" /><meta name="twitter:title" content="home" /><meta name="twitter:description" content="home" /><title>home</title></head><body><div id="root"></div></body></html>`;
 
@@ -20,6 +22,7 @@ beforeAll(async () => {
     origin: 'https://agenthive.sh',
     auth: { secret: 'x'.repeat(40), baseURL: 'http://localhost' },
     template: async () => TEMPLATE,
+    localAgentsDir: path.resolve(__dirname, '../agents'),
     // Offline audit: nothing resolves, nothing fetches.
     auditContext: () => ({ fetch: (async () => new Response('', { status: 404 })) as typeof fetch, lookup: async () => [{ address: '93.184.216.34', family: 4 }], callTimeoutMs: 100, deadline: Date.now() + 5000, now: () => Date.now() }),
   });
@@ -31,27 +34,27 @@ const post = (path: string, body: unknown, headers: Record<string, string> = aut
   req(path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 
 describe('public registry', () => {
-  it('serves the seeded index with CORS and cache headers', async () => {
+  it('serves the index of the repository agents with CORS and cache headers', async () => {
     const res = await req('/api/agents.json');
     expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     expect(res.headers.get('cache-control')).toContain('s-maxage');
     const body = (await res.json()) as { apiVersion: string; count: number; agents: { name: string; value: string; grade: string }[] };
     expect(body.apiVersion).toBe('agenthive.sh/v1');
-    expect(body.count).toBe(6);
-    expect(body.agents.find((a) => a.name === 'pg-query-optimizer')?.value).toMatch(/Postgres/);
+    expect(body.count).toBe(5);
+    expect(body.agents.find((a) => a.name === 'vibe-app-security-triage')?.value).toMatch(/security/);
   });
 
   it('serves agent card, yaml, sitemap and pre-rendered html', async () => {
-    const card = (await (await req('/agents/pg-query-optimizer/agent.json')).json()) as { name: string; url: string };
-    expect(card.name).toBe('pg-query-optimizer');
-    const yaml = await (await req('/agents/pg-query-optimizer/agent.yaml')).text();
-    expect(yaml).toContain('apiVersion: agenthive.sh/v1');
-    expect(yaml).toContain('name: pg-query-optimizer');
-    expect(await (await req('/sitemap.xml')).text()).toContain('/agents/pg-query-optimizer');
-    const html = await req('/agents/pg-query-optimizer');
+    const card = (await (await req('/agents/secret-exposure-hunter/agent.json')).json()) as { name: string; url: string };
+    expect(card.name).toBe('secret-exposure-hunter');
+    const yaml = await (await req('/agents/secret-exposure-hunter/agent.yaml')).text();
+    expect(yaml).toContain('apiVersion: agenthive.sh/v2');
+    expect(yaml).toContain('name: secret-exposure-hunter');
+    expect(await (await req('/sitemap.xml')).text()).toContain('/agents/secret-exposure-hunter');
+    const html = await req('/agents/secret-exposure-hunter');
     expect(html.status).toBe(200);
-    expect(await html.text()).toContain('<title>pg-query-optimizer · agenthive.sh</title>');
+    expect(await html.text()).toContain('<title>secret-exposure-hunter · agenthive.sh</title>');
     const missing = await req('/agents/does-not-exist');
     expect(missing.status).toBe(404);
     expect(await missing.text()).toContain('<title>home</title>');
@@ -118,9 +121,9 @@ benchmark:
     expect(body.url).toBe('https://agenthive.sh/agents/jira-triage-bot');
 
     const idx = (await (await req('/api/agents.json')).json()) as { count: number };
-    expect(idx.count).toBe(7);
+    expect(idx.count).toBe(6);
     const me = (await (await req('/api/v1/me', { headers: authz })).json()) as { agents: { name: string }[] };
-    expect(me.agents.map((a) => a.name)).toEqual(['jira-triage-bot']);
+    expect(me.agents.map((a) => a.name)).toContain('jira-triage-bot');
   });
 
   it('requires a greater version on re-publish', async () => {
@@ -130,11 +133,8 @@ benchmark:
     expect(((await res.json()) as { agent: { version: string } }).agent.version).toBe('0.2.0');
   });
 
-  it('protects seeds and names owned by someone else', async () => {
-    const seed = await post('/api/v1/agents', manifest({ metadata: { ...manifest().metadata, name: 'pg-query-optimizer', version: '9.0.0' } }));
-    expect(seed.status).toBe(403);
-    const other = await ctx.auth.api.createApiKey({ body: { name: 'other', userId: 'seed-dbforge' } });
-    const res = await post('/api/v1/agents', manifest({ metadata: { ...manifest().metadata, version: '1.0.0' } }), { authorization: `Bearer ${other.key}` });
+  it('protects names owned by someone else', async () => {
+    const res = await post('/api/v1/agents', manifest({ metadata: { ...manifest().metadata, version: '1.0.0' } }), { authorization: `Bearer ${await otherUserKey(ctx)}` });
     expect(res.status).toBe(409);
     expect(((await res.json()) as { code: string }).code).toBe('NAME_TAKEN');
   });
@@ -154,14 +154,12 @@ describe('audit', () => {
     const pub = (await (await req('/agents/jira-triage-bot/audit.json')).json()) as { grade: string; report: { findings: unknown[]; checks: unknown[] } };
     expect(pub.grade).toBe('A');
     expect(pub.report.checks.length).toBe(5);
-    const seed = (await (await req('/agents/pg-query-optimizer/audit.json')).json()) as { report: { illustrative: boolean } };
-    expect(seed.report.illustrative).toBe(true);
 
     const rerun = await req('/api/v1/agents/jira-triage-bot/audit', { method: 'POST', headers: authz });
     expect(rerun.status).toBe(200);
     expect(((await rerun.json()) as { audit: { grade: string } }).audit.grade).toBe('A');
     expect((await req('/api/v1/agents/jira-triage-bot/audit', { method: 'POST', headers: authz })).status).toBe(429);
-    expect((await req('/api/v1/agents/pg-query-optimizer/audit', { method: 'POST', headers: authz })).status).toBe(403);
+    expect((await req('/api/v1/agents/jira-triage-bot/audit', { method: 'POST', headers: { authorization: `Bearer ${await otherUserKey(ctx)}` } })).status).toBe(403);
   });
 
   it('reaches AA with declared permissions', async () => {

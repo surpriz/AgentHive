@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type AppContext } from './app';
+import { otherUserKey } from './test/users';
 import { jsonPath } from './benchmark';
 
 /** Fake upstream that behaves like a small real agent. */
@@ -93,14 +94,12 @@ describe('benchmark', () => {
     expect(mine.runs.every((r) => r.via === 'benchmark' && r.callerLogin === 'agenthive-benchmark')).toBe(true);
   });
 
-  it('owner re-run is gated by the persistent hourly limit; seeds and strangers cannot', async () => {
+  it('owner re-run is gated by the persistent hourly limit; strangers cannot', async () => {
     // The publish benchmark just ran, so an owner re-run must wait.
     const soon = await req('/api/v1/agents/good-agent/benchmark', { method: 'POST', headers: authz });
     expect(soon.status).toBe(429);
     expect(((await soon.json()) as { retryAfterMs: number }).retryAfterMs).toBeGreaterThan(0);
-    expect((await req('/api/v1/agents/pg-query-optimizer/benchmark', { method: 'POST', headers: authz })).status).toBe(403);
-    const seed = (await (await req('/agents/pg-query-optimizer/benchmark.json')).json()) as { illustrative: boolean };
-    expect(seed.illustrative).toBe(true);
+    expect((await req('/api/v1/agents/good-agent/benchmark', { method: 'POST', headers: { authorization: `Bearer ${await otherUserKey(ctx)}` } })).status).toBe(403);
   });
 
   it('cron route is protected and schedules every runnable agent', async () => {

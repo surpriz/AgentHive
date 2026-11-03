@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mockAgents } from '../data/mockAgents';
+import { fixtureAgents as mockAgents } from '../test/fixtures';
 import { agentMeta, renderAgentHtml } from './seo';
 
 const template = `<!doctype html><html><head>
@@ -45,7 +45,7 @@ describe('renderAgentHtml', () => {
     expect(() => renderAgentHtml('<html><head><title>x</title></head></html>', agent)).toThrow(/og:title|description/);
   });
 
-  it('renders every seed agent against the real index.html', async () => {
+  it('renders every fixture agent against the real index.html', async () => {
     const fs = await import('node:fs');
     const real = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
     for (const a of mockAgents) {

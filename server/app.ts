@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
+import { stringify as stringifyYaml } from 'yaml';
 import type { Context, Next } from 'hono';
 import { asc, eq } from 'drizzle-orm';
 import { createDb, PGLITE_URL, type Db } from './db/client';
 import { agents, runs } from './db/schema';
 import { user as userTable } from './db/auth-schema';
-import { seedIfEmpty } from './db/seed';
+import { publishLocalAgents } from './dev/localAgents';
 import { createAuth, type Auth, type AuthEnv } from './auth';
 import { parseManifest, isV2, validatePackageFiles, MAX_PACKAGE_BYTES } from './manifest';
 import { latestAudit, publishManifest, reauditAgent, latestVersion } from './publish';
-import { defaultContext, illustrativeReport, type AuditContext } from './audit';
+import { defaultContext, offlineContext, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
 import { deliverWebhook, ensureSecret, ensureSystemUser, ensureWebhookSecret, getRun, measuredMetrics, precheckRun, recentRuns, rotateSecret, rotateWebhookSecret, runAgent, runnableReason, sweepRuns, verifyRunSignature, RUN_LIMITS } from './gateway';
 import { randomUUID } from 'node:crypto';
@@ -37,6 +38,8 @@ export interface AppOptions {
   background?: (p: Promise<unknown>) => void;
   /** Bearer token protecting /api/cron/*. Unset disables the cron routes. */
   cronSecret?: string;
+  /** In-memory database only: a folder of package directories published under the test user at boot, with offline checks. */
+  localAgentsDir?: string;
 }
 
 export interface AppContext {
@@ -67,7 +70,6 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   const isPglite = opts.databaseUrl.startsWith('pglite://');
   const { db, migrate } = await createDb(opts.databaseUrl);
   if (opts.migrate ?? isPglite) await migrate();
-  await seedIfEmpty(db);
   await ensureSystemUser(db);
 
   const devLogin = isPglite && process.env.NODE_ENV !== 'production';
@@ -83,17 +85,16 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     return row ? runBenchmark(db, { fetch: gatewayFetch }, row, trigger) : null;
   };
 
-  /** Non-seed agents get numbers measured over the gateway; seeds keep their illustrative ones. */
+  /** Numbers on a card are measured over the gateway, never declared. */
   const withMeasured = async (rows: (typeof agents.$inferSelect)[]): Promise<Agent[]> => {
-    const measured = rows.some((r) => !r.isSeed) ? await measuredMetrics(db) : new Map();
+    const measured = rows.length > 0 ? await measuredMetrics(db) : new Map();
     return rows.map((r) => {
       const a = rowToAgent(r);
-      if (r.isSeed) return a;
       const m = measured.get(r.id);
       return { ...a, runs30d: m?.runs30d ?? 0, successRate: m?.successRate ?? null, avgLatencyMs: m?.avgLatencyMs ?? null, costPerRun: null };
     });
   };
-  const loadAgents = async (): Promise<Agent[]> => withMeasured(await db.select().from(agents).orderBy(asc(agents.isSeed), asc(agents.createdAt)));
+  const loadAgents = async (): Promise<Agent[]> => withMeasured(await db.select().from(agents).orderBy(asc(agents.createdAt)));
   const loadAgent = async (name: string): Promise<Agent | null> => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, name) });
     return row ? (await withMeasured([row]))[0] : null;
@@ -147,11 +148,13 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   });
 
   app.get('/agents/:name/agent.yaml', async (c) => {
-    const a = await loadAgent(c.req.param('name'));
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     c.header('Access-Control-Allow-Origin', '*');
-    if (!a) return c.text('not found', 404);
+    if (!row) return c.text('not found', 404);
     c.header('Cache-Control', PUBLIC_CACHE);
-    return c.text(buildManifestYaml(a, opts.origin), 200, { 'Content-Type': 'application/yaml; charset=utf-8' });
+    // A package is served as the author published it; a hosted agent gets the registry's enriched rendering.
+    const body = row.apiVersion === 'v2' ? stringifyYaml((await latestVersion(db, row.id))?.manifest ?? {}) : buildManifestYaml((await withMeasured([row]))[0], opts.origin);
+    return c.text(body, 200, { 'Content-Type': 'application/yaml; charset=utf-8' });
   });
 
   app.get('/agents/:name/package.json', async (c) => {
@@ -170,7 +173,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return publicJson(c, { error: 'not found' }, 404);
     const a = rowToAgent(row);
-    const report = row.isSeed ? illustrativeReport(a.grade === 'pending' ? 'B' : a.grade, a.publishedAt) : await latestAudit(db, row.id);
+    const report = await latestAudit(db, row.id);
     return publicJson(c, { agent: a.name, version: a.version, grade: a.grade, score: a.score, criteria: `${opts.origin}/docs/grading`, report: report ?? null });
   });
 
@@ -178,13 +181,13 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return publicJson(c, { error: 'not found' }, 404);
     const a = rowToAgent(row);
-    return publicJson(c, { agent: a.name, version: a.version, illustrative: row.isSeed, benchmark: row.isSeed ? a.benchmark : await latestBenchmark(db, row.id), runnable: runnableReason(row) === null, reason: runnableReason(row) });
+    return publicJson(c, { agent: a.name, version: a.version, benchmark: await latestBenchmark(db, row.id), runnable: runnableReason(row) === null, reason: runnableReason(row) });
   });
 
   // Daily continuous benchmark, protected by CRON_SECRET (Vercel cron sends it as a bearer token).
   app.get('/api/cron/benchmark', async (c) => {
     if (!opts.cronSecret || c.req.header('authorization') !== `Bearer ${opts.cronSecret}`) return c.json({ error: 'forbidden' }, 403);
-    const rows = await db.select().from(agents).where(eq(agents.isSeed, false));
+    const rows = await db.select().from(agents);
     const runnable = rows.filter((r) => runnableReason(r) === null);
     background(
       (async () => {
@@ -296,7 +299,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest, auditCtx());
     if (!res.ok) return c.json(res.code === 'AUDIT_BLOCKED' ? { error: res.message, code: res.code, audit: res.audit } : { error: res.message, code: res.code }, res.status);
     const entry = buildRegistryIndex([res.agent], opts.origin).agents[0];
-    const benchmarkQueued = runnableReason({ isSeed: false, transport: res.agent.transport, endpoint: res.agent.endpoint } as Parameters<typeof runnableReason>[0]) === null;
+    const benchmarkQueued = runnableReason({ transport: res.agent.transport, endpoint: res.agent.endpoint } as Parameters<typeof runnableReason>[0]) === null;
     if (benchmarkQueued) background(benchmarkAgent(res.agent.id, 'publish'));
     return c.json({ agent: res.agent, entry, audit: res.audit, benchmarkQueued, url: `${opts.origin}/agents/${res.agent.name}` }, res.created ? 201 : 200);
   });
@@ -336,7 +339,6 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return c.json({ error: 'not found' }, 404);
     if (row.ownerId !== me.id) return c.json({ error: 'only the owner can re-run the audit' }, 403);
-    if (row.isSeed) return c.json({ error: 'seed agents are illustrative and not audited' }, 409);
     const last = reauditAt.get(row.id) ?? 0;
     if (Date.now() - last < REAUDIT_WINDOW_MS) return c.json({ error: 'audit already ran recently', retryAfterMs: REAUDIT_WINDOW_MS - (Date.now() - last) }, 429);
     reauditAt.set(row.id, Date.now());
@@ -466,6 +468,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     await db.update(userTable).set({ login: TEST_USER.login, emailVerified: true }).where(eq(userTable.id, signedUp.user.id));
     const created = await auth.api.createApiKey({ body: { name: 'e2e', userId: signedUp.user.id } });
     testApiKey = created.key;
+    if (opts.localAgentsDir) await publishLocalAgents(db, { userId: signedUp.user.id, login: TEST_USER.login }, opts.localAgentsDir, offlineContext());
   }
 
   return { app, db, auth, testApiKey };

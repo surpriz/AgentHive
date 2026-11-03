@@ -24,7 +24,7 @@ const STEPS = [
   {
     icon: <GitFork size={16} />,
     title: '4. Make it yours',
-    body: 'Edit the prompt or the settings and push it back under your own name. Publishing from a folder is one command; forks with visible lineage are next.',
+    body: 'Edit the prompt or the settings and push it back under your own name. Publishing from a folder is one command. Once the first trial runs, a resubmitted version gets its own score next to the original.',
     code: 'agent-cli push ./my-agent',
   },
 ] as const;
@@ -34,8 +34,8 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
     <Modal open={open} onClose={onClose} title="How AgentHive works">
       <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
         <p className="text-[13.5px] leading-relaxed text-muted">
-          AgentHive is the trust layer for AI agents, whatever tool you use. Agents are packages you can read in full, checked by the registry, retrieved into
-          Claude Code or Cursor in one action, and remixed under your own name.
+          AgentHive is the proving ground for AI agents: every agent goes through the same real tests, and the results are published. Agents are packages you
+          can read in full, checked by the registry, pulled into Claude Code or Cursor in one action, and improved under your own name.
         </p>
 
         <ol className="space-y-4">
@@ -63,10 +63,10 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
               <span className="text-ok">Real:</span> packages, checks, retrieval into Claude Code and Cursor, the CLI, the catalog MCP server, and the gateway for agents hosted by their authors.
             </li>
             <li>
-              <span className="text-warn">Illustrative:</span> the agents marked as seeds are examples with made-up numbers; their sandbox replays a script. They go away as real agents land.
+              <span className="text-warn">Not yet:</span> no agent has been through a trial. Every number on a package card comes from the checks, not from a run.
             </li>
             <li>
-              <span className="text-dim">Next:</span> recorded runs on every card, a live sandbox, forks with lineage.
+              <span className="text-dim">Next:</span> the first trial, a security audit of vibe-coded apps with planted flaws, then recorded runs on every card and a ranking per trial.
             </li>
           </ul>
         </div>

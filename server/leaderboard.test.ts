@@ -54,11 +54,11 @@ describe('compositeScore', () => {
 });
 
 describe('leaderboard', () => {
-  it('ranks eligible third-party agents per category and keeps seeds apart', async () => {
+  it('ranks eligible agents per category', async () => {
     const res = await req('/api/leaderboard.json');
     expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
-    const board = (await res.json()) as { categories: Record<string, { rank: number; name: string; score: number; components: { benchmark: number; audit: number; availability: number | null }; benchmarkCases: number; delta: number | null }[]>; illustrative: { name: string }[] };
+    const board = (await res.json()) as { categories: Record<string, { rank: number; name: string; score: number; components: { benchmark: number; audit: number; availability: number | null }; benchmarkCases: number; delta: number | null }[]> };
     const devops = board.categories['DevOps'];
     expect(devops.map((e) => e.name)).toEqual(['strong-agent', 'weak-agent']);
     expect(devops[0].rank).toBe(1);
@@ -71,8 +71,6 @@ describe('leaderboard', () => {
     expect(finance.map((e) => e.name)).toEqual(['probes-only-agent']);
     expect(finance[0].components.benchmark).toBeLessThanOrEqual(50);
     expect(finance[0].benchmarkCases).toBe(0);
-    expect(board.illustrative.map((s) => s.name)).toContain('pg-query-optimizer');
-    expect(Object.values(board.categories).flat().map((e) => e.name)).not.toContain('pg-query-optimizer');
   });
 
   it('filters by category and rejects unknown ones', async () => {

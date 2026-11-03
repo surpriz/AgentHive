@@ -86,7 +86,18 @@ export async function runAudit(input: Manifest | AuditSubject, ctx: AuditContext
   return { engine: v2 ? 'v2' : 'v1', auditedAt: new Date(ctx.now()).toISOString(), score, grade: blocked ? 'B' : gradeOf(score, caps), caps, blocked, findings, checks };
 }
 
-/** Report shown for the seed agents, which were never audited. */
-export function illustrativeReport(grade: Report['grade'], publishedAt: string): Report {
-  return { engine: 'v1', auditedAt: publishedAt, score: { AAA: 95, AA: 80, A: 60, B: 40 }[grade], grade, caps: [], blocked: false, findings: [], checks: [], illustrative: true };
+/**
+ * A context whose network answers are canned: package registries say every
+ * version exists, OSV reports nothing. For local boots and e2e runs, where the
+ * checks must not depend on the network.
+ */
+export function offlineContext(): AuditContext {
+  const ok = (body: string) => new Response(body, { status: 200, headers: { 'content-type': 'application/json' } });
+  const fetchImpl = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith('https://registry.npmjs.org/') || url.startsWith('https://pypi.org/')) return ok('{}');
+    if (url.startsWith('https://api.osv.dev/')) return ok(JSON.stringify({ results: [] }));
+    return new Response('', { status: 404 });
+  }) as typeof fetch;
+  return defaultContext({ fetch: fetchImpl, lookup: async () => [{ address: '203.0.113.1', family: 4 }] });
 }

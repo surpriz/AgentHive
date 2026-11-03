@@ -68,15 +68,6 @@ export function ReportView({ agent, report, criteria = '/docs/grading' }: { agen
 
   return (
     <div className="space-y-5">
-      {report.illustrative && (
-        <div className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-[12px] leading-relaxed text-warn" role="note">
-          <Info size={14} className="mt-0.5 shrink-0" />
-          <span>
-            <span className="font-semibold">Illustrative grade.</span> {agent.name} is a seed agent shipped with the registry; it was not audited. Third-party agents get a computed grade and a real report.
-          </span>
-        </div>
-      )}
-
       {agent.apiVersion === 'v2' && (
         <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-[12.5px] leading-relaxed text-muted" role="note" data-testid="checks-note">
           <span className="font-semibold text-fg">{report.checks.filter((c) => c.status === 'ok').length}/{report.checks.length} checks passed.</span> These checks look at secrets, pinned versions, known vulnerabilities, permissions and executable content. They do not read the prompt for intent: install only what you have read in the Package tab.
@@ -86,7 +77,7 @@ export function ReportView({ agent, report, criteria = '/docs/grading' }: { agen
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg border border-border bg-surface-2 p-3">
           <div className="text-[11px] text-dim">{agent.apiVersion === 'v2' ? 'checks' : 'grade'}</div>
-          <div className="mt-1">{agent.apiVersion === 'v2' ? <ChecksBadge grade={report.blocked ? 'B' : report.grade} score={report.score} /> : <GradeBadge grade={report.blocked ? 'B' : report.grade} title={report.illustrative ? 'Illustrative seed grade' : 'Computed by the registry audit'} />}</div>
+          <div className="mt-1">{agent.apiVersion === 'v2' ? <ChecksBadge grade={report.blocked ? 'B' : report.grade} score={report.score} /> : <GradeBadge grade={report.blocked ? 'B' : report.grade} title="Computed by the registry audit" />}</div>
         </div>
         <div className="rounded-lg border border-border bg-surface-2 p-3">
           <div className="text-[11px] text-dim">score</div>
@@ -112,7 +103,7 @@ export function ReportView({ agent, report, criteria = '/docs/grading' }: { agen
         </section>
       )}
 
-      {!report.illustrative && (
+      {(
         <section>
           <h3 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">findings · {report.findings.length}</h3>
           {report.findings.length === 0 ? (

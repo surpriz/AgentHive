@@ -32,7 +32,6 @@ export interface Report {
   findings: Finding[];
   checks: CheckRun[];
   /** Seeds carry hand-written grades, never a real audit. */
-  illustrative?: boolean;
 }
 
 export interface DnsLookup {

@@ -176,7 +176,6 @@ export interface AuditReport {
   blocked: boolean;
   findings: AuditFinding[];
   checks: { id: string; status: 'ok' | 'skipped' | 'error'; ms: number; note?: string }[];
-  illustrative?: boolean;
 }
 
 /** GET /agents/<name>/audit.json */
@@ -229,7 +228,6 @@ export interface BenchmarkReport {
 export interface BenchmarkResponse {
   agent: string;
   version: string;
-  illustrative: boolean;
   runnable: boolean;
   reason: string | null;
   benchmark: BenchmarkReport | { passRate: number; ranAt: string } | null;
@@ -256,7 +254,6 @@ export interface Leaderboard {
   generatedAt: string;
   formula: string;
   categories: Record<string, LeaderboardEntry[]>;
-  illustrative: { name: string; category: string; grade: SecurityGrade }[];
 }
 
 /** GET /api/v1/runs/<runId> */

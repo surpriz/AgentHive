@@ -1,10 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
-test('leaderboard page renders categories, the illustrative seeds and the formula link', async ({ page }) => {
+test('leaderboard page renders categories and the formula link', async ({ page }) => {
   await page.goto('/leaderboard');
   await expect(page.getByRole('heading', { name: 'Ranked from measured numbers only.' })).toBeVisible();
-  await expect(page.getByText('illustrative seeds · not ranked')).toBeVisible();
-  await expect(page.getByText('pg-query-optimizer')).toBeVisible();
   await expect(page.getByRole('link', { name: /how ranks are computed/ })).toHaveAttribute('href', '/docs/leaderboard');
   await page.getByRole('button', { name: 'Marketing' }).click();
   await expect(page.getByText(/Nobody ranked in Marketing yet|board-Marketing/)).toBeVisible();
