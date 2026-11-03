@@ -60,6 +60,23 @@ describe('public registry', () => {
     expect(await missing.text()).toContain('<title>home</title>');
     expect((await req('/agents/does-not-exist/agent.json')).status).toBe(404);
   });
+
+  it('serves the home, agent and leaderboard pages with a static snapshot before the app root', async () => {
+    const home = await (await req('/')).text();
+    expect(home).toContain('id="ssr"');
+    expect(home).toContain('Find the agent that actually does the job.');
+    for (const name of ['secret-exposure-hunter', 'vibe-app-security-triage']) expect(home).toContain(`href="/agents/${name}"`);
+    expect(home.indexOf('id="ssr"')).toBeLessThan(home.indexOf('<div id="root"></div>'));
+    const agent = await (await req('/agents/secret-exposure-hunter')).text();
+    expect(agent).toContain('Finds real credentials leaked');
+    expect(agent).toContain('mcp filesystem');
+    expect(agent).toContain('href="/agents/secret-exposure-hunter/package.json"');
+    const board = await (await req('/leaderboard')).text();
+    expect(board).toContain('<h1 class="text-3xl font-semibold tracking-tight">Leaderboard</h1>');
+    expect(board).toContain('Nobody ranked yet.');
+    const dashboard = await (await req('/dashboard')).text();
+    expect(dashboard).not.toContain('id="ssr"');
+  });
 });
 
 describe('auth', () => {

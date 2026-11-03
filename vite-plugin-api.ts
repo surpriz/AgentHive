@@ -7,6 +7,8 @@ import { optionsFromEnv } from './server/env';
 
 /** Paths the Hono app owns. Everything else stays with Vite (assets, SPA fallback). */
 const API_RE = /^\/(api\/|sitemap\.xml$|docs\/(grading|leaderboard)$|agents\/[a-z0-9][a-z0-9-]*(\/(agent\.(json|yaml)|audit\.json|benchmark\.json|package\.json))?\/?$)/;
+/** Pages the app serves with a static snapshot when a document is requested. */
+const PAGE_RE = /^\/(leaderboard|dashboard)?\/?(\?|$)/;
 
 /**
  * Mounts the registry API inside the Vite dev server so `pnpm dev` is the
@@ -36,9 +38,10 @@ export function apiPlugin(): Plugin {
 
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ?? '/';
-        if (!API_RE.test(url)) return next();
-        // Only pre-render agent pages for document requests; let Vite handle module/HMR traffic.
-        if (/^\/agents\/[a-z0-9-]+\/?(\?|$)/.test(url) && !(req.headers.accept ?? '').includes('text/html')) return next();
+        const isDocument = (req.headers.accept ?? '').includes('text/html');
+        if (!API_RE.test(url) && !(PAGE_RE.test(url) && isDocument)) return next();
+        // Only pre-render pages for document requests; let Vite handle module/HMR traffic.
+        if (/^\/agents\/[a-z0-9-]+\/?(\?|$)/.test(url) && !isDocument) return next();
         try {
           const { app } = await boot();
           await getRequestListener(app.fetch)(req, res);

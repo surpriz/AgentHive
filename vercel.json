@@ -45,12 +45,16 @@
       "destination": "/api/index?__path=/agents/:ahname"
     },
     {
+      "source": "/",
+      "destination": "/api/index?__path=/"
+    },
+    {
       "source": "/dashboard",
-      "destination": "/"
+      "destination": "/api/index?__path=/dashboard"
     },
     {
       "source": "/leaderboard",
-      "destination": "/"
+      "destination": "/api/index?__path=/leaderboard"
     }
   ],
   "headers": [

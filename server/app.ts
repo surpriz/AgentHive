@@ -6,6 +6,8 @@ import { createDb, PGLITE_URL, type Db } from './db/client';
 import { agents, runs } from './db/schema';
 import { user as userTable } from './db/auth-schema';
 import { publishLocalAgents } from './dev/localAgents';
+import { withSnapshot } from './ssr';
+import { agentSnapshot, homeSnapshot, leaderboardSnapshot } from '../src/ssr/snapshot';
 import { createAuth, type Auth, type AuthEnv } from './auth';
 import { parseManifest, isV2, validatePackageFiles, MAX_PACKAGE_BYTES } from './manifest';
 import { latestAudit, publishManifest, reauditAgent, latestVersion } from './publish';
@@ -271,7 +273,24 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const template = await opts.template();
     const a = await loadAgent(c.req.param('name'));
     c.header('Cache-Control', a ? PUBLIC_CACHE : 'no-store');
-    return c.html(a ? renderAgentHtml(template, a, opts.origin) : template, a ? 200 : 404);
+    return c.html(a ? withSnapshot(renderAgentHtml(template, a, opts.origin), agentSnapshot(a)) : template, a ? 200 : 404);
+  });
+
+  // The SPA shell with a static snapshot of the page, for readers without JavaScript.
+  app.get('/', async (c) => {
+    if (!opts.template) return c.notFound();
+    c.header('Cache-Control', PUBLIC_CACHE);
+    return c.html(withSnapshot(await opts.template(), homeSnapshot(await loadAgents())));
+  });
+  app.get('/leaderboard', async (c) => {
+    if (!opts.template) return c.notFound();
+    c.header('Cache-Control', PUBLIC_CACHE);
+    return c.html(withSnapshot(await opts.template(), leaderboardSnapshot(await computeLeaderboard(db))));
+  });
+  app.get('/dashboard', async (c) => {
+    if (!opts.template) return c.notFound();
+    c.header('Cache-Control', 'no-store');
+    return c.html(await opts.template());
   });
 
   // ---- authenticated -----------------------------------------------------

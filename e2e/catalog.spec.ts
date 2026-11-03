@@ -22,9 +22,10 @@ test('search and chip filters narrow the grid, reset restores it', async ({ page
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toContainText('secret-exposure-hunter');
   await page.getByLabel('Search agents').fill('');
+  // other specs publish packages on the same server, so the count is a floor
   await page.getByRole('button', { name: 'Declarative', exact: true }).click();
-  await expect(cards(page)).toHaveCount(AGENTS.length);
-  await page.getByRole('button', { name: 'CrewAI', exact: true }).click();
+  expect(await cards(page).count()).toBeGreaterThanOrEqual(AGENTS.length);
+  await page.getByLabel('Search agents').fill('no-such-agent-anywhere');
   await expect(cards(page)).toHaveCount(0);
   await page.getByRole('button', { name: /reset filters/ }).first().click();
   await expect(cards(page)).toHaveCount(total);
@@ -77,6 +78,17 @@ test('agent pages are pre-rendered with per-agent open graph tags', async ({ req
   expect(html).toContain('<title>secret-exposure-hunter · agenthive.sh</title>');
   expect(html).toMatch(/content="https?:\/\/[^"]+\/agents\/secret-exposure-hunter"/);
   expect(html).toContain('"@type":"SoftwareApplication"');
-  const home = await (await request.get('/')).text();
+  const home = await (await request.get('/', { headers: { accept: 'text/html' } })).text();
   expect(home).toContain('<title>agenthive.sh — The proving ground for AI agents</title>');
+  // readers without JavaScript get the catalog as plain links
+  expect(home).toContain('href="/agents/secret-exposure-hunter"');
+  const board = await (await request.get('/leaderboard', { headers: { accept: 'text/html' } })).text();
+  expect(board).toContain('id="ssr"');
+});
+
+test('the app replaces the static snapshot once it boots', async ({ page }) => {
+  await page.goto('/agents/secret-exposure-hunter');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('#ssr')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Find the agent that actually does the job.' })).toHaveCount(1);
 });

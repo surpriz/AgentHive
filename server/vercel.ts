@@ -10,10 +10,10 @@ let cachedTemplate: string | null = null;
 /** The built SPA shell: read from the deployment when bundled, otherwise fetched once from the same origin. */
 async function loadTemplate(origin: string): Promise<string> {
   if (cachedTemplate) return cachedTemplate;
-  for (const p of [path.join(process.cwd(), 'dist', 'index.html'), path.join(process.cwd(), 'index.html')]) {
+  for (const p of [path.join(process.cwd(), 'dist', '_shell.html'), path.join(process.cwd(), 'dist', 'index.html'), path.join(process.cwd(), 'index.html')]) {
     if (fs.existsSync(p)) return (cachedTemplate = fs.readFileSync(p, 'utf8'));
   }
-  const res = await fetch(`${origin}/index.html`);
+  const res = await fetch(`${origin}/_shell.html`);
   if (!res.ok) throw new Error(`cannot load index.html (${res.status})`);
   return (cachedTemplate = await res.text());
 }
