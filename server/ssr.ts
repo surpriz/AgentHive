@@ -10,5 +10,6 @@ export function withSnapshot(template: string, node: ReactNode): string {
   const html = renderToStaticMarkup(node);
   const marker = '<div id="root"></div>';
   if (!template.includes(marker)) throw new Error('index.html has no app root');
-  return template.replace(marker, `${html}\n    ${marker}`);
+  // A replacer function keeps `$` sequences in publisher text literal.
+  return template.replace(marker, () => `${html}\n    ${marker}`);
 }

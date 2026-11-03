@@ -4,6 +4,7 @@ import { apiKey } from '@better-auth/api-key';
 import type { Db } from './db/client';
 import * as authSchema from './db/auth-schema';
 import { eq } from 'drizzle-orm';
+import { resetMail, verificationMail, type MailSender } from './email';
 
 export interface AuthEnv {
   secret: string;
@@ -11,11 +12,15 @@ export interface AuthEnv {
   github?: { clientId: string; clientSecret: string };
   google?: { clientId: string; clientSecret: string };
   trustedOrigins?: string[];
-  /** Email + password sign-in. Only enabled for the in-memory database outside production (local dev, e2e). */
+  /** Email + password sign-in without verification. Only for the in-memory database outside production (local dev, e2e). */
   passwordLogin?: boolean;
+  /** Email + password sign-in with a verification link, for deployments with a mail sender. */
+  email?: { send: MailSender };
 }
 
 export function createAuth(db: Db, env: AuthEnv) {
+  // A mail sender turns email sign-in on with a verification link; the dev password login never verifies.
+  const verify = Boolean(env.email) && env.passwordLogin !== true;
   return betterAuth({
     appName: 'agenthive.sh',
     secret: env.secret,
@@ -23,7 +28,22 @@ export function createAuth(db: Db, env: AuthEnv) {
     basePath: '/api/auth',
     trustedOrigins: env.trustedOrigins,
     database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
-    emailAndPassword: { enabled: env.passwordLogin === true },
+    emailAndPassword: {
+      enabled: env.passwordLogin === true || Boolean(env.email),
+      requireEmailVerification: verify,
+      // With verification on, the automatic sign-in after sign-up would fail and send the link a second time.
+      autoSignIn: !verify,
+      ...(env.email ? { sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => env.email!.send(resetMail(user.email, url)) } : {}),
+    },
+    ...(env.email
+      ? {
+          emailVerification: {
+            sendOnSignUp: verify,
+            autoSignInAfterVerification: true,
+            sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => env.email!.send(verificationMail(user.email, url)),
+          },
+        }
+      : {}),
     socialProviders: {
       ...(env.github
         ? {

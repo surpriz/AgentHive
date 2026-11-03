@@ -46,7 +46,7 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/agents/<name>/benchmark.json`, `POST /api/v1/agents/<name>/benchmark` | registry benchmark (probes + `spec.tests`), public report and owner re-run |
 | `/api/v1/runs`, `/api/v1/agents/<name>/runs`, `…/secret` | run logs (caller / owner), gateway secret |
 | `/api/v1/me`, `POST /api/v1/agents`, `POST /api/v1/packages`, `POST /api/v1/agents/<name>/audit`, `/api/v1/keys` | authenticated: session cookie or `Authorization: Bearer <api key>` |
-| `/api/auth/*` | better-auth (GitHub and Google OAuth, env-gated) |
+| `/api/auth/*` | better-auth: GitHub and Google OAuth, email + password with a verification link (`RESEND_API_KEY` + `EMAIL_FROM`), all env-gated |
 | `/sitemap.xml`, `/robots.txt`, `/og.png` | SEO |
 
 All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `vite-plugin-api.ts` and exported by `api/index.ts` on Vercel. Publishing rules: first publisher owns the name, re-publish needs a greater semver. Every publish runs the audit in `server/audit/` (secrets, endpoint, permissions, dependencies via OSV, completeness); the grade is computed from it, the report is public at `/agents/<name>/audit.json`, criteria in [docs/GRADING.md](docs/GRADING.md). The numbers on a hosted agent's card are measured: success = benchmark pass rate, availability = gateway ok-rate after 20 runs, latency and runs over 30 days; cost stays null until billing exists.

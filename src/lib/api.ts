@@ -34,6 +34,8 @@ const safeJson = (t: string): unknown => {
 export interface RegistryConfig {
   github: boolean;
   google?: boolean;
+  /** Email + password with a verification link. */
+  email?: boolean;
   devLogin: boolean;
   devUser?: { email: string; password: string; login: string };
 }

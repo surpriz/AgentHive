@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2, Trophy } from 'lucide-react';
+import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2, Trophy, Mail } from 'lucide-react';
 import { GithubIcon } from './ui/GithubIcon';
 import type { SessionUser } from '../lib/auth-client';
 import { CopyButton } from './ui/CodeBlock';
@@ -11,8 +11,8 @@ const INSTALL_CMD = `npm i -g ${CLI_PACKAGE_SPEC}`;
 export interface NavbarSession {
   user: SessionUser | null;
   pending: boolean;
-  onSignIn: (provider?: 'github' | 'google') => void;
-  providers?: { github: boolean; google: boolean };
+  onSignIn: (provider?: 'github' | 'google' | 'email') => void;
+  providers?: { github: boolean; google: boolean; email: boolean };
   onSignOut: () => void;
   onDashboard: () => void;
 }
@@ -136,7 +136,8 @@ export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { o
 function SignInButton({ session }: { session: NavbarSession }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const both = Boolean(session.providers?.github && session.providers?.google);
+  const options = [session.providers?.github, session.providers?.google, session.providers?.email].filter(Boolean).length;
+  const both = options > 1;
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -153,9 +154,10 @@ function SignInButton({ session }: { session: NavbarSession }) {
   const cls = 'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg';
   if (!both) {
     const google = session.providers?.google && !session.providers?.github;
+    const email = session.providers?.email && !session.providers?.github && !session.providers?.google;
     return (
       <button type="button" onClick={() => session.onSignIn()} aria-label="Sign in" className={cls}>
-        {google ? <GoogleIcon /> : <GithubIcon size={14} />}
+        {email ? <Mail size={14} /> : google ? <GoogleIcon /> : <GithubIcon size={14} />}
         <span className="hidden sm:inline">Sign in</span>
       </button>
     );
@@ -168,12 +170,21 @@ function SignInButton({ session }: { session: NavbarSession }) {
       </button>
       {open && (
         <div role="menu" className="absolute right-0 mt-2 w-44 rounded-lg border border-border bg-surface p-1 shadow-2xl animate-fade-up">
-          <button type="button" role="menuitem" onClick={() => session.onSignIn('github')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
-            <GithubIcon size={14} /> GitHub
-          </button>
-          <button type="button" role="menuitem" onClick={() => session.onSignIn('google')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
-            <GoogleIcon /> Google
-          </button>
+          {session.providers?.github && (
+            <button type="button" role="menuitem" onClick={() => session.onSignIn('github')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
+              <GithubIcon size={14} /> GitHub
+            </button>
+          )}
+          {session.providers?.google && (
+            <button type="button" role="menuitem" onClick={() => session.onSignIn('google')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
+              <GoogleIcon /> Google
+            </button>
+          )}
+          {session.providers?.email && (
+            <button type="button" role="menuitem" onClick={() => session.onSignIn('email')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
+              <Mail size={14} /> Email
+            </button>
+          )}
         </div>
       )}
     </div>

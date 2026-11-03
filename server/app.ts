@@ -42,6 +42,8 @@ export interface AppOptions {
   cronSecret?: string;
   /** In-memory database only: a folder of package directories published under the test user at boot, with offline checks. */
   localAgentsDir?: string;
+  /** Password login without verification plus a test user and key. Default: in-memory database outside production. */
+  devLogin?: boolean;
 }
 
 export interface AppContext {
@@ -74,7 +76,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   if (opts.migrate ?? isPglite) await migrate();
   await ensureSystemUser(db);
 
-  const devLogin = isPglite && process.env.NODE_ENV !== 'production';
+  const devLogin = opts.devLogin ?? (isPglite && process.env.NODE_ENV !== 'production');
   const auth = createAuth(db, { ...opts.auth, passwordLogin: devLogin });
   const app = new Hono();
   const publishHits = new Map<string, number[]>();
@@ -134,7 +136,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
   // ---- public registry ---------------------------------------------------
-  app.get('/api/config', (c) => c.json({ github: Boolean(opts.auth.github), google: Boolean(opts.auth.google), devLogin, devUser: devLogin ? TEST_USER : undefined }));
+  app.get('/api/config', (c) => c.json({ github: Boolean(opts.auth.github), google: Boolean(opts.auth.google), email: Boolean(opts.auth.email), devLogin, devUser: devLogin ? TEST_USER : undefined }));
 
   app.get('/api/catalog.json', async (c) => {
     c.header('Access-Control-Allow-Origin', '*');

@@ -6,6 +6,7 @@ import { AgentGrid } from './components/AgentGrid';
 import { AgentDetailModal } from './components/AgentDetailModal';
 import { PublishModal } from './components/PublishModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
+import { SignInModal } from './components/SignInModal';
 import { Dashboard } from './components/Dashboard';
 import { Leaderboard } from './components/Leaderboard';
 import { EMPTY_FILTERS, filterAgents } from './lib/filters';
@@ -21,6 +22,7 @@ export default function App() {
   const [route, navigate] = useRoute();
   const [publishOpen, setPublishOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [config, setConfig] = useState<RegistryConfig | null>(null);
   const session = authClient.useSession();
@@ -51,14 +53,17 @@ export default function App() {
   const closeHow = useCallback(() => setHowOpen(false), []);
 
   const signIn = useCallback(
-    async (provider?: 'github' | 'google') => {
+    async (provider?: 'github' | 'google' | 'email') => {
+      if (provider === 'email') return setSignInOpen(true);
       const chosen = provider ?? (config?.github ? 'github' : config?.google ? 'google' : null);
       if (chosen && config?.[chosen]) {
         await authClient.signIn.social({ provider: chosen, callbackURL: '/dashboard' });
       } else if (config?.devLogin && config.devUser) {
         await authClient.signIn.email({ email: config.devUser.email, password: config.devUser.password });
+      } else if (config?.email) {
+        setSignInOpen(true);
       } else {
-        window.alert('Sign-in is not configured on this deployment yet (GITHUB_CLIENT_ID or GOOGLE_CLIENT_ID missing).');
+        window.alert('Sign-in is not configured on this deployment yet.');
       }
     },
     [config],
@@ -122,7 +127,7 @@ export default function App() {
         onPush={() => setPublishOpen(true)}
         onHow={() => setHowOpen(true)}
         nodeCount={list.length}
-        session={{ user, pending: session.isPending, onSignIn: signIn, providers: { github: Boolean(config?.github), google: Boolean(config?.google) }, onSignOut: signOut, onDashboard: () => navigate('/dashboard') }}
+        session={{ user, pending: session.isPending, onSignIn: signIn, providers: { github: Boolean(config?.github), google: Boolean(config?.google), email: Boolean(config?.email) }, onSignOut: signOut, onDashboard: () => navigate('/dashboard') }}
         onLeaderboard={() => navigate('/leaderboard')}
       />
 
@@ -223,6 +228,7 @@ export default function App() {
         }}
       />
       <HowItWorksModal open={howOpen} onClose={closeHow} />
+      <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} config={config} onSocial={(p) => void signIn(p)} />
     </div>
   );
 }
