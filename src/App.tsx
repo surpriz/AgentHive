@@ -50,15 +50,19 @@ export default function App() {
   const closePublish = useCallback(() => setPublishOpen(false), []);
   const closeHow = useCallback(() => setHowOpen(false), []);
 
-  const signIn = useCallback(async () => {
-    if (config?.github) {
-      await authClient.signIn.social({ provider: 'github', callbackURL: '/dashboard' });
-    } else if (config?.devLogin && config.devUser) {
-      await authClient.signIn.email({ email: config.devUser.email, password: config.devUser.password });
-    } else {
-      window.alert('Sign-in is not configured on this deployment yet (GITHUB_CLIENT_ID missing).');
-    }
-  }, [config]);
+  const signIn = useCallback(
+    async (provider?: 'github' | 'google') => {
+      const chosen = provider ?? (config?.github ? 'github' : config?.google ? 'google' : null);
+      if (chosen && config?.[chosen]) {
+        await authClient.signIn.social({ provider: chosen, callbackURL: '/dashboard' });
+      } else if (config?.devLogin && config.devUser) {
+        await authClient.signIn.email({ email: config.devUser.email, password: config.devUser.password });
+      } else {
+        window.alert('Sign-in is not configured on this deployment yet (GITHUB_CLIENT_ID or GOOGLE_CLIENT_ID missing).');
+      }
+    },
+    [config],
+  );
 
   const signOut = useCallback(async () => {
     await authClient.signOut();
@@ -118,7 +122,7 @@ export default function App() {
         onPush={() => setPublishOpen(true)}
         onHow={() => setHowOpen(true)}
         nodeCount={list.length}
-        session={{ user, pending: session.isPending, onSignIn: signIn, onSignOut: signOut, onDashboard: () => navigate('/dashboard') }}
+        session={{ user, pending: session.isPending, onSignIn: signIn, providers: { github: Boolean(config?.github), google: Boolean(config?.google) }, onSignOut: signOut, onDashboard: () => navigate('/dashboard') }}
         onLeaderboard={() => navigate('/leaderboard')}
       />
 

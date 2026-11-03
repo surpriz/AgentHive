@@ -37,6 +37,10 @@
       "destination": "/api/index?__path=/agents/:ahname/benchmark.json"
     },
     {
+      "source": "/agents/:ahname/package.json",
+      "destination": "/api/index?__path=/agents/:ahname/package.json"
+    },
+    {
       "source": "/agents/:ahname",
       "destination": "/api/index?__path=/agents/:ahname"
     },

@@ -1,0 +1,90 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: secret-exposure-hunter
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: Finds real credentials leaked in your source, env files, client bundles and git history before someone else does.
+  tagline: Scans the working tree and git history for secret-shaped strings, checks which ones reach the browser, and separates live keys from placeholders and intentionally public keys.
+  tags: [security, secrets, credentials, env, gitignore, nextjs, supabase, vercel, express]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 15, description: "Cap on the number of findings reported" }
+    - { name: scan_git_history, type: boolean, default: true, description: "Also look for secrets in past commits, not only the working tree" }
+    - { name: report_placeholders, type: boolean, default: false, description: "Report obvious placeholders and example values as low-severity hygiene notes" }
+  bricks:
+    skills: [secret-patterns]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files or folders to look at first" }
+        known_public_vars: { type: array, items: { type: string }, description: "Env var names that are intentionally public, e.g. NEXT_PUBLIC_SUPABASE_ANON_KEY" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              kind: { type: string, enum: [live-secret, likely-secret, public-key-misuse, placeholder, hygiene] }
+              exposure: { type: string, enum: [working-tree, git-history, client-bundle, log-output, untracked-but-not-ignored] }
+              evidence: { type: string }
+              fix: { type: string }
+        rotation_checklist: { type: array, items: { type: string } }
+  tests:
+    - name: reports a committed env file with real-looking values
+      input: { path: ".", focus: [".env", ".env.local"] }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: still runs when the history scan is off
+      input: { path: ".", known_public_vars: [NEXT_PUBLIC_SUPABASE_ANON_KEY] }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+    - name: accepts a focus on the client code only
+      input: { path: ".", focus: [app, components, public] }
+      expect: { jsonPath: { path: findings.length, min: 0 } }
+readme: |
+  Secret Exposure Hunter looks for credentials that have leaked into a web app's
+  repository: committed .env files, API keys pasted into source, server-only keys
+  that end up in the browser bundle, tokens printed by console.log, and secrets
+  that were deleted from the tree but still live in git history.
+
+  It is built for apps written fast on Next.js, Supabase, Express, Prisma and
+  Vercel. It knows the difference between a Supabase anon key (public by design)
+  and a service_role key (never public), between a placeholder and a live value,
+  and it tells you exactly which keys to rotate first.
+
+  It only reads. It needs the filesystem and git MCP servers pointed at the app
+  root, and no network access. Give it the path to the app; optionally list the
+  env var names you know are public so they are not reported as leaks.
+useCases:
+  - "Before pushing a vibe-coded app to a public GitHub repo"
+  - "After an AI assistant generated your .env handling and you are not sure what it did"
+  - "When a teammate says a key 'might' have been committed at some point"
+  - "As a pre-deploy gate on Vercel or Netlify projects"

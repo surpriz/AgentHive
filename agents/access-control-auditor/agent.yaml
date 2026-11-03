@@ -1,0 +1,90 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: access-control-auditor
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: Finds the places where any user can read or change another user's data in your app.
+  tagline: Maps every data access path, checks who is allowed to call it and whether the row belongs to the caller, with specific checks for Supabase RLS, Next.js middleware, Prisma queries and Express routes.
+  tags: [security, authorization, rls, supabase, nextjs, prisma, express, idor, middleware]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: stack_hint, type: enum, values: [auto, nextjs-supabase, nextjs-prisma, express, other], default: auto, description: "Skip detection and assume this stack" }
+    - { name: include_sql_migrations, type: boolean, default: true, description: "Read supabase/migrations and prisma/migrations for RLS and grants" }
+  bricks:
+    skills: [supabase-rls-checklist, authz-review]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional routes, folders or table names to look at first" }
+        roles: { type: array, items: { type: string }, description: "Role names the app uses, e.g. [user, admin, owner]" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [missing-authn, missing-authz, idor, rls-off, rls-weak, client-trusted-role, middleware-gap, service-key-misuse] }
+              evidence: { type: string }
+              fix: { type: string }
+        access_map: { type: array, items: { type: object } }
+  tests:
+    - name: finds routes without an auth check
+      input: { path: ".", focus: [app/api, pages/api] }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: reports RLS state for a supabase project
+      input: { path: ".", roles: [user, admin] }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+    - name: honours a forced stack
+      input: { path: ".", focus: [src/routes] }
+      expect: { jsonPath: { path: findings.length, min: 0 } }
+readme: |
+  Access Control Auditor answers one question for every piece of data in your app:
+  who can read or change it, and did the code actually check? It maps API routes,
+  server actions, Supabase queries, Prisma calls and Express handlers, then checks
+  three things on each: is the caller authenticated, is the caller allowed to do
+  this action, and does the row they are touching belong to them.
+
+  It has dedicated checks for the mistakes that AI-assisted apps make most: Supabase
+  tables with Row Level Security off or with a permissive policy, the service_role
+  client used from a request handler, Next.js middleware that protects pages but not
+  API routes, admin flags read from the request body or a cookie, and IDs taken from
+  the URL and passed straight to the database.
+
+  It only reads files. It needs the filesystem and git MCP servers pointed at the
+  app root. Optionally tell it the role names your app uses.
+useCases:
+  - "Before opening a Supabase-backed app to real users"
+  - "When you wrote the auth code with an AI assistant and want a second pair of eyes"
+  - "After adding an admin area or a multi-tenant feature"
+  - "To get a table of every route and who is allowed to call it"

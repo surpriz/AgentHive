@@ -38,14 +38,15 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/api/agents.json` | registry index, CORS open, cached |
 | `/api/catalog.json` | full agent objects for the SPA |
 | `/agents/<name>/agent.json`, `agent.yaml` | A2A agent card, AgentHive manifest |
-| `/agents/<name>/audit.json` | public audit report behind the grade |
+| `/agents/<name>/audit.json` | public audit report behind the grade (hosted agents) or the checks list (packages, [docs/CHECKS.md](docs/CHECKS.md)) |
+| `/agents/<name>/package.json` | a declarative agent's files, bricks and per-tool layouts for Claude Code and Cursor |
 | `POST /api/v1/run/<name>` | run gateway: forwards JSON to the author's endpoint, signed and logged; `x-agenthive-async: 1` returns a run id, `x-agenthive-webhook` posts the signed result ([docs/GATEWAY.md](docs/GATEWAY.md)) |
 | `GET /api/v1/runs/<runId>`, `/api/v1/webhooks/secret` | async run state and output, caller webhook secret |
 | `POST /api/v1/echo` | public echo upstream to try the gateway |
 | `/agents/<name>/benchmark.json`, `POST /api/v1/agents/<name>/benchmark` | registry benchmark (probes + `spec.tests`), public report and owner re-run |
 | `/api/v1/runs`, `/api/v1/agents/<name>/runs`, `…/secret` | run logs (caller / owner), gateway secret |
-| `/api/v1/me`, `POST /api/v1/agents`, `POST /api/v1/agents/<name>/audit`, `/api/v1/keys` | authenticated: session cookie or `Authorization: Bearer <api key>` |
-| `/api/auth/*` | better-auth (GitHub OAuth) |
+| `/api/v1/me`, `POST /api/v1/agents`, `POST /api/v1/packages`, `POST /api/v1/agents/<name>/audit`, `/api/v1/keys` | authenticated: session cookie or `Authorization: Bearer <api key>` |
+| `/api/auth/*` | better-auth (GitHub and Google OAuth, env-gated) |
 | `/sitemap.xml`, `/robots.txt`, `/og.png` | SEO |
 
 All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `vite-plugin-api.ts` and exported by `api/index.ts` on Vercel. Publishing rules: first publisher owns the name, re-publish needs a greater semver, seeds are read-only. Every publish runs the audit in `server/audit/` (secrets, endpoint, permissions, dependencies via OSV, completeness); the grade is computed from it, the report is public at `/agents/<name>/audit.json`, criteria in [docs/GRADING.md](docs/GRADING.md). For non-seed agents the numbers on the card are measured: success = benchmark pass rate, availability = gateway ok-rate after 20 runs, latency and runs over 30 days; cost stays null until billing exists.
@@ -84,17 +85,20 @@ vite-plugin-api.ts             mounts the app in the dev server
 e2e/                           Playwright specs (desktop + mobile projects)
 ```
 
-## Example agent
+## Agents
 
-`examples/cron-translator/` is a complete reference agent (A2A over https, gateway signature check, pinned dependencies, declared test cases) deployed at https://agenthive-cron-translator.vercel.app and published as [cron-translator](https://agenthive.sh/agents/cron-translator). Copy it to start your own.
+Two kinds live in the registry:
+
+- **Packages** (`apiVersion: agenthive.sh/v2`): a folder with `agent.yaml`, `prompt.md`, `skills/<name>/SKILL.md`, `examples/`. Text only, no code; the code lives in pinned MCP servers. Published with `agent-cli push ./folder`, checked ([docs/CHECKS.md](docs/CHECKS.md)), retrieved into Claude Code or Cursor with `agent-cli pull <name> --target claude|cursor` or the copy prompt on the card. The first five, all on code and security audit, are in [`agents/`](agents/).
+- **Hosted agents** (`agenthive.sh/v1`): an https endpoint run by the author, called through the gateway, graded and benchmarked. `examples/cron-translator/` is the reference, deployed at https://agenthive-cron-translator.vercel.app and published as [cron-translator](https://agenthive.sh/agents/cron-translator).
 
 ## Packages (pnpm workspace)
 
 | Package | What |
 |---|---|
-| `@agenthive-sh/registry-client` | typed client for `/api/agents.json`, agent cards, manifests, install snippets |
+| `@agenthive-sh/registry-client` | typed client for the index, cards, manifests, packages, publishing and the gateway |
 | `@agenthive-sh/mcp` | stdio MCP server: `search_agents`, `get_agent`, `get_manifest`, `install_snippet` + `agenthive://registry` resource |
-| `@agenthive-sh/cli` | `agent-cli search | info | manifest | leaderboard | audit | benchmark | run | result | runs | add | setup | login | whoami | push`, writes `mcpServers` entries for Claude Code / Cursor |
+| `@agenthive-sh/cli` | `agent-cli search | info | manifest | leaderboard | audit | benchmark | pull | push | run | result | runs | setup | login | whoami`; `pull` writes a package into Claude Code or Cursor |
 
 ```sh
 pnpm -r --include-workspace-root build && pnpm -r --include-workspace-root test   # includes the web app at the root
@@ -102,7 +106,7 @@ AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive-sh/mcp smoke  
 AGENTHIVE_REGISTRY=http://localhost:5173 pnpm --filter @agenthive-sh/cli smoke
 ```
 
-Published on npm as `@agenthive-sh/registry-client`, `@agenthive-sh/mcp` and `@agenthive-sh/cli` (0.1.0). `agent-cli serve` and the `.claude.json` snippets point at the run gateway and fail with a clear message today.
+Published on npm as `@agenthive-sh/registry-client`, `@agenthive-sh/mcp` and `@agenthive-sh/cli`.
 
 ## Roadmap
 

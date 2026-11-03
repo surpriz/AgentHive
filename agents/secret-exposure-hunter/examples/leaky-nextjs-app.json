@@ -1,0 +1,5 @@
+{
+  "path": "./my-saas-app",
+  "focus": [".env.local", "app/", "lib/supabase.ts"],
+  "known_public_vars": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_POSTHOG_KEY"]
+}

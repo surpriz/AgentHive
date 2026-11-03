@@ -1,3 +1,4 @@
+import type { AgentBricks, AgentSetting } from '../../src/types';
 import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 
@@ -33,6 +34,11 @@ export const agents = pgTable(
     inputSchema: jsonb('input_schema').$type<Record<string, unknown>>().notNull().default({}),
     /** First author test input, offered as the ready-to-run example on the Run tab. */
     exampleInput: jsonb('example_input').$type<Record<string, unknown>>(),
+    /** `v1`: hosted by the author behind an endpoint. `v2`: declarative package (prompt, skills, MCP bricks). */
+    apiVersion: varchar('api_version', { length: 8 }).notNull().default('v1'),
+    goal: varchar('goal', { length: 32 }),
+    bricks: jsonb('bricks').$type<AgentBricks>(),
+    settings: jsonb('settings').$type<AgentSetting[]>(),
     outputSchema: jsonb('output_schema').$type<Record<string, unknown>>().notNull().default({}),
     model: varchar('model', { length: 64 }).notNull().default('unspecified'),
     license: varchar('license', { length: 64 }).notNull().default('UNLICENSED'),
@@ -60,6 +66,10 @@ export const agentVersions = pgTable(
       .references(() => agents.id, { onDelete: 'cascade' }),
     version: varchar('version', { length: 32 }).notNull(),
     manifest: jsonb('manifest').$type<Record<string, unknown>>().notNull(),
+    /** v2 package files, path → text. Null for v1 manifests. */
+    files: jsonb('files').$type<Record<string, string>>(),
+    /** SHA-256 of the canonical package (manifest + files); the version is immutable. */
+    sha256: varchar('sha256', { length: 64 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('agent_versions_agent_version_idx').on(t.agentId, t.version)],

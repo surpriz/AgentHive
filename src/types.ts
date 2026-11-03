@@ -1,4 +1,4 @@
-export const FRAMEWORKS = ['LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
+export const FRAMEWORKS = ['Declarative', 'LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
 export type Framework = (typeof FRAMEWORKS)[number];
 
 export const CATEGORIES = [
@@ -10,6 +10,34 @@ export const CATEGORIES = [
   'Marketing',
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+/** Professional goals a declarative (v2) agent is filed under. Each maps onto a category for the catalog. */
+export const GOALS = ['code-audit', 'code-review', 'data-analysis', 'financial-analysis', 'growth', 'devops', 'research', 'writing'] as const;
+export type Goal = (typeof GOALS)[number];
+
+export interface AgentSetting {
+  name: string;
+  type: 'string' | 'integer' | 'number' | 'boolean' | 'enum';
+  description?: string;
+  default?: string | number | boolean;
+  values?: string[];
+  min?: number;
+  max?: number;
+}
+
+export interface McpBrick {
+  name: string;
+  /** npm:name@x.y.z or pypi:name==x.y.z */
+  package: string;
+  args: string[];
+  env: string[];
+  permissions: { network: string[]; filesystem: 'none' | 'read' | 'write' };
+}
+
+export interface AgentBricks {
+  skills: string[];
+  mcp: McpBrick[];
+}
 
 export const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;
 /** `pending`: published but not yet audited. Only the registry assigns the other four. */
@@ -46,6 +74,11 @@ export interface Agent {
   inputSchema: Record<string, unknown>;
   /** First author-declared test input; the Run tab starts from it. Absent on seeds and agents without tests. */
   exampleInput?: Record<string, unknown> | null;
+  /** `v2`: a declarative package (prompt, skills, MCP bricks) retrieved into the user's tool. `v1`: hosted by the author behind an endpoint. */
+  apiVersion: 'v1' | 'v2';
+  goal?: Goal | null;
+  bricks?: AgentBricks | null;
+  settings?: AgentSetting[] | null;
   outputSchema: Record<string, unknown>;
   capabilities: string[];
   model: string;

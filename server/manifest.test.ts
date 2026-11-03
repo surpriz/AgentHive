@@ -52,3 +52,52 @@ describe('compareSemver', () => {
     expect(compareSemver('1.0.0-alpha', '1.0.0-beta')).toBeLessThan(0);
   });
 });
+
+describe('v2 manifests and packages', () => {
+  const v2 = {
+    apiVersion: 'agenthive.sh/v2',
+    metadata: { name: 'x-audit', version: '1.0.0', goal: 'code-audit', value: 'Finds leaked secrets in a vibe-coded app.', tagline: 'Walks the repository and reports every credential with file and line.' },
+    spec: {
+      settings: [{ name: 'max_findings', type: 'integer', min: 1, max: 50, default: 10 }],
+      bricks: { skills: ['secret-patterns'], mcp: [{ name: 'fs', package: 'npm:@modelcontextprotocol/server-filesystem@2.1.0', permissions: { filesystem: 'read' } }] },
+    },
+  };
+
+  it('parses a declarative manifest with defaults', async () => {
+    const { parseManifest: parse } = await import('./manifest');
+    const r = parse(v2);
+    expect(r.ok).toBe(true);
+    if (r.ok && r.manifest.apiVersion === 'agenthive.sh/v2') {
+      expect(r.manifest.spec.bricks.mcp[0].args).toEqual([]);
+      expect(r.manifest.spec.bricks.mcp[0].permissions.network).toEqual([]);
+      expect(r.manifest.spec.model.recommended).toEqual([]);
+    }
+  });
+
+  it('rejects unpinned bricks, bad settings and v1 fields', async () => {
+    const { parseManifest: parse } = await import('./manifest');
+    const unpinned = parse({ ...v2, spec: { ...v2.spec, bricks: { skills: [], mcp: [{ name: 'fs', package: 'npm:@modelcontextprotocol/server-filesystem', permissions: {} }] } } });
+    expect(unpinned.ok).toBe(false);
+    if (!unpinned.ok) expect(unpinned.issues[0].path).toBe('spec.bricks.mcp.0.package');
+    const badEnum = parse({ ...v2, spec: { ...v2.spec, settings: [{ name: 'mode', type: 'enum', values: ['a'], default: 'b' }] } });
+    expect(badEnum.ok).toBe(false);
+    const badGoal = parse({ ...v2, metadata: { ...v2.metadata, goal: 'world-peace' } });
+    expect(badGoal.ok).toBe(false);
+  });
+
+  it('validates package files against the manifest', async () => {
+    const { parseManifest: parse, validatePackageFiles, renderPrompt } = await import('./manifest');
+    const r = parse(v2);
+    if (!r.ok || r.manifest.apiVersion !== 'agenthive.sh/v2') throw new Error('expected v2');
+    const m = r.manifest;
+    const good = { 'prompt.md': 'Audit the repository and report at most {{max_findings}} findings, each with file and line.', 'skills/secret-patterns/SKILL.md': '# s', 'examples/a.json': '{"path":"."}' };
+    expect(validatePackageFiles(m, good)).toEqual([]);
+    expect(validatePackageFiles(m, { ...good, 'bin/x': 'y' }).map((i) => i.path)).toContain('files.bin/x');
+    expect(validatePackageFiles(m, { ...good, 'skills/other/SKILL.md': '# o' }).map((i) => i.message)).toContainEqual(expect.stringMatching(/not declared/));
+    expect(validatePackageFiles(m, { ...good, 'examples/a.json': '{' }).map((i) => i.path)).toContain('files.examples/a.json');
+    expect(validatePackageFiles(m, { 'skills/secret-patterns/SKILL.md': '# s' }).map((i) => i.path)).toContain('files.prompt.md');
+    expect(validatePackageFiles(m, { ...good, 'prompt.md': good['prompt.md'] + ' {{ghost}}' }).map((i) => i.message)).toContainEqual(expect.stringMatching(/\{\{ghost\}\}/));
+    expect(renderPrompt(good['prompt.md'], m.spec.settings)).toContain('at most 10 findings');
+    expect(renderPrompt(good['prompt.md'], m.spec.settings, { max_findings: 3 })).toContain('at most 3 findings');
+  });
+});

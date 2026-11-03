@@ -1,4 +1,4 @@
-export type Framework = 'LangGraph' | 'CrewAI' | 'AutoGen' | 'MCP Server' | 'Custom A2A';
+export type Framework = 'Declarative' | 'LangGraph' | 'CrewAI' | 'AutoGen' | 'MCP Server' | 'Custom A2A';
 /** `pending`: published, not yet audited by the registry. */
 export type SecurityGrade = 'AAA' | 'AA' | 'A' | 'B' | 'pending';
 
@@ -25,6 +25,9 @@ export interface RegistryEntry {
   url: string;
   agentCard: string;
   install: string;
+  /** `v2`: a declarative package retrieved into your tool (`agent-cli pull`). `v1`: hosted by its author, called through the gateway. */
+  apiVersion?: 'v1' | 'v2';
+  goal?: string | null;
 }
 
 export interface RegistryIndex {
@@ -67,6 +70,73 @@ export interface SearchOptions {
 
 export type InstallTarget = 'claude' | 'cursor' | 'cli';
 
+export type RetrievalTarget = 'claude' | 'cursor';
+
+export interface AgentSetting {
+  name: string;
+  type: 'string' | 'integer' | 'number' | 'boolean' | 'enum';
+  description?: string;
+  default?: string | number | boolean;
+  values?: string[];
+  min?: number;
+  max?: number;
+}
+
+export interface McpBrick {
+  name: string;
+  package: string;
+  args: string[];
+  env: string[];
+  permissions: { network: string[]; filesystem: 'none' | 'read' | 'write' };
+}
+
+export interface FileWrite {
+  path: string;
+  content: string;
+}
+
+export interface McpWrite {
+  name: string;
+  entry: { command: string; args: string[]; env: Record<string, string> };
+  permissions: { network: string[]; filesystem: 'none' | 'read' | 'write' };
+  package: string;
+}
+
+/** Files and MCP entries that make a package run inside one tool. Computed by the registry. */
+export interface Layout {
+  target: RetrievalTarget;
+  files: FileWrite[];
+  mcp: McpWrite[];
+  mcpConfigPath: string;
+}
+
+/** GET /agents/<name>/package.json: a declarative (v2) agent with its files and per-tool layouts. */
+export interface PackageDoc {
+  name: string;
+  version: string;
+  author: string;
+  apiVersion: 'v2';
+  goal: string | null;
+  license: string;
+  value: string;
+  tagline: string;
+  settings: AgentSetting[];
+  bricks: { skills: string[]; mcp: McpBrick[] };
+  files: Record<string, string>;
+  sha256: string | null;
+  publishedAt: string;
+  url: string;
+  layouts: Record<RetrievalTarget, Layout>;
+}
+
+/** POST /api/v1/packages */
+export interface PublishPackageBody {
+  /** agent.yaml text (or the parsed object). */
+  manifest: string | Record<string, unknown>;
+  /** path → text: prompt.md, README.md, skills/<name>/*.md, examples/*. */
+  files: Record<string, string>;
+}
+
 /** GET /api/v1/me */
 export interface Me {
   user: { id: string; login: string; name: string; image: string | null };
@@ -79,12 +149,14 @@ export interface ManifestIssue {
   message: string;
 }
 
-/** POST /api/v1/agents */
+/** POST /api/v1/agents and POST /api/v1/packages */
 export interface PublishResponse {
-  agent: { name: string; version: string; author: string; grade: SecurityGrade; score: number | null };
+  agent: { name: string; version: string; author: string; grade: SecurityGrade; score: number | null; apiVersion?: 'v1' | 'v2' };
   entry: RegistryEntry;
   audit: AuditReport;
   url: string;
+  /** Only for packages. */
+  packageUrl?: string;
 }
 
 export interface AuditFinding {

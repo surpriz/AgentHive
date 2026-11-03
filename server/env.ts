@@ -9,10 +9,11 @@ export function optionsFromEnv(env: NodeJS.ProcessEnv, overrides: Partial<AppOpt
   const secret = env.BETTER_AUTH_SECRET ?? (env.NODE_ENV === 'production' ? '' : 'dev-only-secret-change-me-0000000000000000');
   if (!secret) throw new Error('BETTER_AUTH_SECRET is required in production');
   const github = env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET ? { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET } : undefined;
+  const google = env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } : undefined;
   return {
     databaseUrl,
     origin: env.PUBLIC_ORIGIN ?? baseURL,
-    auth: { secret, baseURL, github, trustedOrigins: [baseURL] },
+    auth: { secret, baseURL, github, google, trustedOrigins: [baseURL] },
     cronSecret: env.CRON_SECRET,
     ...overrides,
   };

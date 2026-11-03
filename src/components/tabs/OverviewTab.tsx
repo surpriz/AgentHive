@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, Coins, Timer, BarChart3, CheckCircle2, XCircle, FlaskConical, Loader2 } from 'lucide-react';
+import { Activity, Coins, Timer, BarChart3, CheckCircle2, XCircle, FlaskConical, Loader2, Puzzle, Server, SlidersHorizontal, Target } from 'lucide-react';
 import { api, type BenchmarkReport } from '../../lib/api';
 import type { Agent } from '../../types';
 import { CodeBlock } from '../ui/CodeBlock';
@@ -21,14 +21,29 @@ function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: st
 export function OverviewTab({ agent }: { agent: Agent }) {
   return (
     <div className="space-y-6">
+      {agent.apiVersion === 'v2' ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="package-summary">
+          <Metric icon={<Target size={12} className="text-accent" />} label="Goal" value={agent.goal ?? '—'} hint="what it is for" />
+          <Metric icon={<Puzzle size={12} className="text-violet" />} label="Skills" value={String(agent.bricks?.skills.length ?? 0)} hint="copied into the package" />
+          <Metric icon={<Server size={12} className="text-accent-2" />} label="MCP servers" value={String(agent.bricks?.mcp.length ?? 0)} hint="pinned, run on your machine" />
+          <Metric icon={<SlidersHorizontal size={12} className="text-ok" />} label="Settings" value={String(agent.settings?.length ?? 0)} hint="tune without editing the prompt" />
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Metric icon={<Activity size={12} className="text-ok" />} label="Success" value={fmtPct(agent.benchmark?.passRate ?? null)} hint={agent.isSeed ? "illustrative" : agent.benchmark ? `benchmark, ${agent.benchmark.ranAt.slice(0, 10)}` : "no benchmark yet"} />
         <Metric icon={<Coins size={12} className="text-accent" />} label="Availability" value={fmtPct(agent.successRate)} hint={agent.isSeed ? "illustrative" : agent.successRate === null ? "after 20 gateway runs" : "ok runs over 30d"} />
         <Metric icon={<Timer size={12} className="text-accent-2" />} label="Latency" value={fmtLatency(agent.avgLatencyMs)} hint={agent.isSeed ? "illustrative" : "mean of ok runs, 30d"} />
         <Metric icon={<BarChart3 size={12} className="text-violet" />} label="Runs" value={fmtRuns(agent.runs30d)} hint={agent.isSeed ? "illustrative" : "through the gateway, 30d"} />
       </div>
+      )}
 
-      {!agent.isSeed && <BenchmarkSection agent={agent} />}
+      {agent.apiVersion === 'v2' ? (
+        <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-[12.5px] text-muted">
+          A package: prompt, skills and pinned MCP servers that run inside your own tool with your own model. No benchmark yet; recorded runs and a sandbox are next on the roadmap.
+        </p>
+      ) : (
+        !agent.isSeed && <BenchmarkSection agent={agent} />
+      )}
 
       <section>
         <h3 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">README</h3>

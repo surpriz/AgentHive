@@ -1,4 +1,5 @@
 import type { Agent } from '../types';
+import type { PackageDoc } from './retrieval';
 
 export class ApiError extends Error {
   constructor(
@@ -32,6 +33,7 @@ const safeJson = (t: string): unknown => {
 
 export interface RegistryConfig {
   github: boolean;
+  google?: boolean;
   devLogin: boolean;
   devUser?: { email: string; password: string; login: string };
 }
@@ -194,6 +196,7 @@ export const api = {
   leaderboard: () => request<Leaderboard>('/api/leaderboard.json', { cache: 'no-store' }),
   benchmark: (name: string) => request<{ illustrative: boolean; runnable: boolean; reason: string | null; benchmark: BenchmarkReport | Agent['benchmark'] | null }>(`/agents/${encodeURIComponent(name)}/benchmark.json`, { cache: 'no-store' }),
   runBenchmark: (name: string) => request<{ benchmark: BenchmarkReport }>(`/api/v1/agents/${encodeURIComponent(name)}/benchmark`, { method: 'POST' }),
+  package: (name: string) => request<PackageDoc>(`/agents/${encodeURIComponent(name)}/package.json`, { cache: 'no-store' }),
   audit: (name: string) => request<AuditResponse>(`/agents/${encodeURIComponent(name)}/audit.json`, { cache: 'no-store' }),
   rerunAudit: (name: string) => request<{ agent: Agent | null; audit: AuditReport }>(`/api/v1/agents/${encodeURIComponent(name)}/audit`, { method: 'POST' }),
   publish: (manifest: Record<string, unknown>) =>

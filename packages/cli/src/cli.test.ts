@@ -35,7 +35,7 @@ describe('ui.sanitize', () => {
 describe('program', () => {
   it('registers the expected commands', () => {
     const names = buildProgram().commands.map((c) => c.name()).sort();
-    expect(names).toEqual(['add', 'audit', 'benchmark', 'info', 'leaderboard', 'login', 'logout', 'manifest', 'push', 'result', 'run', 'runs', 'search', 'serve', 'setup', 'whoami']);
+    expect(names).toEqual(['add', 'audit', 'benchmark', 'info', 'leaderboard', 'login', 'logout', 'manifest', 'pull', 'push', 'result', 'run', 'runs', 'search', 'setup', 'whoami']);
   });
 });
 
@@ -68,5 +68,28 @@ describe('credentials', () => {
     expect(await resolveToken('https://r.test', {}, file)).toBe('ah_abc');
     expect(await resolveToken('https://other.test', {}, file)).toBeUndefined();
     expect(await resolveToken('https://other.test', { AGENTHIVE_TOKEN: 'env' }, file)).toBe('env');
+  });
+});
+
+describe('pull', () => {
+  it('writes the layout under the project directory, merges MCP config, and never escapes it', async () => {
+    const { mkdtemp, readFile } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { applyLayout, resolveUnder } = await import('./commands/pull.js');
+    const dir = await mkdtemp(path.join(tmpdir(), 'ah-pull-'));
+    const layout = {
+      target: 'claude' as const,
+      files: [{ path: '.claude/agents/x.md', content: '# x' }, { path: '.claude/skills/s/SKILL.md', content: '# s' }],
+      mcp: [{ name: 'fs', entry: { command: 'npx', args: ['-y', 'a@1.0.0', '.'], env: { TOKEN: '' } }, permissions: { network: [], filesystem: 'read' as const }, package: 'npm:a@1.0.0' }],
+      mcpConfigPath: '.mcp.json',
+    };
+    const first = await applyLayout(dir, layout);
+    expect(first.written).toEqual(['.claude/agents/x.md', '.claude/skills/s/SKILL.md', '.mcp.json#fs']);
+    expect(JSON.parse(await readFile(path.join(dir, '.mcp.json'), 'utf8')).mcpServers.fs.args).toContain('a@1.0.0');
+    const second = await applyLayout(dir, layout);
+    expect(second.written).toEqual([]);
+    expect(second.skipped).toEqual(['.claude/agents/x.md', '.claude/skills/s/SKILL.md', '.mcp.json#fs']);
+    expect(() => resolveUnder(dir, '../outside.md')).toThrow(/outside/);
   });
 });

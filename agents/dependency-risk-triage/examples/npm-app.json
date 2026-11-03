@@ -1,0 +1,5 @@
+{
+  "path": "./my-saas-app",
+  "focus": ["package.json", "pnpm-lock.yaml"],
+  "allowlist": ["next", "react", "react-dom", "@prisma/client", "sharp"]
+}

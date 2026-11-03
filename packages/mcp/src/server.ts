@@ -5,7 +5,7 @@ import type { RegistryEntry } from '@agenthive-sh/registry-client';
 
 const FRAMEWORKS = ['LangGraph', 'CrewAI', 'AutoGen', 'MCP Server', 'Custom A2A'] as const;
 /** Kept in sync with package.json by the release bump. */
-export const MCP_VERSION = '0.5.0';
+export const MCP_VERSION = '0.6.0';
 
 const GRADES = ['AAA', 'AA', 'A', 'B', 'pending'] as const;
 
@@ -105,7 +105,7 @@ export function createServer(client = new RegistryClient()): McpServer {
     {
       title: 'Install snippet for an agent',
       description:
-        'Ready-to-paste config to install an agent: "claude" → mcpServers entry for ~/.claude.json or .mcp.json, "cursor" → .cursorrules block, "cli" → agent-cli commands.',
+        'The command that gets an agent: packages are pulled into Claude Code (.claude/agents, .claude/skills, .mcp.json) or Cursor (.cursor/rules, .cursor/mcp.json); agents hosted by their author are called through the registry gateway.',
       inputSchema: {
         name: z.string(),
         target: z.enum(['claude', 'cursor', 'cli']).default('claude'),

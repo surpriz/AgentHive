@@ -4,7 +4,7 @@ import { stringify } from 'yaml';
 
 export const MANIFEST_API_VERSION = 'agenthive.sh/v1';
 /** Pinned so generated configs never auto-upgrade to an unreviewed release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.5.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.6.0';
 
 /** The manifest document as the registry serves it (and as `agent-cli push` sends it, minus the server-owned blocks). */
 export function buildManifestObject(a: Agent, origin = 'https://agenthive.sh') {
@@ -45,39 +45,20 @@ export function buildManifestYaml(a: Agent, origin = 'https://agenthive.sh'): st
 }
 
 export function buildClaudeJson(a: Agent): string {
-  return JSON.stringify(
-    {
-      mcpServers: {
-        [a.name]: {
-          command: 'npx',
-          args: ['-y', CLI_PACKAGE_SPEC, 'serve', `${a.author}/${a.name}@${a.version}`],
-          env: { AGENTHIVE_TOKEN: '${AGENTHIVE_TOKEN}' },
-        },
-      },
-    },
-    null,
-    2,
-  );
+  if (a.apiVersion === 'v2') return `npx -y -p ${CLI_PACKAGE_SPEC} agent-cli pull ${a.name} --target claude`;
+  return `# ${a.name} is hosted by its author and called through the registry gateway\nnpx -y -p ${CLI_PACKAGE_SPEC} agent-cli run ${a.name} --input '{"...": "..."}'`;
 }
 
 export function buildCursorRules(a: Agent): string {
-  return `# .cursorrules — ${a.name}
-# Installed from agenthive.sh/${a.author}/${a.name}@${a.version}
-
-You have access to the "${a.name}" agent via MCP.
-Use it when the task involves: ${a.tags.slice(0, 4).join(', ')}.
-Capabilities: ${a.capabilities.join(', ')}.
-Always pass inputs matching its input schema and surface its structured output verbatim.
-`;
+  if (a.apiVersion === 'v2') return `npx -y -p ${CLI_PACKAGE_SPEC} agent-cli pull ${a.name} --target cursor`;
+  return `# .cursor/rules/${a.name}.mdc\n# ${a.name}@${a.version} by ${a.author} is hosted by its author: call it through the gateway.\nWhen the task involves ${a.tags.slice(0, 4).join(', ')}, run: agent-cli run ${a.name} --input '<json matching its input schema>'\n`;
 }
 
 export function buildCliInstall(a: Agent): string {
-  return `# one-liner
-agent-cli add ${a.name}
-
-# pinned version + run locally
-agent-cli add ${a.author}/${a.name}@${a.version}
-agent-cli run ${a.name} --input '{"...": "..."}'`;
+  if (a.apiVersion === 'v2') {
+    return `# into Claude Code (.claude/agents, .claude/skills, .mcp.json)\nagent-cli pull ${a.name} --target claude\n\n# into Cursor (.cursor/rules, .cursor/mcp.json)\nagent-cli pull ${a.name} --target cursor`;
+  }
+  return `# call it through the gateway (needs agent-cli login)\nagent-cli run ${a.name} --input '{"...": "..."}'\n\n# async, with a signed webhook\nagent-cli run ${a.name} --async --webhook https://your.host/hook --input '{"...": "..."}'`;
 }
 
 /** A2A Agent Card (served at /agents/<name>/agent.json). */
@@ -146,7 +127,9 @@ export function buildRegistryIndex(agents: Agent[], origin = 'https://agenthive.
       capabilities: a.capabilities,
       url: `${origin}/agents/${a.name}`,
       agentCard: `${origin}/agents/${a.name}/agent.json`,
-      install: `agent-cli add ${a.name}`,
+      install: a.apiVersion === 'v2' ? `agent-cli pull ${a.name}` : `agent-cli run ${a.name} --input '{}'`,
+      apiVersion: a.apiVersion,
+      goal: a.goal ?? null,
     })),
   };
 }

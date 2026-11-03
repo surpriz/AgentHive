@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAgentCard, buildClaudeJson, buildManifestYaml, buildRegistryIndex, buildCliInstall } from './manifest';
+import { buildAgentCard, buildClaudeJson, buildCursorRules, buildManifestYaml, buildRegistryIndex, buildCliInstall } from './manifest';
 import { mockAgents } from '../data/mockAgents';
 
 const pg = mockAgents.find((a) => a.name === 'pg-query-optimizer')!;
@@ -15,13 +15,12 @@ describe('manifest builders', () => {
     expect(buildManifestYaml(li)).toContain('transport: a2a/http+json');
   });
 
-  it('.claude.json is valid JSON with a pinned mcpServers entry', () => {
-    const parsed = JSON.parse(buildClaudeJson(pg)) as { mcpServers: Record<string, { args: string[] }> };
-    expect(parsed.mcpServers['pg-query-optimizer'].args).toContain('dbforge/pg-query-optimizer@3.0.4');
-  });
-
-  it('cli snippet installs by name', () => {
-    expect(buildCliInstall(pg)).toContain('agent-cli add pg-query-optimizer');
+  it('hosted agents are called through the gateway, packages are pulled', () => {
+    expect(buildClaudeJson(pg)).toContain('agent-cli run pg-query-optimizer');
+    expect(buildCliInstall(pg)).toContain('agent-cli run pg-query-optimizer');
+    const pkg = { ...pg, apiVersion: 'v2' as const };
+    expect(buildClaudeJson(pkg)).toContain('agent-cli pull pg-query-optimizer --target claude');
+    expect(buildCursorRules(pkg)).toContain('--target cursor');
   });
 
   it('agent card exposes one skill per capability and agenthive extensions', () => {
@@ -37,6 +36,7 @@ describe('manifest builders', () => {
     expect(idx.count).toBe(mockAgents.length);
     const entry = idx.agents.find((a) => a.name === 'pg-query-optimizer')!;
     expect(entry.agentCard).toBe('https://agenthive.sh/agents/pg-query-optimizer/agent.json');
-    expect(entry.install).toBe('agent-cli add pg-query-optimizer');
+    expect(entry.install).toBe("agent-cli run pg-query-optimizer --input '{}'");
+    expect(entry.apiVersion).toBe('v1');
   });
 });

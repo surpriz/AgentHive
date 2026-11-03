@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test('how it works opens from the navbar and lists the three steps', async ({ page }) => {
+test('how it works opens from the navbar and lists the four steps', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /How it works|Help/ }).first().click();
   const dialog = page.getByRole('dialog', { name: 'How AgentHive works' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('1. Find an agent')).toBeVisible();
-  await expect(dialog.getByText('3. Install it where you already work')).toBeVisible();
-  await expect(dialog.getByText('Simulated:')).toBeVisible();
+  await expect(dialog.getByText('1. Find an agent by goal')).toBeVisible();
+  await expect(dialog.getByText('3. Get it into your tool')).toBeVisible();
+  await expect(dialog.getByText('Illustrative:')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });

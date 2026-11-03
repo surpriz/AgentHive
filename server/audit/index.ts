@@ -1,7 +1,7 @@
 import { promises as dns } from 'node:dns';
 import { createSafeFetch } from './net';
-import type { Manifest } from '../manifest';
-import type { AuditContext, Check, CheckRun, Finding, Report } from './types';
+import { isV2, type Manifest } from '../manifest';
+import type { AuditContext, AuditSubject, Check, CheckRun, Finding, Report } from './types';
 import { gradeOf, scoreOf } from './grade';
 import { withTimeout } from './util';
 import { secretsCheck } from './checks/secrets';
@@ -9,11 +9,17 @@ import { endpointCheck } from './checks/endpoint';
 import { permissionsCheck } from './checks/permissions';
 import { dependenciesCheck } from './checks/dependencies';
 import { completenessCheck } from './checks/completeness';
+import { bricksCheck } from './checks/bricks';
+import { vulnerabilitiesCheck } from './checks/vulnerabilities';
+import { scriptsCheck } from './checks/scripts';
 
 export * from './types';
 export { gradeOf, scoreOf } from './grade';
 
+/** Hosted agents: manifest, endpoint and source repository. */
 export const CHECKS: Check[] = [secretsCheck, endpointCheck, permissionsCheck, dependenciesCheck, completenessCheck];
+/** Declarative packages: files, pinned bricks and their known vulnerabilities. */
+export const CHECKS_V2: Check[] = [secretsCheck, bricksCheck, vulnerabilitiesCheck, permissionsCheck, scriptsCheck, completenessCheck];
 
 export const SEVERITY_ORDER: Finding['severity'][] = ['blocker', 'high', 'medium', 'low'];
 
@@ -34,10 +40,14 @@ export function defaultContext(overrides: Partial<AuditContext> = {}): AuditCont
 const UNVERIFIED_CAP: Record<string, { grade: 'AA'; reason: string }> = {
   endpoint: { grade: 'AA', reason: 'endpoint could not be verified' },
   dependencies: { grade: 'AA', reason: 'dependencies not checked' },
+  bricks: { grade: 'AA', reason: 'bricks could not be resolved' },
+  vulnerabilities: { grade: 'AA', reason: 'bricks not checked for known vulnerabilities' },
 };
 
 /** Runs every check; a check that throws becomes an error entry plus a low finding and a cap, never a crash. */
-export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultContext()): Promise<Report> {
+export async function runAudit(input: Manifest | AuditSubject, ctx: AuditContext = defaultContext()): Promise<Report> {
+  const subject: AuditSubject = 'manifest' in input && !('apiVersion' in input) ? input : { manifest: input as Manifest };
+  const v2 = isV2(subject.manifest);
   const findings: Finding[] = [];
   const caps: Report['caps'] = [];
   const checks: CheckRun[] = [];
@@ -53,7 +63,7 @@ export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultCo
     }
     try {
       // Network checks run concurrently, each with its own budget: a slow publisher-controlled host cannot starve the vulnerability check.
-      const res = check.network ? await withTimeout(check.run(manifest, ctx), ctx.callTimeoutMs * 2 + 500, `${check.id} check`) : await check.run(manifest, ctx);
+      const res = check.network ? await withTimeout(check.run(subject, ctx), ctx.callTimeoutMs * 2 + 500, `${check.id} check`) : await check.run(subject, ctx);
       return { run: { id: check.id, status: res.skipped ? 'skipped' : 'ok', ms: ctx.now() - start, note: res.skipped }, findings: res.findings, caps: res.caps ?? [] };
     } catch (e) {
       return {
@@ -64,7 +74,7 @@ export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultCo
     }
   };
 
-  const results = await Promise.all(CHECKS.map(runOne));
+  const results = await Promise.all((v2 ? CHECKS_V2 : CHECKS).map(runOne));
   for (const r of results) {
     checks.push(r.run);
     findings.push(...r.findings);
@@ -73,7 +83,7 @@ export async function runAudit(manifest: Manifest, ctx: AuditContext = defaultCo
   findings.sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
   const blocked = findings.some((f) => f.severity === 'blocker');
   const score = blocked ? 0 : scoreOf(findings);
-  return { engine: 'v1', auditedAt: new Date(ctx.now()).toISOString(), score, grade: blocked ? 'B' : gradeOf(score, caps), caps, blocked, findings, checks };
+  return { engine: v2 ? 'v2' : 'v1', auditedAt: new Date(ctx.now()).toISOString(), score, grade: blocked ? 'B' : gradeOf(score, caps), caps, blocked, findings, checks };
 }
 
 /** Report shown for the seed agents, which were never audited. */

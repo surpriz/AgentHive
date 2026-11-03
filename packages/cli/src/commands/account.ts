@@ -1,8 +1,10 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import type { Command } from 'commander';
 import { RegistryClient, RegistryError, type AuditReport, type BenchmarkReport } from '@agenthive-sh/registry-client';
 import { clearCredentials, credentialsPath, writeCredentials } from '../credentials.js';
+import { readPackageDir } from './pull.js';
 import { c, gradeColor, sanitize } from '../ui.js';
 
 async function promptSecret(question: string): Promise<string> {
@@ -172,21 +174,33 @@ export function registerAccount(program: Command, client: () => Promise<Registry
     });
 
   program
-    .command('push [file]')
-    .description('publish a manifest (agent.yaml by default) to the registry')
-    .action(async (file = 'agent.yaml') => {
+    .command('push [path]')
+    .description('publish an agent: a package folder (agent.yaml + prompt.md + skills/) or a hosted agent manifest')
+    .action(async (target = '.') => {
+      let dir: string | null = null;
+      let file = target;
+      try {
+        if ((await stat(target)).isDirectory()) {
+          dir = target;
+          file = path.join(target, 'agent.yaml');
+        }
+      } catch {
+        /* not a path we can stat: readFile below reports it */
+      }
       let manifest: string;
       try {
         manifest = await readFile(file, 'utf8');
       } catch (e) {
         throw new Error(`cannot read ${file}: ${(e as Error).message}`);
       }
+      const isPackage = /^\s*apiVersion:\s*['"]?agenthive\.sh\/v2/m.test(manifest);
       try {
-        const res = await (await client()).publish(manifest);
-        console.log(`${c.green('✓')} published ${c.bold(sanitize(res.agent.name))}@${sanitize(res.agent.version)} as ${sanitize(res.agent.author)} ${gradeColor(sanitize(res.agent.grade))} ${c.dim(`${res.audit.score}/100`)}`);
+        const api = await client();
+        const res = isPackage ? await api.publishPackage(await readPackageDir(dir ?? path.dirname(file))) : await api.publish(manifest);
+        console.log(`${c.green('✓')} published ${c.bold(sanitize(res.agent.name))}@${sanitize(res.agent.version)} as ${sanitize(res.agent.author)} ${isPackage ? c.dim(`${res.audit.checks.filter((k) => k.status === 'ok').length}/${res.audit.checks.length} checks`) : `${gradeColor(sanitize(res.agent.grade))} ${c.dim(`${res.audit.score}/100`)}`}`);
         console.log(`  ${sanitize(res.url)}`);
         printAudit(res.audit);
-        console.log(c.dim(`  install: agent-cli add ${sanitize(res.agent.name)}`));
+        console.log(c.dim(isPackage ? `  get it: agent-cli pull ${sanitize(res.agent.name)} --target claude` : `  call it: agent-cli run ${sanitize(res.agent.name)} --input '{...}'`));
       } catch (e) {
         if (e instanceof RegistryError && e.audit) {
           console.error(`${c.red('✗')} publish refused by the audit:`);
@@ -195,7 +209,7 @@ export function registerAccount(program: Command, client: () => Promise<Registry
           return;
         }
         if (e instanceof RegistryError && e.issues) {
-          console.error(`${c.red('✗')} ${file} is not a valid manifest:`);
+          console.error(`${c.red('✗')} ${file} is not a valid ${isPackage ? 'package' : 'manifest'}:`);
           for (const i of e.issues) console.error(`  ${c.yellow(sanitize(i.path) || 'manifest')}: ${sanitize(i.message)}`);
           process.exitCode = 1;
           return;

@@ -1,4 +1,4 @@
-import type { Framework, SecurityGrade } from '../../types';
+import type { Agent, Framework, SecurityGrade } from '../../types';
 
 type Variant = 'neutral' | 'accent' | 'cyan' | 'violet' | 'ok' | 'warn' | 'danger';
 
@@ -33,6 +33,7 @@ export function Badge({
 }
 
 const frameworkVariant: Record<Framework, Variant> = {
+  Declarative: 'accent',
   'MCP Server': 'cyan',
   LangGraph: 'violet',
   CrewAI: 'warn',
@@ -41,6 +42,7 @@ const frameworkVariant: Record<Framework, Variant> = {
 };
 
 const frameworkLabel: Record<Framework, string> = {
+  Declarative: 'Package',
   'MCP Server': 'MCP Native',
   LangGraph: 'LangGraph',
   CrewAI: 'CrewAI',
@@ -65,4 +67,26 @@ export function GradeBadge({ grade, title = 'Security audit grade' }: { grade: S
       </span>
     </Badge>
   );
+}
+
+/** Packages (v2) show their checks, never a grade letter: a static audit cannot vouch for a prompt's intent. */
+export function ChecksBadge({ grade, score }: { grade: SecurityGrade; score: number | null }) {
+  const state = grade === 'pending' ? 'pending' : score !== null && score >= 90 ? 'ok' : 'issues';
+  const variant: Variant = state === 'ok' ? 'ok' : state === 'issues' ? 'warn' : 'neutral';
+  const label = state === 'ok' ? 'checks passed' : state === 'issues' ? 'checks: issues' : 'checks pending';
+  return (
+    <Badge variant={variant} className="font-semibold tracking-wide">
+      <span title="Static checks: secrets, pinned bricks, known vulnerabilities, permissions, scripts, completeness. They do not read the prompt for intent." aria-label={label}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" className="inline -mt-px mr-0.5" aria-hidden>
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {label}
+      </span>
+    </Badge>
+  );
+}
+
+/** Grade letter for hosted agents, checks state for packages. */
+export function TrustBadge({ agent, title }: { agent: Pick<Agent, 'apiVersion' | 'grade' | 'score'>; title?: string }) {
+  return agent.apiVersion === 'v2' ? <ChecksBadge grade={agent.grade} score={agent.score} /> : <GradeBadge grade={agent.grade} title={title} />;
 }

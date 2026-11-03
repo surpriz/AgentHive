@@ -1,13 +1,15 @@
 import type { Check, CheckResult, Finding } from '../types';
 import { withTimeout } from '../util';
 import { isForbiddenAddress, isForbiddenHostname, isIpLiteral } from '../net';
+import { isV2 } from '../../manifest';
 
 export { isForbiddenAddress, isForbiddenHostname };
 
 export const endpointCheck: Check = {
   id: 'endpoint',
   network: true,
-  async run(manifest, ctx): Promise<CheckResult> {
+  async run({ manifest }, ctx): Promise<CheckResult> {
+    if (isV2(manifest)) return { findings: [], skipped: 'declarative package, no endpoint' };
     const endpoint = manifest.spec.endpoint;
     if (!endpoint) return { findings: [], skipped: 'no endpoint declared' };
     const url = new URL(endpoint);

@@ -1,0 +1,4 @@
+{
+  "path": "./weekend-prototype",
+  "context": "Express API plus a Vite front end, Prisma on Postgres. Not live, fake data only. I want to know if it is safe enough for a private beta with ten friends."
+}

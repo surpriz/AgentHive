@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, FileCode2, TerminalSquare, Download, X, ShieldCheck, Play } from 'lucide-react';
+import { BookOpen, FileCode2, TerminalSquare, Download, X, ShieldCheck, Play, Package, ListChecks } from 'lucide-react';
 import { agentPath } from '../lib/router';
 import { CopyButton } from './ui/CodeBlock';
 import type { Agent } from '../types';
 import { Modal } from './ui/Modal';
 import { Tabs } from './ui/Tabs';
-import { Badge, FrameworkBadge, GradeBadge } from './ui/Badge';
+import { Badge, FrameworkBadge, TrustBadge } from './ui/Badge';
 import { OverviewTab } from './tabs/OverviewTab';
 import { ManifestTab } from './tabs/ManifestTab';
 import { SandboxView } from './tabs/SandboxView';
 import { AuditTab } from './tabs/AuditTab';
 import { RunTab, runnableReason } from './tabs/RunTab';
+import { PackageTab } from './tabs/PackageTab';
+import { GetTab } from './tabs/GetTab';
 
-type TabId = 'overview' | 'run' | 'audit' | 'manifest' | 'sandbox';
+type TabId = 'overview' | 'run' | 'audit' | 'manifest' | 'sandbox' | 'package' | 'get';
 
 export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent: Agent | null; onClose: () => void; signedIn: boolean; onSignIn: () => void }) {
   const [tab, setTab] = useState<TabId>('overview');
@@ -47,28 +49,37 @@ export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent
             <p className="mt-1 text-[12.5px] text-muted">{agent.tagline}</p>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <FrameworkBadge framework={agent.framework} />
-              <Badge mono={false}>{agent.category}</Badge>
-              <button type="button" onClick={() => setTab('audit')} className="rounded-md" aria-label="Open audit">
-                <GradeBadge grade={agent.grade} title={agent.isSeed ? 'Illustrative seed grade' : agent.grade === 'pending' ? 'Audit pending' : `Computed by the registry audit · ${agent.score}/100`} />
+              <Badge mono={false}>{agent.goal ?? agent.category}</Badge>
+              <button type="button" onClick={() => setTab('audit')} className="rounded-md" aria-label={agent.apiVersion === 'v2' ? 'Open checks' : 'Open audit'}>
+                <TrustBadge agent={agent} title={agent.isSeed ? 'Illustrative seed grade' : agent.grade === 'pending' ? 'Audit pending' : `Computed by the registry audit · ${agent.score}/100`} />
               </button>
               <button
                 type="button"
-                onClick={() => setTab('manifest')}
+                onClick={() => setTab(agent.apiVersion === 'v2' ? 'get' : 'manifest')}
                 className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-accent/50 bg-accent/10 px-2.5 py-1 font-mono text-[12px] text-accent hover:bg-accent/20"
               >
-                <Download size={12} /> Install
+                <Download size={12} /> {agent.apiVersion === 'v2' ? 'Get it' : 'Install'}
               </button>
             </div>
           </div>
 
           <Tabs<TabId>
-            tabs={[
-              { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
-              ...(runnableReason(agent) === null ? [{ id: 'run' as const, label: 'Run', icon: <Play size={14} /> }] : []),
-              { id: 'audit', label: 'Audit', icon: <ShieldCheck size={14} /> },
-              { id: 'manifest', label: 'A2A & MCP Manifest', icon: <FileCode2 size={14} /> },
-              ...(agent.isSeed ? [{ id: 'sandbox' as const, label: 'Sandbox (simulated)', icon: <TerminalSquare size={14} /> }] : []),
-            ]}
+            tabs={
+              agent.apiVersion === 'v2'
+                ? [
+                    { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
+                    { id: 'package', label: 'Package', icon: <Package size={14} /> },
+                    { id: 'audit', label: 'Checks', icon: <ListChecks size={14} /> },
+                    { id: 'get', label: 'Get it', icon: <Download size={14} /> },
+                  ]
+                : [
+                    { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
+                    ...(runnableReason(agent) === null ? [{ id: 'run' as const, label: 'Run', icon: <Play size={14} /> }] : []),
+                    { id: 'audit', label: 'Audit', icon: <ShieldCheck size={14} /> },
+                    { id: 'manifest', label: 'A2A & MCP Manifest', icon: <FileCode2 size={14} /> },
+                    ...(agent.isSeed ? [{ id: 'sandbox' as const, label: 'Sandbox (simulated)', icon: <TerminalSquare size={14} /> }] : []),
+                  ]
+            }
             active={tab}
             onChange={setTab}
           />
@@ -79,6 +90,8 @@ export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent
             {tab === 'audit' && <AuditTab agent={agent} />}
             {tab === 'manifest' && <ManifestTab agent={agent} />}
             {tab === 'sandbox' && <SandboxView agent={agent} />}
+            {tab === 'package' && <PackageTab agent={agent} />}
+            {tab === 'get' && <GetTab agent={agent} />}
           </div>
         </>
       )}

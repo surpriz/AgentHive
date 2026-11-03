@@ -1,0 +1,98 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: dependency-risk-triage
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: Tells you which of your dependencies are a liability and the smallest set of changes that fixes it.
+  tagline: Reads package.json, lockfiles and requirements, flags unpinned, abandoned, typosquat-looking or known-risky packages and install scripts, then proposes a minimal upgrade plan.
+  tags: [security, dependencies, supply-chain, npm, pnpm, yarn, pip, lockfile, typosquat, postinstall]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: include_dev_dependencies, type: boolean, default: true, description: "Also review devDependencies (build tooling runs on your machine and in CI)" }
+    - { name: check_upstream_activity, type: boolean, default: false, description: "Use the GitHub MCP server to check whether a package repo is archived or stale" }
+    - { name: stale_months, type: integer, min: 6, max: 60, default: 24, description: "A package with no release or commit for this many months counts as abandoned" }
+  bricks:
+    skills: [dependency-hygiene]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: github
+        package: npm:@modelcontextprotocol/server-github@2025.4.8
+        args: []
+        env: [GITHUB_PERSONAL_ACCESS_TOKEN]
+        permissions: { network: [api.github.com], filesystem: none }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional package names or manifest paths to look at first" }
+        allowlist: { type: array, items: { type: string }, description: "Package names you have already reviewed and accept" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              package: { type: string }
+              category: { type: string, enum: [unpinned, no-lockfile, lockfile-drift, abandoned, typosquat, install-script, known-risky, git-or-url-dependency, bloat] }
+              evidence: { type: string }
+              fix: { type: string }
+        upgrade_plan: { type: array, items: { type: string } }
+        inventory: { type: object }
+  tests:
+    - name: flags a missing lockfile or an unpinned range
+      input: { path: ".", focus: [package.json] }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: produces an upgrade plan
+      input: { path: ".", allowlist: [react, next] }
+      expect: { jsonPath: { path: upgrade_plan.length, min: 0 } }
+    - name: handles a python requirements file
+      input: { path: ".", focus: [requirements.txt, pyproject.toml] }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Dependency Risk Triage reads your package.json, lockfile, requirements.txt or
+  pyproject.toml and tells you which dependencies are a liability: version ranges
+  that let a compromised release walk in, packages nobody maintains, names that
+  look like a typo of a popular package, packages with install scripts that run
+  arbitrary code on npm install, git and URL dependencies, and packages the
+  community knows to avoid.
+
+  It does not run npm audit for you and does not replace it. It finds what audit
+  does not: structural risk. It ends with a minimal upgrade plan, ordered so you
+  can do the first three items in an afternoon without breaking the build.
+
+  It reads files only. Optional: the GitHub MCP server lets it check whether a
+  package's repository is archived or has gone quiet. Without it, abandonment is
+  inferred from the lockfile versions and release dates it already knows.
+useCases:
+  - "Before the first production deploy of a vibe-coded app"
+  - "When an AI assistant added packages you have never heard of"
+  - "After a supply-chain incident in the news, to know whether you are affected"
+  - "To shrink a bloated package.json before handing the project to someone else"

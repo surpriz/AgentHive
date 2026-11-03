@@ -1,6 +1,6 @@
 import { Activity, Coins, Wrench } from 'lucide-react';
 import type { Agent } from '../types';
-import { FrameworkBadge, GradeBadge, Badge } from './ui/Badge';
+import { FrameworkBadge, TrustBadge, Badge } from './ui/Badge';
 import { fmtCost, fmtPct } from '../lib/format';
 
 const MAX_TOOLS = 4;
@@ -26,7 +26,7 @@ export function AgentCard({ agent, onOpen, isNew }: { agent: Agent; onOpen: (a: 
             v{agent.version} <span className="mx-1">·</span> by <span className="text-muted">{agent.author}</span>
           </p>
         </div>
-        <GradeBadge grade={agent.grade} title={agent.isSeed ? 'Illustrative seed grade' : agent.grade === 'pending' ? 'Audit pending' : `Security grade, computed by the registry · ${agent.score}/100`} />
+        <TrustBadge agent={agent} title={agent.isSeed ? 'Illustrative seed grade' : agent.grade === 'pending' ? 'Audit pending' : `Security grade, computed by the registry · ${agent.score}/100`} />
       </div>
 
       <div className="space-y-1">

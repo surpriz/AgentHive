@@ -15,11 +15,11 @@ const PATTERNS: { name: string; re: RegExp }[] = [
   { name: 'AgentHive API key', re: /\bah_[A-Za-z0-9]{32,}\b/ },
 ];
 
-export function findSecrets(text: string): Finding[] {
+export function findSecrets(text: string, where = 'the manifest'): Finding[] {
   const out: Finding[] = [];
   for (const p of PATTERNS) {
     if (p.re.test(text)) {
-      out.push({ check: 'secrets', severity: 'blocker', message: `${p.name} found in the manifest`, hint: 'Remove it, rotate it, and pass secrets through env at runtime instead.' });
+      out.push({ check: 'secrets', severity: 'blocker', message: `${p.name} found in ${where}`, hint: 'Remove it, rotate it, and pass secrets through env at runtime instead.' });
     }
   }
   return out;
@@ -28,7 +28,9 @@ export function findSecrets(text: string): Finding[] {
 export const secretsCheck: Check = {
   id: 'secrets',
   network: false,
-  async run(manifest) {
-    return { findings: findSecrets(JSON.stringify(manifest)) };
+  async run({ manifest, files }) {
+    const findings = findSecrets(JSON.stringify(manifest));
+    for (const [path, text] of Object.entries(files ?? {})) findings.push(...findSecrets(text, path));
+    return { findings };
   },
 };

@@ -6,8 +6,8 @@ import { agents, runs } from './db/schema';
 import { user as userTable } from './db/auth-schema';
 import { seedIfEmpty } from './db/seed';
 import { createAuth, type Auth, type AuthEnv } from './auth';
-import { parseManifest } from './manifest';
-import { latestAudit, publishManifest, reauditAgent } from './publish';
+import { parseManifest, isV2, validatePackageFiles, MAX_PACKAGE_BYTES } from './manifest';
+import { latestAudit, publishManifest, reauditAgent, latestVersion } from './publish';
 import { defaultContext, illustrativeReport, type AuditContext } from './audit';
 import { createSafeFetch } from './audit/net';
 import { deliverWebhook, ensureSecret, ensureSystemUser, ensureWebhookSecret, getRun, measuredMetrics, precheckRun, recentRuns, rotateSecret, rotateWebhookSecret, runAgent, runnableReason, sweepRuns, verifyRunSignature, RUN_LIMITS } from './gateway';
@@ -16,6 +16,7 @@ import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmar
 import { computeLeaderboard, rankHistory, snapshotLeaderboard } from './leaderboard';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
+import { buildLayout, type PackageDoc } from '../src/lib/retrieval';
 import { renderAgentHtml } from '../src/lib/seo';
 import type { Agent } from '../src/types';
 
@@ -130,7 +131,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
   // ---- public registry ---------------------------------------------------
-  app.get('/api/config', (c) => c.json({ github: Boolean(opts.auth.github), devLogin, devUser: devLogin ? TEST_USER : undefined }));
+  app.get('/api/config', (c) => c.json({ github: Boolean(opts.auth.github), google: Boolean(opts.auth.google), devLogin, devUser: devLogin ? TEST_USER : undefined }));
 
   app.get('/api/catalog.json', async (c) => {
     c.header('Access-Control-Allow-Origin', '*');
@@ -151,6 +152,18 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if (!a) return c.text('not found', 404);
     c.header('Cache-Control', PUBLIC_CACHE);
     return c.text(buildManifestYaml(a, opts.origin), 200, { 'Content-Type': 'application/yaml; charset=utf-8' });
+  });
+
+  app.get('/agents/:name/package.json', async (c) => {
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return publicJson(c, { error: 'not found' }, 404);
+    if (row.apiVersion !== 'v2') return publicJson(c, { error: 'not a package: this agent is hosted by its author', url: `${opts.origin}/agents/${row.name}` }, 404);
+    const v = await latestVersion(db, row.id);
+    if (!v) return publicJson(c, { error: 'no version stored' }, 404);
+    const a = rowToAgent(row);
+    const base = { name: a.name, version: a.version, author: a.author, apiVersion: 'v2' as const, goal: a.goal ?? null, license: a.license, value: a.value, tagline: a.tagline, settings: a.settings ?? [], bricks: a.bricks ?? { skills: [], mcp: [] }, files: v.files ?? {}, sha256: v.sha256 ?? null, publishedAt: a.publishedAt, url: `${opts.origin}/agents/${a.name}` };
+    const doc: PackageDoc = { ...base, layouts: { claude: buildLayout(base, 'claude'), cursor: buildLayout(base, 'cursor') } };
+    return publicJson(c, doc);
   });
 
   app.get('/agents/:name/audit.json', async (c) => {
@@ -286,6 +299,36 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const benchmarkQueued = runnableReason({ isSeed: false, transport: res.agent.transport, endpoint: res.agent.endpoint } as Parameters<typeof runnableReason>[0]) === null;
     if (benchmarkQueued) background(benchmarkAgent(res.agent.id, 'publish'));
     return c.json({ agent: res.agent, entry, audit: res.audit, benchmarkQueued, url: `${opts.origin}/agents/${res.agent.name}` }, res.created ? 201 : 200);
+  });
+
+  /** Publishes a declarative package: `{ manifest: <yaml or json text>, files: { path: text } }`. */
+  v1.post('/packages', async (c) => {
+    const me = c.get('viewer');
+    const now = Date.now();
+    const hits = (publishHits.get(me.id) ?? []).filter((t) => now - t < PUBLISH_LIMIT.windowMs);
+    if (hits.length >= PUBLISH_LIMIT.max) return c.json({ error: 'rate limited', retryAfterMs: PUBLISH_LIMIT.windowMs - (now - hits[0]) }, 429);
+    hits.push(now);
+    publishHits.set(me.id, hits);
+
+    const raw = await c.req.text();
+    if (Buffer.byteLength(raw, 'utf8') > MAX_PACKAGE_BYTES + 512 * 1024) return c.json({ error: 'package too large' }, 413);
+    let body: { manifest?: unknown; files?: unknown };
+    try {
+      body = JSON.parse(raw) as typeof body;
+    } catch {
+      return c.json({ error: 'body must be JSON: { manifest, files }' }, 400);
+    }
+    if (typeof body.manifest !== 'string' && (typeof body.manifest !== 'object' || body.manifest === null)) return c.json({ error: 'manifest must be the agent.yaml text or object' }, 422);
+    const parsed = parseManifest(body.manifest);
+    if (!parsed.ok) return c.json({ error: 'invalid manifest', issues: parsed.issues }, 422);
+    if (!isV2(parsed.manifest)) return c.json({ error: 'not a package manifest', issues: [{ path: 'apiVersion', message: 'packages use apiVersion agenthive.sh/v2; hosted agents go through POST /api/v1/agents' }] }, 422);
+    const issues = validatePackageFiles(parsed.manifest, body.files ?? {});
+    if (issues.length) return c.json({ error: 'invalid package', issues }, 422);
+
+    const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest, auditCtx(), body.files as Record<string, string>);
+    if (!res.ok) return c.json(res.code === 'AUDIT_BLOCKED' ? { error: res.message, code: res.code, audit: res.audit } : { error: res.message, code: res.code }, res.status);
+    const entry = buildRegistryIndex([res.agent], opts.origin).agents[0];
+    return c.json({ agent: res.agent, entry, audit: res.audit, benchmarkQueued: false, url: `${opts.origin}/agents/${res.agent.name}`, packageUrl: `${opts.origin}/agents/${res.agent.name}/package.json` }, res.created ? 201 : 200);
   });
 
   v1.post('/agents/:name/audit', async (c) => {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ShieldCheck, ShieldAlert, AlertTriangle, Info, Loader2, ExternalLink, CheckCircle2, MinusCircle, XCircle } from 'lucide-react';
 import type { Agent } from '../../types';
 import { api, type AuditReport, type AuditResponse } from '../../lib/api';
-import { GradeBadge } from '../ui/Badge';
+import { GradeBadge, ChecksBadge } from '../ui/Badge';
 
 const SEVERITY: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
   blocker: { label: 'blocker', cls: 'text-danger border-danger/40 bg-danger/10', icon: <ShieldAlert size={13} /> },
@@ -17,6 +17,16 @@ const CHECK_LABEL: Record<string, string> = {
   permissions: 'Declared permissions',
   dependencies: 'Dependencies (OSV)',
   completeness: 'Manifest completeness',
+  bricks: 'Bricks pinned and published',
+  vulnerabilities: 'Known vulnerabilities in bricks (OSV)',
+  scripts: 'No executable content',
+};
+
+const CHECK_LABEL_V2: Record<string, string> = {
+  ...CHECK_LABEL,
+  secrets: 'No secrets in the package',
+  permissions: 'MCP permissions declared',
+  completeness: 'Package completeness',
 };
 
 export function AuditTab({ agent, report: initial }: { agent: Agent; report?: AuditReport | null }) {
@@ -67,10 +77,16 @@ export function ReportView({ agent, report, criteria = '/docs/grading' }: { agen
         </div>
       )}
 
+      {agent.apiVersion === 'v2' && (
+        <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-[12.5px] leading-relaxed text-muted" role="note" data-testid="checks-note">
+          <span className="font-semibold text-fg">{report.checks.filter((c) => c.status === 'ok').length}/{report.checks.length} checks passed.</span> These checks look at secrets, pinned versions, known vulnerabilities, permissions and executable content. They do not read the prompt for intent: install only what you have read in the Package tab.
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg border border-border bg-surface-2 p-3">
-          <div className="text-[11px] text-dim">grade</div>
-          <div className="mt-1"><GradeBadge grade={report.blocked ? 'B' : report.grade} title={report.illustrative ? 'Illustrative seed grade' : 'Computed by the registry audit'} /></div>
+          <div className="text-[11px] text-dim">{agent.apiVersion === 'v2' ? 'checks' : 'grade'}</div>
+          <div className="mt-1">{agent.apiVersion === 'v2' ? <ChecksBadge grade={report.blocked ? 'B' : report.grade} score={report.score} /> : <GradeBadge grade={report.blocked ? 'B' : report.grade} title={report.illustrative ? 'Illustrative seed grade' : 'Computed by the registry audit'} />}</div>
         </div>
         <div className="rounded-lg border border-border bg-surface-2 p-3">
           <div className="text-[11px] text-dim">score</div>
@@ -112,7 +128,7 @@ export function ReportView({ agent, report, criteria = '/docs/grading' }: { agen
                     return (
                       <li key={i} className={`rounded-md border px-3 py-2 text-[12.5px] ${m.cls}`}>
                         <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider">
-                          {m.icon} {m.label} <span className="normal-case tracking-normal text-dim">· {CHECK_LABEL[f.check] ?? f.check}</span>
+                          {m.icon} {m.label} <span className="normal-case tracking-normal text-dim">· {(agent.apiVersion === 'v2' ? CHECK_LABEL_V2 : CHECK_LABEL)[f.check] ?? f.check}</span>
                         </div>
                         <div className="mt-0.5 text-fg/90">{f.message}</div>
                         {f.hint && <div className="mt-0.5 text-[12px] text-muted">{f.hint}</div>}
@@ -133,7 +149,7 @@ export function ReportView({ agent, report, criteria = '/docs/grading' }: { agen
             {report.checks.map((c) => (
               <li key={c.id} className="flex items-center gap-2 px-3 py-2 text-[12.5px]">
                 {c.status === 'ok' ? <CheckCircle2 size={13} className="text-ok" /> : c.status === 'skipped' ? <MinusCircle size={13} className="text-dim" /> : <XCircle size={13} className="text-danger" />}
-                <span className="text-fg">{CHECK_LABEL[c.id] ?? c.id}</span>
+                <span className="text-fg">{(agent.apiVersion === 'v2' ? CHECK_LABEL_V2 : CHECK_LABEL)[c.id] ?? c.id}</span>
                 <span className="ml-auto font-mono text-[11px] text-dim">{c.note ?? c.status} · {c.ms}ms</span>
               </li>
             ))}

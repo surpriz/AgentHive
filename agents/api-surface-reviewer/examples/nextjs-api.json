@@ -1,0 +1,5 @@
+{
+  "path": "./my-saas-app",
+  "focus": ["app/api", "app/actions", "app/api/webhooks"],
+  "public_origins": ["https://app.example.com", "https://www.example.com"]
+}

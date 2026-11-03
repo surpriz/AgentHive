@@ -1,0 +1,5 @@
+{
+  "path": "./my-saas-app",
+  "focus": ["app/api", "supabase/migrations", "middleware.ts"],
+  "context": "Invoicing tool for freelancers. Next.js 15 App Router with Supabase auth and database, Stripe subscriptions. About 300 real users, live since last month. Stores names, emails, invoice PDFs and Stripe customer ids."
+}

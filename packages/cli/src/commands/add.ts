@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { MCP_PACKAGE_SPEC, installSnippet, mcpServerEntry, type RegistryClient } from '@agenthive-sh/registry-client';
+import { MCP_PACKAGE_SPEC, installSnippet, type RegistryClient } from '@agenthive-sh/registry-client';
 import { TARGETS, mergeMcpServer, readConfig, targetPath, writeConfig, type Target } from '../config.js';
 import { c } from '../ui.js';
 
@@ -13,40 +13,19 @@ export function parseRef(ref: string): { name: string; author?: string; version?
 export function registerAdd(program: Command, client: () => RegistryClient) {
   program
     .command('add <ref>')
-    .description('install an agent as an MCP server in Claude Code or Cursor')
-    .option('-t, --target <target>', `${TARGETS.join(' | ')}`, 'claude')
-    .option('--path <file>', 'override the config file to write')
-    .option('--dry-run', 'print the resulting config instead of writing')
+    .description('alias of `pull` for packages; hosted agents are called with `run`')
+    .option('-t, --target <target>', 'claude | cursor', 'claude')
     .option('--print', 'only print the snippet (same as the website)')
-    .action(async (ref: string, opts: { target: string; path?: string; dryRun?: boolean; print?: boolean }) => {
+    .action(async (ref: string, opts: { target: string; print?: boolean }) => {
       const { name, author, version } = parseRef(ref);
       const entry = await client().get(name);
       if (!entry) throw new Error(`no agent named "${name}" on ${client().baseUrl}`);
       if (author && author !== entry.author) {
         throw new Error(`"${name}" is published by "${entry.author}", not "${author}". Refusing to install a mismatched reference.`);
       }
-      if (version && version !== entry.version) {
-        console.error(c.yellow(`warning: requested ${version}, registry has ${entry.version}; pinning ${version}.`));
-      }
-      const pinned = { ...entry, version: version ?? entry.version };
-
-      if (opts.print) return console.log(installSnippet(pinned, opts.target === 'cursor' ? 'cursor' : 'claude'));
-
-      if (!TARGETS.includes(opts.target as Target)) throw new Error(`unknown target "${opts.target}" (use ${TARGETS.join(', ')})`);
-      const target = opts.target as Target;
-      const file = opts.path ?? targetPath(target);
-      const current = await readConfig(file);
-      const next = mergeMcpServer(current, pinned.name, mcpServerEntry(pinned));
-
-      if (opts.dryRun) {
-        console.log(c.dim(`# ${file}`));
-        console.log(JSON.stringify(next, null, 2));
-        return;
-      }
-      await writeConfig(file, next);
-      console.log(`${c.green('✓')} ${c.bold(pinned.name)}@${pinned.version} added to ${file}`);
-      if (target === 'cursor') console.log(c.dim('tip: add the .cursorrules block with `agent-cli add <name> --print --target cursor`'));
-      else console.log(c.dim('restart Claude Code (or run /mcp) to pick it up · set AGENTHIVE_TOKEN in your env'));
+      if (version && version !== entry.version) console.error(c.yellow(`warning: requested ${version}, registry has ${entry.version}.`));
+      if (opts.print || entry.apiVersion !== 'v2') return console.log(installSnippet(entry, opts.target === 'cursor' ? 'cursor' : 'claude'));
+      await program.parseAsync(['pull', name, '--target', opts.target], { from: 'user' });
     });
 
   program
@@ -64,15 +43,5 @@ export function registerAdd(program: Command, client: () => RegistryClient) {
       if (opts.dryRun) return console.log(JSON.stringify(next, null, 2));
       await writeConfig(file, next);
       console.log(`${c.green('✓')} agenthive catalog server added to ${file}`);
-    });
-
-  program
-    .command('serve <ref>')
-    .description('run an agent as a local MCP server (V1 runtime, not available yet)')
-    .action((ref: string) => {
-      const { name } = parseRef(ref);
-      console.error(`${c.red('✗')} "${name}" cannot be served as a local MCP server yet.`);
-      console.error(c.dim(`  call it through the gateway instead: agent-cli run ${name} --input '{...}'`));
-      process.exitCode = 2;
     });
 }

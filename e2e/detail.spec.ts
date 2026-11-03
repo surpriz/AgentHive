@@ -5,8 +5,8 @@ test('manifest tab shows yaml, agent card and install snippets', async ({ page }
   await page.getByRole('tab', { name: /Manifest/ }).click();
   await expect(page.getByRole('tab', { name: /Manifest/ })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('apiVersion: agenthive.sh/v1')).toBeVisible();
-  await expect(page.locator('pre', { hasText: 'agent-cli add pg-query-optimizer' }).first()).toBeVisible();
-  await expect(page.locator('pre', { hasText: '"mcpServers"' })).toBeVisible();
+  await expect(page.locator('pre', { hasText: 'agent-cli run pg-query-optimizer' }).first()).toBeVisible();
+  await expect(page.locator('pre', { hasText: 'hosted by its author' }).first()).toBeVisible();
 });
 
 test('sandbox runs the scripted chain to a final result and accrues tokens', async ({ page }) => {

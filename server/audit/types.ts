@@ -1,7 +1,7 @@
-import type { Manifest } from '../manifest';
+import type { Manifest, PackageFiles } from '../manifest';
 
 export type Severity = 'blocker' | 'high' | 'medium' | 'low';
-export type CheckId = 'secrets' | 'endpoint' | 'permissions' | 'dependencies' | 'completeness';
+export type CheckId = 'secrets' | 'endpoint' | 'permissions' | 'dependencies' | 'completeness' | 'bricks' | 'vulnerabilities' | 'scripts';
 export type AuditGrade = 'AAA' | 'AA' | 'A' | 'B';
 export type Cap = 'AA' | 'A';
 
@@ -21,7 +21,8 @@ export interface CheckRun {
 }
 
 export interface Report {
-  engine: 'v1';
+  /** `v1`: hosted agents (endpoint, source repo). `v2`: declarative packages (bricks, files). */
+  engine: 'v1' | 'v2';
   auditedAt: string;
   score: number;
   grade: AuditGrade;
@@ -55,9 +56,15 @@ export interface CheckResult {
   skipped?: string;
 }
 
+/** What a check looks at: the manifest, plus the package files for v2. */
+export interface AuditSubject {
+  manifest: Manifest;
+  files?: PackageFiles;
+}
+
 export interface Check {
   id: CheckId;
   /** Whether the check touches the network: only those are subject to the deadline. */
   network: boolean;
-  run(manifest: Manifest, ctx: AuditContext): Promise<CheckResult>;
+  run(subject: AuditSubject, ctx: AuditContext): Promise<CheckResult>;
 }

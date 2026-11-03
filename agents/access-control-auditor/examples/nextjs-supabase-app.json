@@ -1,0 +1,5 @@
+{
+  "path": "./my-saas-app",
+  "focus": ["app/api", "supabase/migrations", "middleware.ts"],
+  "roles": ["user", "admin", "owner"]
+}

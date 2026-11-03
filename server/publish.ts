@@ -1,7 +1,8 @@
 import { desc, eq } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { agentVersions, agents, audits } from './db/schema';
-import { compareSemver, type Manifest } from './manifest';
+import { createHash } from 'node:crypto';
+import { compareSemver, isV2, type Manifest, type PackageFiles } from './manifest';
 import { manifestToColumns, rowToAgent } from './registry';
 import { runAudit, type AuditContext, type Report } from './audit';
 import { newGatewaySecret } from './gateway';
@@ -24,7 +25,13 @@ const newId = () => crypto.randomUUID();
  * First publisher owns the name. Later pushes must come from the owner and
  * carry a strictly greater semver. Seeds cannot be overwritten by anyone.
  */
-export async function publishManifest(db: Db, who: Publisher, manifest: Manifest, auditCtx?: AuditContext): Promise<PublishResult> {
+/** Stable hash of a package: manifest and files serialised with sorted keys. */
+export function packageSha256(manifest: Manifest, files: PackageFiles): string {
+  const sorted = (v: unknown): unknown => (Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v as object).sort().map((k) => [k, sorted((v as Record<string, unknown>)[k])])) : v);
+  return createHash('sha256').update(JSON.stringify(sorted({ manifest, files }))).digest('hex');
+}
+
+export async function publishManifest(db: Db, who: Publisher, manifest: Manifest, auditCtx?: AuditContext, files?: PackageFiles): Promise<PublishResult> {
   const cols = manifestToColumns(manifest);
   const existing = await db.query.agents.findFirst({ where: eq(agents.name, cols.name) });
 
@@ -37,7 +44,7 @@ export async function publishManifest(db: Db, who: Publisher, manifest: Manifest
   }
 
   // Audit before writing anything: a blocker (leaked secret, private endpoint) refuses the publish outright.
-  const audit = await safeAudit(manifest, auditCtx);
+  const audit = await safeAudit({ manifest, files }, auditCtx);
   if (audit.blocked) return { ok: false, status: 422, code: 'AUDIT_BLOCKED', message: 'publish refused by the audit', audit };
   const graded = audit.checks.length > 0; // engine ran; otherwise stay pending
   const stamp = { grade: graded ? audit.grade : ('pending' as const), score: graded ? audit.score : null, auditedAt: graded ? new Date(audit.auditedAt) : null };
@@ -60,7 +67,7 @@ export async function publishManifest(db: Db, who: Publisher, manifest: Manifest
       .returning();
     created = true;
   }
-  await db.insert(agentVersions).values({ id: newId(), agentId: row.id, version: cols.latestVersion, manifest });
+  await db.insert(agentVersions).values({ id: newId(), agentId: row.id, version: cols.latestVersion, manifest, files: isV2(manifest) ? (files ?? {}) : null, sha256: isV2(manifest) ? packageSha256(manifest, files ?? {}) : null });
   if (graded) await db.insert(audits).values({ id: newId(), agentId: row.id, version: cols.latestVersion, grade: audit.grade, score: audit.score, report: audit as unknown as Record<string, unknown> });
   return { ok: true, agent: rowToAgent(row), created, audit };
 }
@@ -72,7 +79,7 @@ export async function reauditAgent(db: Db, agentId: string, auditCtx?: AuditCont
   const { parseManifest } = await import('./manifest');
   const parsed = parseManifest(version.manifest);
   if (!parsed.ok) return null;
-  const audit = await safeAudit(parsed.manifest, auditCtx);
+  const audit = await safeAudit({ manifest: parsed.manifest, files: version.files ?? undefined }, auditCtx);
   if (audit.checks.length === 0) return audit;
   await db.insert(audits).values({ id: newId(), agentId, version: version.version, grade: audit.blocked ? 'B' : audit.grade, score: audit.score, report: audit as unknown as Record<string, unknown> });
   await db.update(agents).set({ grade: audit.blocked ? 'B' : audit.grade, score: audit.score, auditedAt: new Date(audit.auditedAt), updatedAt: new Date() }).where(eq(agents.id, agentId));
@@ -85,11 +92,16 @@ export async function latestAudit(db: Db, agentId: string): Promise<Report | nul
 }
 
 /** The engine never throws; if it somehow does, the agent stays pending rather than failing the publish. */
-async function safeAudit(manifest: Manifest, ctx?: AuditContext): Promise<Report> {
+async function safeAudit(subject: { manifest: Manifest; files?: PackageFiles }, ctx?: AuditContext): Promise<Report> {
   try {
-    return await runAudit(manifest, ctx);
+    return await runAudit(subject, ctx);
   } catch (e) {
     console.error('audit engine failed', e);
     return { engine: 'v1', auditedAt: new Date().toISOString(), score: 0, grade: 'B', caps: [], blocked: false, findings: [], checks: [] };
   }
+}
+
+/** The latest stored version of an agent: manifest, files and hash. */
+export async function latestVersion(db: Db, agentId: string) {
+  return db.query.agentVersions.findFirst({ where: eq(agentVersions.agentId, agentId), orderBy: desc(agentVersions.createdAt) });
 }

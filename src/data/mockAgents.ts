@@ -65,6 +65,7 @@ The agent never posts to GitHub on its own. It returns structured findings that 
     transport: 'mcp/stdio',
     endpoint: null,
     isSeed: true,
+    apiVersion: 'v1',
     publishedAt: '2026-09-14',
   },
   {
@@ -120,6 +121,7 @@ Output is a structured gap analysis mapped to Annex IV sections, ready to drop i
     transport: 'a2a/http+json',
     endpoint: null,
     isSeed: true,
+    apiVersion: 'v1',
     publishedAt: '2026-08-02',
   },
   {
@@ -186,6 +188,7 @@ Works with Postgres 13 through 18, including partitioned tables and JSONB GIN in
     transport: 'mcp/stdio',
     endpoint: null,
     isSeed: true,
+    apiVersion: 'v1',
     publishedAt: '2026-10-05',
   },
   {
@@ -241,6 +244,7 @@ Not investment advice. Built for analysts who want the first 80% of the reading 
     transport: 'a2a/http+json',
     endpoint: null,
     isSeed: true,
+    apiVersion: 'v1',
     publishedAt: '2026-07-19',
   },
   {
@@ -293,6 +297,7 @@ Supports Solidity 0.8.x, verified sources from Etherscan, and local Foundry proj
     transport: 'a2a/http+json',
     endpoint: null,
     isSeed: true,
+    apiVersion: 'v1',
     publishedAt: '2026-10-21',
   },
   {
@@ -348,6 +353,7 @@ Security grade is B because the agent requires write scopes on LinkedIn and your
     transport: 'a2a/http+json',
     endpoint: null,
     isSeed: true,
+    apiVersion: 'v1',
     publishedAt: '2026-09-28',
   },
 ];

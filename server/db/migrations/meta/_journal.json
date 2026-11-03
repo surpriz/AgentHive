@@ -50,6 +50,13 @@
       "when": 1793627721960,
       "tag": "0006_example_input",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793691544240,
+      "tag": "0007_packages",
+      "breakpoints": true
     }
   ]
 }

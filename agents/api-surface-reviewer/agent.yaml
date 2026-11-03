@@ -1,0 +1,92 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: api-surface-reviewer
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: Lists every endpoint your app exposes and tells you which ones will accept garbage, leak errors or get abused.
+  tagline: Maps every HTTP route, Route Handler, server action and webhook, then checks input validation, rate limiting, CORS, error leakage, mass assignment and file upload handling on each one.
+  tags: [security, api, validation, rate-limit, cors, upload, nextjs, express, server-actions, webhooks]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: include_server_actions, type: boolean, default: true, description: "Treat Next.js server actions as endpoints (they are reachable by POST)" }
+    - { name: edge_rate_limiting, type: boolean, default: false, description: "Assume a CDN, WAF or gateway already rate-limits every route, so only report missing limits on auth and payment routes" }
+  bricks:
+    skills: [api-hardening-checklist]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional route prefixes or folders to look at first" }
+        public_origins: { type: array, items: { type: string }, description: "Browser origins that are meant to call this API, for the CORS check" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              endpoint: { type: string }
+              category: { type: string, enum: [no-validation, mass-assignment, rate-limit, cors, error-leakage, upload, webhook-signature, method-confusion, ssrf, injection, debug-endpoint] }
+              evidence: { type: string }
+              fix: { type: string }
+        endpoints: { type: array, items: { type: object } }
+  tests:
+    - name: maps at least the api routes
+      input: { path: ".", focus: [app/api, pages/api, src/routes] }
+      expect: { jsonPath: { path: endpoints.length, min: 1 } }
+    - name: reports unvalidated input on a write route
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: uses the declared public origins
+      input: { path: ".", public_origins: ["https://app.example.com"] }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  API Surface Reviewer builds the list of every way a request can reach your
+  server code: Next.js Route Handlers and server actions, Express and Hono
+  routes, Pages Router API routes, Supabase Edge Functions, webhooks and cron
+  handlers. For each one it checks what a hostile caller can do: send a body that
+  was never validated, set fields they should not control (mass assignment), call
+  it ten thousand times a minute, call it from any website (CORS), read a stack
+  trace or an ORM error, upload a file of any type and size, or spoof a webhook.
+
+  It is written for apps built quickly on Next.js, Supabase, Express, Prisma and
+  Vercel. Every finding has a file and line, the request that would trigger it,
+  and a fix in the libraries the app already uses (zod, valibot, upstash
+  ratelimit, the framework's own CORS and error handling).
+
+  It reads files only. Give it the app root and, if you know them, the browser
+  origins that are meant to call the API.
+useCases:
+  - "Before exposing an API to the public internet"
+  - "After an AI assistant generated a batch of CRUD routes"
+  - "When adding Stripe or other webhooks"
+  - "To get a complete endpoint inventory for a handover or a pentest brief"

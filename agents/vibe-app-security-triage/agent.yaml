@@ -1,0 +1,96 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: vibe-app-security-triage
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: A 20-minute first-pass security triage of a small web app, with the worst issues first and a fix for each.
+  tagline: Runs a time-boxed pass over secrets, access control, API surface and dependencies using the four specialist checklists, confirms each issue in the source and returns a prioritised list with file:line, proof and fix.
+  tags: [security, triage, audit, nextjs, supabase, express, prisma, vercel, vibe-coding, first-pass]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 64000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 10, description: "Cap on the number of findings; the triage is meant to stay short" }
+    - { name: time_budget_minutes, type: integer, min: 5, max: 60, default: 20, description: "How long the pass should take; drives how deep each area goes" }
+    - { name: stack_hint, type: enum, values: [auto, nextjs-supabase, nextjs-prisma, express, other], default: auto, description: "Skip detection and assume this stack" }
+    - { name: skip_areas, type: string, default: "", description: "Comma-separated areas to skip: secrets, access, api, deps" }
+  bricks:
+    skills: [secret-patterns, supabase-rls-checklist, authz-review, dependency-hygiene, api-hardening-checklist, triage-report-format]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional folders, routes or concerns to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        verdict: { type: string, enum: [do-not-ship, fix-before-launch, ship-with-followups, looks-ok] }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              area: { type: string, enum: [secrets, access, api, deps, config] }
+              effort: { type: string, enum: [minutes, hour, day] }
+              evidence: { type: string }
+              fix: { type: string }
+        coverage: { type: array, items: { type: object } }
+        next_steps: { type: array, items: { type: string } }
+  tests:
+    - name: returns a verdict and at least one finding on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: reports coverage for every area
+      input: { path: ".", context: "Internal tool, 20 users, holds customer emails, not yet live" }
+      expect: { jsonPath: { path: coverage.length, min: 4 } }
+    - name: respects a focus list
+      input: { path: ".", focus: [app/api, supabase] }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Vibe App Security Triage is the first thing to run on an app you built fast and
+  want to put in front of real users. In about twenty minutes it goes through the
+  four areas where AI-assisted apps most often go wrong: leaked secrets, missing
+  access control (Supabase RLS, API routes without checks, ids trusted from the
+  URL), an unguarded API surface (no validation, no rate limits, loose CORS,
+  unsigned webhooks) and risky dependencies.
+
+  It does not try to be complete. It confirms each issue in the source, ranks
+  them by what an attacker would do first, and gives a fix with an effort
+  estimate so you can spend the next hour well. It ends with a verdict (do not
+  ship, fix before launch, ship with follow-ups, looks ok) and the list of what
+  it did not have time to check, so you know what the deeper agents should do
+  next.
+
+  It reads files only. Give it the app root and one paragraph about what the app
+  does and who uses it; the ranking depends on that.
+useCases:
+  - "The night before launching a side project"
+  - "First look at an app a client or a friend built with an AI assistant"
+  - "Deciding whether a prototype is safe enough for a private beta"
+  - "Producing a short list to hand to the specialist agents or a human reviewer"

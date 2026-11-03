@@ -58,12 +58,14 @@ describe('RegistryClient', () => {
 
 describe('installSnippet', () => {
   const e = entry({ name: 'pg-query-optimizer', author: 'dbforge', version: '3.0.4', tags: ['sql'], capabilities: ['explain.analyze'] });
-  it('claude snippet is valid JSON pinned to author/name@version', () => {
-    const parsed = JSON.parse(installSnippet(e, 'claude')) as { mcpServers: Record<string, { args: string[] }> };
-    expect(parsed.mcpServers['pg-query-optimizer'].args).toContain('dbforge/pg-query-optimizer@3.0.4');
+  it('hosted agents point at the gateway', () => {
+    expect(installSnippet(e, 'claude')).toContain('agent-cli run pg-query-optimizer');
+    expect(installSnippet(e, 'claude')).toContain('hosted by its author');
   });
-  it('cursor and cli snippets mention the agent', () => {
-    expect(installSnippet(e, 'cursor')).toContain('"pg-query-optimizer" agent via MCP');
-    expect(installSnippet(e, 'cli')).toContain('agent-cli add pg-query-optimizer');
+  it('packages are pulled into the tool', () => {
+    const pkg = { ...e, apiVersion: 'v2' as const };
+    expect(installSnippet(pkg, 'claude')).toContain('agent-cli pull pg-query-optimizer --target claude');
+    expect(installSnippet(pkg, 'cursor')).toContain('.cursor/rules/pg-query-optimizer.mdc');
+    expect(installSnippet(pkg, 'cli')).toContain('--target cursor');
   });
 });

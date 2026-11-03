@@ -1,12 +1,12 @@
-import type { AgentCard, AsyncRunTicket, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, Leaderboard, ManifestIssue, Me, PublishResponse, RegistryEntry, RegistryIndex, RunLog, RunResult, RunView, SearchOptions } from './types.js';
+import type { AgentCard, AsyncRunTicket, AuditReport, AuditResponse, BenchmarkReport, BenchmarkResponse, InstallTarget, Leaderboard, ManifestIssue, Me, PackageDoc, PublishPackageBody, PublishResponse, RegistryEntry, RegistryIndex, RetrievalTarget, RunLog, RunResult, RunView, SearchOptions } from './types.js';
 
 export * from './types.js';
 
 export const DEFAULT_REGISTRY = 'https://agenthive.sh';
 
 /** Pinned package specs for generated install snippets: an unpinned npx would pick up any later (or squatted) release. */
-export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.5.0';
-export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.5.0';
+export const CLI_PACKAGE_SPEC = '@agenthive-sh/cli@0.6.0';
+export const MCP_PACKAGE_SPEC = '@agenthive-sh/mcp@0.6.0';
 
 export class RegistryError extends Error {
   constructor(
@@ -178,6 +178,24 @@ export class RegistryClient {
     return body as PublishResponse;
   }
 
+  /** Publish a declarative package: the agent.yaml text plus its files. */
+  async publishPackage(body: PublishPackageBody): Promise<PublishResponse> {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/v1/packages`, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json', ...this.authHeaders() },
+      body: JSON.stringify(body),
+    });
+    const parsed = (await res.json().catch(() => ({}))) as { error?: string; issues?: ManifestIssue[]; audit?: AuditReport } & Partial<PublishResponse>;
+    if (!res.ok) throw new RegistryError(parsed.error ?? `registry returned ${res.status}`, res.status, parsed.issues, parsed.audit?.blocked ? parsed.audit : undefined);
+    return parsed as PublishResponse;
+  }
+
+  /** A declarative agent's package: files, bricks and the per-tool layouts. 404 for hosted (v1) agents. */
+  async package(name: string): Promise<PackageDoc> {
+    assertName(name);
+    return this.getJson<PackageDoc>(`/agents/${name}/package.json`);
+  }
+
   private async getJson<T>(path: string): Promise<T> {
     let res: Response;
     try {
@@ -249,31 +267,27 @@ export function searchEntries(agents: RegistryEntry[], opts: SearchOptions = {})
   return opts.limit ? out.slice(0, opts.limit) : out;
 }
 
-/** MCP server entry that Claude Code / Cursor need to run an agent from the registry. */
-export function mcpServerEntry(entry: Pick<RegistryEntry, 'name' | 'author' | 'version'>) {
-  return {
-    command: 'npx',
-    args: ['-y', CLI_PACKAGE_SPEC, 'serve', `${entry.author}/${entry.name}@${entry.version}`],
-    env: { AGENTHIVE_TOKEN: '${AGENTHIVE_TOKEN}' },
-  };
+/** The one command that retrieves a package into a tool. */
+export function pullCommand(name: string, target: RetrievalTarget): string {
+  return `npx -y -p ${CLI_PACKAGE_SPEC} agent-cli pull ${name} --target ${target}`;
 }
 
-export function installSnippet(entry: Pick<RegistryEntry, 'name' | 'author' | 'version' | 'tags' | 'capabilities'>, target: InstallTarget): string {
+/** What to paste to get an agent. Packages (v2) are pulled into the tool; hosted agents (v1) are called through the gateway. */
+export function installSnippet(entry: Pick<RegistryEntry, 'name' | 'author' | 'version' | 'tags' | 'capabilities'> & { apiVersion?: 'v1' | 'v2' }, target: InstallTarget): string {
+  const hosted = entry.apiVersion !== 'v2';
+  if (hosted) {
+    return [
+      `# ${entry.name}@${entry.version} by ${entry.author} is hosted by its author and called through the registry gateway.`,
+      `npx -y -p ${CLI_PACKAGE_SPEC} agent-cli run ${entry.name} --input '{"...": "..."}'`,
+      `# needs: agent-cli login (an API key from https://agenthive.sh/dashboard)`,
+    ].join('\n');
+  }
   switch (target) {
     case 'claude':
-      return JSON.stringify({ mcpServers: { [entry.name]: mcpServerEntry(entry) } }, null, 2);
+      return `# writes .claude/agents/${entry.name}.md, .claude/skills/* and merges MCP servers into .mcp.json\n${pullCommand(entry.name, 'claude')}`;
     case 'cursor':
-      return [
-        `# .cursorrules — ${entry.name}`,
-        `# Installed from agenthive.sh/${entry.author}/${entry.name}@${entry.version}`,
-        '',
-        `You have access to the "${entry.name}" agent via MCP.`,
-        `Use it when the task involves: ${entry.tags.slice(0, 4).join(', ')}.`,
-        `Capabilities: ${entry.capabilities.join(', ')}.`,
-        'Always pass inputs matching its input schema and surface its structured output verbatim.',
-        '',
-      ].join('\n');
+      return `# writes .cursor/rules/${entry.name}.mdc and merges MCP servers into .cursor/mcp.json\n${pullCommand(entry.name, 'cursor')}`;
     case 'cli':
-      return `agent-cli add ${entry.name}\nagent-cli add ${entry.author}/${entry.name}@${entry.version}`;
+      return `${pullCommand(entry.name, 'claude')}\n${pullCommand(entry.name, 'cursor')}`;
   }
 }

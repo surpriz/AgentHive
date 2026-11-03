@@ -1,6 +1,6 @@
 import type { Agent } from '../src/types';
 import type { AgentRow } from './db/schema';
-import type { Manifest } from './manifest';
+import { GOAL_CATEGORY, isV2, type Manifest } from './manifest';
 
 export function rowToAgent(r: AgentRow): Agent {
   return {
@@ -26,6 +26,10 @@ export function rowToAgent(r: AgentRow): Agent {
     useCases: r.useCases,
     inputSchema: r.inputSchema,
     exampleInput: r.exampleInput ?? null,
+    apiVersion: r.apiVersion === 'v2' ? 'v2' : 'v1',
+    goal: (r.goal as Agent['goal']) ?? null,
+    bricks: r.bricks ?? null,
+    settings: r.settings ?? null,
     outputSchema: r.outputSchema,
     capabilities: r.capabilities,
     model: r.model,
@@ -39,6 +43,32 @@ export function rowToAgent(r: AgentRow): Agent {
 
 /** Columns a publisher controls. Everything else (grade, benchmark, owner) is set by the registry. */
 export function manifestToColumns(m: Manifest) {
+  if (isV2(m)) {
+    return {
+      name: m.metadata.name,
+      value: m.metadata.value,
+      tagline: m.metadata.tagline,
+      framework: 'Declarative' as const,
+      category: GOAL_CATEGORY[m.metadata.goal],
+      tools: m.spec.bricks.mcp.map((b) => b.name),
+      tags: m.metadata.tags,
+      capabilities: m.spec.bricks.skills,
+      readme: m.readme,
+      useCases: m.useCases,
+      inputSchema: m.spec.io.input,
+      exampleInput: m.spec.tests[0]?.input ?? null,
+      outputSchema: m.spec.io.output,
+      model: m.spec.model.recommended[0] ?? 'unspecified',
+      license: m.metadata.license,
+      transport: 'a2a/http+json' as const,
+      endpoint: null,
+      latestVersion: m.metadata.version,
+      apiVersion: 'v2' as const,
+      goal: m.metadata.goal,
+      bricks: m.spec.bricks,
+      settings: m.spec.settings,
+    };
+  }
   return {
     name: m.metadata.name,
     value: m.metadata.value,
@@ -58,5 +88,9 @@ export function manifestToColumns(m: Manifest) {
     transport: m.spec.transport,
     endpoint: m.spec.endpoint ?? null,
     latestVersion: m.metadata.version,
+    apiVersion: 'v1' as const,
+    goal: null,
+    bricks: null,
+    settings: null,
   };
 }

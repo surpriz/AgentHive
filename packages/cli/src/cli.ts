@@ -4,13 +4,14 @@ import { registerSearch } from './commands/search.js';
 import { registerInfo, registerLeaderboard } from './commands/info.js';
 import { registerAdd } from './commands/add.js';
 import { registerAccount } from './commands/account.js';
+import { registerPull } from './commands/pull.js';
 import { resolveToken } from './credentials.js';
 import { c } from './ui.js';
 
 export function buildProgram(): Command {
   const program = new Command('agent-cli')
-    .description('agenthive.sh — search, inspect and install interoperable AI agents')
-    .version('0.5.0')
+    .description('agenthive.sh — find, check, pull and publish AI agents')
+    .version('0.6.0')
     .option('-r, --registry <url>', `registry base URL (env AGENTHIVE_REGISTRY, default ${DEFAULT_REGISTRY})`)
     .showHelpAfterError()
     .configureOutput({ writeErr: (s) => process.stderr.write(s) });
@@ -32,6 +33,7 @@ export function buildProgram(): Command {
   registerInfo(program, client);
   registerLeaderboard(program, client);
   registerAdd(program, client);
+  registerPull(program, () => client().baseUrl);
   registerAccount(program, authed, () => client().baseUrl);
   return program;
 }

@@ -11,7 +11,8 @@ const INSTALL_CMD = `npm i -g ${CLI_PACKAGE_SPEC}`;
 export interface NavbarSession {
   user: SessionUser | null;
   pending: boolean;
-  onSignIn: () => void;
+  onSignIn: (provider?: 'github' | 'google') => void;
+  providers?: { github: boolean; google: boolean };
   onSignOut: () => void;
   onDashboard: () => void;
 }
@@ -126,19 +127,69 @@ export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { o
           ) : session.user ? (
             <UserMenu user={session.user} onDashboard={session.onDashboard} onSignOut={session.onSignOut} />
           ) : (
-            <button
-              type="button"
-              onClick={session.onSignIn}
-              aria-label="Sign in"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
-            >
-              <GithubIcon size={14} />
-              <span className="hidden sm:inline">Sign in</span>
-            </button>
+            <SignInButton session={session} />
           )}
         </nav>
       </div>
     </header>
+  );
+}
+
+function SignInButton({ session }: { session: NavbarSession }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const both = Boolean(session.providers?.github && session.providers?.google);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const cls = 'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg';
+  if (!both) {
+    const google = session.providers?.google && !session.providers?.github;
+    return (
+      <button type="button" onClick={() => session.onSignIn()} aria-label="Sign in" className={cls}>
+        {google ? <GoogleIcon /> : <GithubIcon size={14} />}
+        <span className="hidden sm:inline">Sign in</span>
+      </button>
+    );
+  }
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Sign in" aria-haspopup="menu" aria-expanded={open} className={cls}>
+        <GithubIcon size={14} />
+        <span className="hidden sm:inline">Sign in</span>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 mt-2 w-44 rounded-lg border border-border bg-surface p-1 shadow-2xl animate-fade-up">
+          <button type="button" role="menuitem" onClick={() => session.onSignIn('github')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
+            <GithubIcon size={14} /> GitHub
+          </button>
+          <button type="button" role="menuitem" onClick={() => session.onSignIn('google')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-fg hover:bg-surface-2">
+            <GoogleIcon /> Google
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+      <path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4c-.2 1.2-.9 2.3-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" opacity=".9" />
+      <path fill="currentColor" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6C4.8 19.8 8.1 22 12 22z" opacity=".7" />
+      <path fill="currentColor" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1C2.4 8.8 2 10.4 2 12s.4 3.2 1.1 4.6L6.4 14z" opacity=".5" />
+      <path fill="currentColor" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8C17 3 14.7 2 12 2 8.1 2 4.8 4.2 3.1 7.4L6.4 10c.8-2.3 3-4.1 5.6-4.1z" opacity=".8" />
+    </svg>
   );
 }
 

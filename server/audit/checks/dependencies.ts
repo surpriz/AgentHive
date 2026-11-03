@@ -1,7 +1,8 @@
-import type { Check, CheckResult, Finding } from '../types';
+import type { AuditContext, Check, CheckResult, Finding } from '../types';
 import { withTimeout } from '../util';
 import { readCapped } from '../net';
 import { parse as parseToml } from 'smol-toml';
+import { isV2 } from '../../manifest';
 
 export interface Dep {
   ecosystem: 'npm' | 'PyPI';
@@ -162,7 +163,8 @@ const UNVERIFIED = { grade: 'AA' as const, reason: 'dependencies not checked' };
 export const dependenciesCheck: Check = {
   id: 'dependencies',
   network: true,
-  async run(manifest, ctx): Promise<CheckResult> {
+  async run({ manifest }, ctx): Promise<CheckResult> {
+    if (isV2(manifest)) return { findings: [], skipped: 'declarative package, see the bricks and vulnerabilities checks' };
     const source = manifest.spec.source;
     if (!source) return { findings: [], skipped: 'no source declared', caps: [{ grade: 'AA', reason: 'source repository not declared, dependencies not checked' }] };
     const gh = parseGithubSource(source.repo);
@@ -212,28 +214,37 @@ export const dependenciesCheck: Check = {
       caps.push({ grade: 'AA', reason: `${deps.length - MAX_DEPS} dependencies beyond the first ${MAX_DEPS} were not checked` });
     }
 
-    let results: { vulns?: OsvVuln[] }[];
-    try {
-      const res = await withTimeout(
-        ctx.fetch('https://api.osv.dev/v1/querybatch', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ queries: unique.map((d) => ({ package: { name: d.name, ecosystem: d.ecosystem }, version: d.version })) }),
-        }),
-        ctx.callTimeoutMs,
-        'osv',
-      );
-      if (!res.ok) throw new Error(`osv ${res.status}`);
-      results = ((await res.json()) as { results: { vulns?: OsvVuln[] }[] }).results;
-    } catch (e) {
-      return { findings: [], skipped: `vulnerability database unavailable: ${(e as Error).message}`, caps: [{ grade: 'AA', reason: 'dependencies not checked' }] };
-    }
-    results.forEach((r, i) => {
-      for (const v of r.vulns ?? []) {
-        const d = unique[i];
-        findings.push({ check: 'dependencies', severity: severityOf(v), message: `${d.name}@${d.version}: ${v.id}${v.summary ? ` — ${v.summary}` : ''}`, hint: 'Upgrade the dependency.' });
-      }
-    });
+    const osv = await osvFindings(unique, ctx, 'dependencies');
+    if ('skipped' in osv) return { findings: [], skipped: osv.skipped, caps: [{ grade: 'AA', reason: 'dependencies not checked' }] };
+    findings.push(...osv.findings);
     return { findings, caps };
   },
 };
+
+/** Queries OSV for exact (name, version) pairs. Shared by the v1 dependencies check and the v2 vulnerabilities check. */
+export async function osvFindings(deps: Dep[], ctx: AuditContext, check: 'dependencies' | 'vulnerabilities'): Promise<{ findings: Finding[] } | { skipped: string }> {
+  let results: { vulns?: OsvVuln[] }[];
+  try {
+    const res = await withTimeout(
+      ctx.fetch('https://api.osv.dev/v1/querybatch', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ queries: deps.map((d) => ({ package: { name: d.name, ecosystem: d.ecosystem }, version: d.version })) }),
+      }),
+      ctx.callTimeoutMs,
+      'osv',
+    );
+    if (!res.ok) throw new Error(`osv ${res.status}`);
+    results = ((await res.json()) as { results: { vulns?: OsvVuln[] }[] }).results;
+  } catch (e) {
+    return { skipped: `vulnerability database unavailable: ${(e as Error).message}` };
+  }
+  const findings: Finding[] = [];
+  results.forEach((r, i) => {
+    for (const v of r.vulns ?? []) {
+      const d = deps[i];
+      findings.push({ check, severity: severityOf(v), message: `${d.name}@${d.version}: ${v.id}${v.summary ? ` — ${v.summary}` : ''}`, hint: 'Upgrade the dependency.' });
+    }
+  });
+  return { findings };
+}
