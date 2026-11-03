@@ -7,6 +7,8 @@ export interface Flaw {
   file: string;
   /** Inclusive 1-based range. */
   lines: [number, number];
+  /** Other files where the same root cause can legitimately be reported; matched by category only. */
+  altFiles?: string[];
   note?: string;
 }
 
@@ -73,11 +75,15 @@ function categoryIds(taxonomy: Taxonomy, raw: string | undefined): Set<string> {
 
 const inRange = (line: number | undefined, [a, b]: [number, number]) => line !== undefined && line >= a - LINE_SLACK && line <= b + LINE_SLACK;
 
-/** A finding matches a flaw on the same file when either the line falls in the range or the category agrees. */
+/**
+ * A finding matches a flaw on the same file when either the line falls in the range
+ * or the category agrees; on an alternate file, only when the category agrees.
+ */
 export function matches(f: Finding, flaw: Flaw, taxonomy: Taxonomy): boolean {
-  if (normalizePath(f.file) !== normalizePath(flaw.file)) return false;
-  if (inRange(f.line, flaw.lines)) return true;
-  return categoryIds(taxonomy, f.category).has(flaw.category);
+  const file = normalizePath(f.file);
+  const sameCategory = categoryIds(taxonomy, f.category).has(flaw.category);
+  if (file === normalizePath(flaw.file)) return inRange(f.line, flaw.lines) || sameCategory;
+  return sameCategory && (flaw.altFiles ?? []).some((alt) => normalizePath(alt) === file);
 }
 
 function isIncidental(f: Finding, list: Incidental[], taxonomy: Taxonomy): boolean {

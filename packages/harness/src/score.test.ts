@@ -35,6 +35,13 @@ describe('score', () => {
     expect(matches({ file: 'lib/other.ts', line: 5, category: 'secrets' }, flaw, taxonomy)).toBe(false);
   });
 
+  it('accepts an alternate file for the same root cause, by category only', () => {
+    const flaw = { ...truth.flaws[0], altFiles: ['.env.local'] };
+    expect(matches({ file: '.env.local', line: 3, category: 'secrets' }, flaw, taxonomy)).toBe(true);
+    expect(matches({ file: '.env.local', line: 3 }, flaw, taxonomy)).toBe(false);
+    expect(matches({ file: '.env.local', line: 3, category: 'idor' }, flaw, taxonomy)).toBe(false);
+  });
+
   it('weights recall by severity and penalises false positives', () => {
     const s = score([{ file: 'lib/supabase.ts', line: 4 }, { file: 'README.md', line: 1, category: 'secrets' }], truth, taxonomy);
     expect(s.found).toEqual(['f1']);
