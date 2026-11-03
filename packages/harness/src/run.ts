@@ -1,0 +1,87 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import type Anthropic from '@anthropic-ai/sdk';
+import { runLoop, type Caps, type LoopResult, type MessagesClient } from './loop.js';
+import { startBricks, type ToolHost } from './mcp.js';
+import { buildSystemPrompt, type LoadedPackage } from './package.js';
+import { findingsOf, score, type Score, type Taxonomy } from './score.js';
+import { stageApp, type LoadedTask } from './task.js';
+
+const exec = promisify(execFile);
+
+export interface RunRecord {
+  harness: string;
+  package: { name: string; version: string; author: string };
+  task: { id: string; version: number; stack: string };
+  model: string;
+  runIndex: number;
+  startedAt: string;
+  endedAt: string;
+  result: LoopResult;
+  score: Score | null;
+}
+
+export interface RunOptions {
+  client: MessagesClient;
+  model: string;
+  pkg: LoadedPackage;
+  task: LoadedTask;
+  taxonomy: Taxonomy;
+  runIndex?: number;
+  caps?: Partial<Caps>;
+  host?: ToolHost;
+  settings?: Record<string, unknown>;
+  onEvent?: (e: { kind: string; detail: string }) => void;
+}
+
+/** The app directories are copied without history; the git brick still needs a repository to read. */
+async function initRepo(dir: string): Promise<void> {
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'demo', GIT_AUTHOR_EMAIL: 'demo@example.com', GIT_COMMITTER_NAME: 'demo', GIT_COMMITTER_EMAIL: 'demo@example.com' };
+  await exec('git', ['init', '-q'], { cwd: dir, env });
+  await exec('git', ['add', '-A'], { cwd: dir, env });
+  await exec('git', ['commit', '-q', '-m', 'initial import'], { cwd: dir, env });
+}
+
+export async function runTask(opts: RunOptions): Promise<RunRecord> {
+  const startedAt = new Date().toISOString();
+  const staged = await stageApp(opts.task);
+  try {
+    await initRepo(staged.dir);
+    const bricks = await startBricks(opts.pkg.bricks.mcp, staged.dir, opts.host);
+    try {
+      const result = await runLoop({
+        client: opts.client,
+        model: opts.model,
+        system: buildSystemPrompt(opts.pkg, opts.settings),
+        tools: bricks.tools,
+        input: { ...opts.task.meta.input, path: '.' },
+        outputSchema: opts.pkg.io.output as Record<string, unknown>,
+        caps: opts.caps,
+        onEvent: opts.onEvent,
+      });
+      const s = result.output ? score(findingsOf(result.output), opts.task.truth, opts.taxonomy, opts.task.incidental) : null;
+      return {
+        harness: '0.1.0',
+        package: { name: opts.pkg.name, version: opts.pkg.version, author: opts.pkg.author },
+        task: { id: opts.task.meta.id, version: opts.task.truth.version, stack: opts.task.meta.stack },
+        model: opts.model,
+        runIndex: opts.runIndex ?? 0,
+        startedAt,
+        endedAt: new Date().toISOString(),
+        result,
+        score: s,
+      };
+    } finally {
+      await bricks.close();
+    }
+  } finally {
+    await staged.cleanup();
+  }
+}
+
+/** The real client. Kept here so `bin.ts` is the only place that touches the key. */
+export async function anthropicClient(): Promise<MessagesClient> {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  const client: Anthropic = new Anthropic();
+  return client.messages;
+}

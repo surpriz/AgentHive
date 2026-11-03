@@ -1,0 +1,29 @@
+# Flaw categories for the code-audit trial. A finding matches a planted flaw on the
+# same file when its line falls in the flaw's range, or when its category (or area)
+# is the flaw's id or one of its aliases. Aliases are the category names the ranked
+# packages use in their own output schemas; generic areas such as "api" or "access"
+# are on purpose not aliases, they only count through the line.
+version: 1
+categories:
+  - { id: secret-exposure, severityDefault: high, aliases: [secrets, secret, service-key-misuse, hardcoded-secret, exposed-secret, leaked-secret, client-bundle-secret, env-exposure] }
+  - { id: committed-env, severityDefault: high, aliases: [committed-secret, env-file, dotenv-committed] }
+  - { id: secret-in-logs, severityDefault: medium, aliases: [logged-secret, secret-logging] }
+  - { id: missing-rls, severityDefault: high, aliases: [rls-off, rls-weak, rls, missing-row-level-security, row-level-security] }
+  - { id: idor, severityDefault: high, aliases: [missing-authz, broken-access-control, insecure-direct-object-reference, object-level-authorization] }
+  - { id: privilege-escalation, severityDefault: high, aliases: [client-trusted-role, role-escalation] }
+  - { id: weak-jwt, severityDefault: high, aliases: [missing-authn, jwt, alg-none, weak-secret, jwt-none] }
+  - { id: sql-injection, severityDefault: high, aliases: [sqli, injection, raw-query] }
+  - { id: nosql-injection, severityDefault: high, aliases: [injection, mongo-injection] }
+  - { id: command-injection, severityDefault: high, aliases: [injection, shell-injection, rce] }
+  - { id: xss, severityDefault: medium, aliases: [cross-site-scripting, html-injection] }
+  - { id: mass-assignment, severityDefault: high, aliases: [no-validation, over-posting] }
+  - { id: unsigned-webhook, severityDefault: high, aliases: [webhook-signature, webhook, webhook-verification] }
+  - { id: open-redirect, severityDefault: medium, aliases: [redirect, unvalidated-redirect] }
+  - { id: path-traversal, severityDefault: high, aliases: [traversal, directory-traversal, upload, lfi] }
+  - { id: cors, severityDefault: medium, aliases: [cors-misconfiguration, cors-wildcard] }
+  - { id: debug-endpoint, severityDefault: medium, aliases: [debug, admin-endpoint] }
+  - { id: rate-limit, severityDefault: medium, aliases: [rate-limiting, brute-force, no-rate-limit] }
+  - { id: error-leakage, severityDefault: low, aliases: [stack-trace, verbose-errors, information-disclosure] }
+  - { id: vulnerable-dependency, severityDefault: medium, aliases: [known-risky, unpinned, abandoned, cve, outdated-dependency, dependency] }
+  - { id: tls-verification, severityDefault: medium, aliases: [insecure-transport, tls, ssl-verification] }
+  - { id: ssrf, severityDefault: high, aliases: [server-side-request-forgery] }

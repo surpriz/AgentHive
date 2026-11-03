@@ -1,0 +1,5 @@
+[
+  { "file": "src/routes/auth.ts", "category": "rate-limit", "note": "No rate limit on login or signup; real, not planted, neutral in this task." },
+  { "file": "src/routes/orders.ts", "note": "Stock is never decremented and APP_URL is unchecked; functional, not security." },
+  { "file": "src/server.ts", "note": "No helmet, no CORS policy declared; API is same-origin by design, neutral." }
+]

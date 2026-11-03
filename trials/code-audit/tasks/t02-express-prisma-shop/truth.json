@@ -1,0 +1,31 @@
+{
+  "task": "t02-express-prisma-shop",
+  "version": 1,
+  "flaws": [
+    {
+      "id": "f1",
+      "category": "sql-injection",
+      "severity": "high",
+      "file": "src/routes/products.ts",
+      "lines": [14, 21],
+      "note": "The search term is interpolated into $queryRawUnsafe; a quote in ?q= rewrites the query."
+    },
+    {
+      "id": "f2",
+      "category": "mass-assignment",
+      "severity": "high",
+      "file": "src/routes/users.ts",
+      "lines": [14, 19],
+      "note": "PATCH /users/me spreads the request body into prisma.user.update; only passwordHash and id are stripped, so a customer can set role to ADMIN or take another email."
+    },
+    {
+      "id": "f3",
+      "category": "unsigned-webhook",
+      "severity": "high",
+      "file": "src/routes/webhooks.ts",
+      "lines": [11, 26],
+      "note": "The Stripe event is parsed from the raw body without stripe.webhooks.constructEvent; anyone can mark any order PAID."
+    }
+  ],
+  "traps": []
+}

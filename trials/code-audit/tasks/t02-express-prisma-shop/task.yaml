@@ -1,0 +1,7 @@
+id: t02-express-prisma-shop
+stack: express-prisma
+public: true
+input:
+  path: "."
+  context: "Small merch shop API, Stripe checkout, launching next week. Handles orders and customer accounts."
+tags: [express, prisma, stripe, sql-injection, mass-assignment, webhook]

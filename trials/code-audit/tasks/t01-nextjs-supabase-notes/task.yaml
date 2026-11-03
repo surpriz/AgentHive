@@ -1,0 +1,7 @@
+id: t01-nextjs-supabase-notes
+stack: nextjs-supabase
+public: true
+input:
+  path: "."
+  context: "Personal notes app, about to open sign-ups to the public. Holds private notes."
+tags: [nextjs, supabase, app-router, secrets, rls, idor, trap]

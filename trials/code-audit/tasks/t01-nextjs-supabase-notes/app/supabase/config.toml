@@ -1,0 +1,14 @@
+project_id = "kqzxvtyhbfrmwnpdacls"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+major_version = 15
+
+[auth]
+site_url = "http://localhost:3000"
+enable_signup = true

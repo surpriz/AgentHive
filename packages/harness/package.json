@@ -1,0 +1,45 @@
+{
+  "name": "@agenthive-sh/harness",
+  "version": "0.1.0",
+  "description": "Runs a declarative AgentHive package against a trial task and scores the result.",
+  "keywords": [
+    "agenthive",
+    "ai-agents",
+    "benchmark",
+    "mcp"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "homepage": "https://agenthive.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/surpriz/AgentHive.git",
+    "directory": "packages/harness"
+  },
+  "bin": {
+    "agenthive-harness": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@modelcontextprotocol/sdk": "~1.32.1",
+    "commander": "^15.0.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

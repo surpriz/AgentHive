@@ -1,0 +1,6 @@
+[
+  { "file": ".env.example", "note": "Same NEXT_PUBLIC_ prefix on the service role key as f1; neutral, not a second flaw." },
+  { "file": ".gitignore", "note": "Does not exclude .env.local; part of f4." },
+  { "file": "app/notes/[id]/page.tsx", "note": "Server-side fetch of its own API without forwarding cookies; a functional bug, not a security flaw." },
+  { "file": "supabase/config.toml", "note": "Project ref is not a secret." }
+]
