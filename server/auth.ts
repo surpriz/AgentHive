@@ -85,11 +85,15 @@ export function loginFromEmail(email: string | undefined): string {
   return local.length >= 2 ? local.slice(0, 39) : `user-${local}`;
 }
 
-/** Appends -2, -3… until the login is free. */
+/** Logins nobody can take: registry names, system callers and words that would read as official. */
+export const RESERVED_LOGINS = new Set(['agenthive', 'agenthive-sh', 'system', 'system-benchmark', 'agenthive-benchmark', 'admin', 'root', 'api', 'docs', 'support', 'security', 'staff', 'official', 'registry', 'www']);
+
+/** Appends -2, -3… until the login is free. Reserved names are never handed out. The unique index on user.login is the backstop. */
 export async function uniqueLogin(db: Db, wanted: string): Promise<string> {
   const base = wanted.slice(0, 36);
   for (let i = 1; i < 50; i++) {
     const candidate = i === 1 ? base : `${base}-${i}`;
+    if (RESERVED_LOGINS.has(candidate)) continue;
     const taken = await db.query.user.findFirst({ where: eq(authSchema.user.login, candidate) });
     if (!taken) return candidate;
   }

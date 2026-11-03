@@ -43,7 +43,7 @@ export function GetTab({ agent }: { agent: Agent }) {
             ))}
             {layout.mcp.map((m) => (
               <li key={m.name} className="text-muted">
-                runs <span className="text-fg">{m.package}</span> as MCP server <span className="text-fg">{m.name}</span>
+                runs <span className="text-fg">{m.entry.command} {m.entry.args.join(' ')}</span> as MCP server <span className="text-fg">{m.name}</span>
                 {' · '}
                 <span className="text-warn">{m.permissions.filesystem !== 'none' ? `filesystem ${m.permissions.filesystem}` : 'no filesystem'} · {m.permissions.network.length ? `network ${m.permissions.network.join(', ')}` : 'no network'}</span>
                 {Object.keys(m.entry.env).length ? <span className="text-dim"> · you fill in {Object.keys(m.entry.env).join(', ')}</span> : null}
@@ -51,7 +51,7 @@ export function GetTab({ agent }: { agent: Agent }) {
             ))}
             {layout.mcp.length === 0 && <li className="text-muted">no MCP server: prompt and skills only, nothing runs on your machine</li>}
           </ul>
-          <p className="mt-2 text-[12px] text-muted">Read the Package tab first. The registry checks secrets, pinned versions and known vulnerabilities; it does not read the prompt for intent.</p>
+          <p className="mt-2 text-[12px] text-muted">Read the Package tab first. The registry checks secrets, pinned versions and known vulnerabilities; it does not read the prompt for intent. Declared permissions are what the author says the server needs: your tool does not enforce them.</p>
         </section>
       )}
 

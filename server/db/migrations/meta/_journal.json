@@ -64,6 +64,13 @@
       "when": 1793711504640,
       "tag": "0008_drop_seeds",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793711904933,
+      "tag": "0009_login_unique",
+      "breakpoints": true
     }
   ]
 }

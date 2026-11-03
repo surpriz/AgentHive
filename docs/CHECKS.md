@@ -23,6 +23,8 @@ What they do not do:
   against OSV, nothing more;
 - run the agent. Recorded runs and a sandbox are on the roadmap.
 
+MCP arguments are restricted at publish: relative paths, words and simple flags only, no absolute or parent paths, no URLs, no eval flags. Network permissions are hostnames. Both are shown in full before anything is written, and neither is enforced by the host tool: they are the author's declaration.
+
 A package with a failed `secrets` check is not published. The score behind the
 checks is kept for ranking only; the card shows the list.
 

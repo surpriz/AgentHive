@@ -295,6 +295,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     // Always the raw text: parseManifest enforces the byte cap before parsing JSON or YAML.
     const parsed = parseManifest(await c.req.text());
     if (!parsed.ok) return c.json({ error: 'invalid manifest', issues: parsed.issues }, 422);
+    if (isV2(parsed.manifest)) return c.json({ error: 'packages are published with their files', issues: [{ path: 'apiVersion', message: 'apiVersion agenthive.sh/v2 goes through POST /api/v1/packages with { manifest, files }' }] }, 422);
 
     const res = await publishManifest(db, { userId: me.id, login: me.login }, parsed.manifest, auditCtx());
     if (!res.ok) return c.json(res.code === 'AUDIT_BLOCKED' ? { error: res.message, code: res.code, audit: res.audit } : { error: res.message, code: res.code }, res.status);

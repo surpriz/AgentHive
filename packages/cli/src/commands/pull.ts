@@ -30,11 +30,13 @@ export function describePackage(pkg: PackageDoc, layout: Layout): string[] {
   if (layout.mcp.length) {
     lines.push('', c.bold('MCP servers (run on your machine):'));
     for (const m of layout.mcp) {
-      const perms = [m.permissions.filesystem !== 'none' ? `filesystem ${m.permissions.filesystem}` : null, m.permissions.network.length ? `network ${m.permissions.network.join(', ')}` : null].filter(Boolean).join(' · ') || 'no filesystem, no network';
-      const env = Object.keys(m.entry.env);
+      const perms = sanitize([m.permissions.filesystem !== 'none' ? `filesystem ${m.permissions.filesystem}` : null, m.permissions.network.length ? `network ${m.permissions.network.join(', ')}` : null].filter(Boolean).join(' · ') || 'no filesystem, no network');
+      const env = Object.keys(m.entry.env).map(sanitize);
       lines.push(`  ${sanitize(m.name)}  ${c.dim(sanitize(m.package))}`);
+      lines.push(`    runs: ${sanitize([m.entry.command, ...m.entry.args].join(' '))}`);
       lines.push(`    ${c.yellow(perms)}${env.length ? c.dim(`  env to fill: ${env.join(', ')}`) : ''}`);
     }
+    lines.push(c.dim('  declared permissions are the author\'s word; your tool does not enforce them'));
   } else lines.push('', c.dim('no MCP servers: prompt and skills only'));
   lines.push('', c.bold('Files:'));
   for (const f of layout.files) lines.push(`  ${sanitize(f.path)}  ${c.dim(`${Buffer.byteLength(f.content, 'utf8')} B`)}`);

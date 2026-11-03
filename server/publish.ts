@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { agentVersions, agents, audits } from './db/schema';
 import { createHash } from 'node:crypto';
-import { compareSemver, isV2, type Manifest, type PackageFiles } from './manifest';
+import { compareSemver, isV2, type Manifest, type PackageFiles, validatePackageFiles, type ManifestIssue } from './manifest';
 import { manifestToColumns, rowToAgent } from './registry';
 import { runAudit, type AuditContext, type Report } from './audit';
 import { newGatewaySecret } from './gateway';
@@ -11,7 +11,8 @@ import type { Agent } from '../src/types';
 export type PublishResult =
   | { ok: true; agent: Agent; created: boolean; audit: Report }
   | { ok: false; status: 409 | 403; code: 'NAME_TAKEN' | 'VERSION_NOT_GREATER'; message: string }
-  | { ok: false; status: 422; code: 'AUDIT_BLOCKED'; message: string; audit: Report };
+  | { ok: false; status: 422; code: 'AUDIT_BLOCKED'; message: string; audit: Report }
+  | { ok: false; status: 422; code: 'INVALID_PACKAGE'; message: string; issues: ManifestIssue[] };
 
 export interface Publisher {
   userId: string;
@@ -32,6 +33,11 @@ export function packageSha256(manifest: Manifest, files: PackageFiles): string {
 }
 
 export async function publishManifest(db: Db, who: Publisher, manifest: Manifest, auditCtx?: AuditContext, files?: PackageFiles): Promise<PublishResult> {
+  // Every route that stores a package goes through here, so the file rules cannot be skipped.
+  if (isV2(manifest)) {
+    const issues = validatePackageFiles(manifest, files ?? {});
+    if (issues.length > 0) return { ok: false, status: 422, code: 'INVALID_PACKAGE', message: 'invalid package', issues };
+  }
   const cols = manifestToColumns(manifest);
   const existing = await db.query.agents.findFirst({ where: eq(agents.name, cols.name) });
 

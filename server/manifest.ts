@@ -118,14 +118,29 @@ const settingSchema = z
   .refine((s) => s.type !== 'boolean' || s.default === undefined || typeof s.default === 'boolean', { message: 'default must be true or false', path: ['default'] })
   .refine((s) => s.type !== 'string' || s.default === undefined || typeof s.default === 'string', { message: 'default must be a string', path: ['default'] });
 
+/**
+ * An argument the host passes to an MCP server. The card shows args in full, but a
+ * reader will not spot `-e <code>` or `/etc/passwd` in a long line, so the shape is
+ * restricted: a relative path, a plain word, or a flag with a plain value. No absolute
+ * or home paths, no parent segments, no URLs, no shell characters, and the usual
+ * eval/exec flags are refused outright.
+ */
+const ARG_RE = /^(?:\.|\.\/[A-Za-z0-9._\-/]+|[A-Za-z0-9][A-Za-z0-9._\-/:,@]*|--?[A-Za-z][A-Za-z0-9-]*(?:=[A-Za-z0-9._\-/:,@]+)?)$/;
+const EVAL_FLAGS = new Set(['-e', '--eval', '-c', '--command', '-p', '--print', '-r', '--require', '--import', '--exec', '--eval-file', '-x']);
+export function safeArg(a: string): boolean {
+  if (!ARG_RE.test(a) || a.includes('..') || a.includes('://') || a.startsWith('~')) return false;
+  return !EVAL_FLAGS.has(a.split('=')[0]);
+}
+const HOST_RE = /^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
 const mcpBrickSchema = z.object({
   name: z.string().min(2).max(48).regex(NAME_RE, 'kebab-case'),
   package: z.string().max(200).refine((p) => NPM_PACKAGE_RE.test(p) || PYPI_PACKAGE_RE.test(p), 'npm:name@x.y.z or pypi:name==x.y.z, exact version'),
   /** Extra arguments the host passes to the server, e.g. a root directory for a filesystem server. */
-  args: z.array(z.string().max(200).regex(/^[^\r\n\0]*$/, 'no control characters')).max(8).default([]),
+  args: z.array(z.string().max(200).refine(safeArg, 'args are relative paths, words or simple flags: no absolute paths, parent segments, URLs or eval flags')).max(8).default([]),
   env: z.array(z.string().regex(ENV_NAME_RE, 'env names are UPPER_SNAKE')).max(16).default([]),
   permissions: z.object({
-    network: z.array(z.string().trim().min(1).max(253)).max(32).default([]),
+    network: z.array(z.string().trim().min(1).max(253).regex(HOST_RE, 'a hostname like api.github.com or *.example.com')).max(32).default([]),
     filesystem: z.enum(['none', 'read', 'write']).default('none'),
   }),
 });
