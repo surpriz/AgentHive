@@ -1,36 +1,43 @@
-# v2 — Test & Remix: declarative packages, measured trust, one-click retrieval
+# v2 — the proving ground: trials, declarative packages, one-click retrieval
 
-Status: design, written 2026-11-02 from `../VISION.md`, which holds the validated
-vision and the strategy. Decided by the project owner on 2026-11-02: declarative
-agents first, and `owner/name` names. Everything marked (proposed) is the builder's
-call and can be changed; numbers marked (tbd) are placeholders until prices and
-tool behaviours are verified. Replaces the v1 decision "AgentHive exposes agents,
-it does not host them".
+Status: design, written 2026-11-02 and revised 2026-11-03 from `../VISION.md`.
+Decided by the project owner: declarative agents first and `owner/name` names
+(2026-11-02), a first pool of agents built by AgentHive (2026-11-03). The
+2026-11-03 direction (trials instead of a trust layer) is proposed and pending the
+arbitration listed in VISION's "À arbitrer"; this document is written for it.
+Everything marked (proposed) is the builder's call; numbers marked (tbd) are
+placeholders until prices and tool behaviours are verified. Replaces the v1
+decision "AgentHive exposes agents, it does not host them".
 
 ## Intent
 
-AgentHive becomes the trust layer for AI agents, whatever the tool: the place where
-an agent, a skill or an MCP server has a score measured by a neutral third party.
-The hub, the sandbox and the remix loop exist to produce and show that trust.
+AgentHive is the proving ground for AI agents: for each professional goal it
+publishes a trial, a set of realistic tasks with verifiable results, runs every
+submitted agent through the same trial and publishes which one does the job, at
+what cost, with what variance. The package format, retrieval and remix exist so
+the winner can be installed and improved.
 
-A visitor finds an agent by professional goal, sees what it does on recorded runs,
-tries it live within a capped budget, retrieves it into Cursor or Claude Code in one
-action, adapts it and republishes it under their own name with visible lineage.
+A visitor reads the ranking, watches recorded runs, retrieves the agent into
+Cursor, Claude Code or Codex in one action, adapts it and resubmits it to the
+trial under their own name with visible lineage.
 
 ## Goals
 
+- One trial done well in six months: code and security audit of vibe-coded demo
+  apps with planted flaws, public methodology, private rotating tasks, several runs
+  per agent with cost and variance shown.
 - A package format that is a thin layer over SKILL.md and MCP, with no code of its own.
 - Names under an owner namespace, so forks and organisations have a home.
-- Real content from month one: real agents written for the first goal (code and
-  security audit), plus public skills and MCP servers indexed and scored.
-- Trust that does not overclaim: checks a static audit can actually make, shown as
-  a list, never as a letter that reads like a safety guarantee.
-- Measurement that moves into a sandbox AgentHive runs, with recorded examples first,
-  live runs second, the user's own key third.
-- Retrieval into Cursor and Claude Code in one action, with permissions shown first.
-- Fork and republish with lineage, scores never inherited.
-- Everything the community gets has an obvious team version later (private registry,
-  approval policy, SSO), without billing before usage is proven.
+- A first pool of 5 to 10 agents built by AgentHive, marked as baselines, then
+  third-party submissions.
+- Trust that does not overclaim: static checks shown as a list, and trial traps
+  (injection, exfiltration) reported as "resisted X of Y", never as a letter.
+- Recorded trial runs on every card; live runs are a bonus, not a prerequisite.
+- Retrieval into Claude Code and Cursor, then Codex, in one action, with permissions
+  shown first.
+- Fork and resubmit with lineage, scores never inherited.
+- Neutrality rules: no paid ranking, no paid badge. Revenue comes from private
+  trials, later.
 
 ## Non-goals (v2)
 
@@ -39,7 +46,10 @@ action, adapts it and republishes it under their own name with visible lineage.
   code and local containers come later, if at all.
 - A marketplace, creator payouts, Stripe.
 - The general public. No consumer chat surface.
-- Beating MCP directories on volume.
+- Beating MCP directories on volume, and indexing public skills or MCP servers as
+  the main bet (skills.sh, Glama and Snyk already do it).
+- A live sandbox and an on-site fork editor before the trial has third-party
+  submissions.
 - A prompt-injection scanner. We do not claim to detect malicious instructions written
   in natural language.
 - Connecting the sandbox to a visitor's own accounts or data.
@@ -50,8 +60,9 @@ action, adapts it and republishes it under their own name with visible lineage.
 |---|---|---|
 | Declarative agents first | decided | prompt + skills + pinned MCP + typed settings, no code in the agent |
 | `owner/name` | decided | every artifact lives under a user or organisation; flat names redirect |
-| Positioning and order | decided | trust layer; index and prove before sandbox and fork (VISION, Stratégie) |
+| First pool of agents | decided | 5 to 10 agents built by AgentHive, plus open-source assemblies with credit |
 | First goal | decided | code and security audit |
+| Proving-ground positioning | proposed, pending arbitration | trials and rankings first; indexing dropped as the main bet; sandbox and fork after submissions |
 | Package layout | proposed | `agent.yaml`, `prompt.md`, `skills/`, `examples/` |
 | Three artifact kinds | proposed | `Agent`, `Skill`, `McpServer`; `Prompt` folded into `Agent` |
 | Storage in Postgres | proposed | packages are text and small; no object storage in v2 |
@@ -170,10 +181,12 @@ small and grows with supply: `code-audit`, `code-review`, `data-analysis`,
 categories map onto it for the redirect period. Skills and MCP servers keep a
 `category` since they are components, not goals.
 
-## Indexing existing artifacts
+## Indexing existing artifacts (deferred)
 
-Before anyone uploads, the catalog is filled by indexing public skills and MCP
-servers:
+Dropped as the main bet on 2026-11-03: skills.sh, Glama and a dozen trust-score
+projects already index and score components. Kept here as an optional complement
+once the trial exists, mainly to give indexed MCP authors a page to claim when
+their server ranks in a trial. If built, it works as follows:
 
 - Sources: the official MCP registry, npm and PyPI packages tagged as MCP servers,
   GitHub repositories with a `SKILL.md` (tbd: exact queries and allowlist of
@@ -232,6 +245,35 @@ reclaimed), terms of service and a notice-and-action process reviewed by a lawye
 because the service is operated from the EU and hosts instructions third parties
 execute. Publishing is already open to any GitHub account today; this item closes
 that gap.
+
+## Trials
+
+A trial is the unit of measurement and the product. One per professional goal.
+
+- **Tasks.** Realistic, with a verifiable result. For `code-audit`: demo
+  applications with planted flaws (secret in a client bundle, missing row-level
+  security, open redirect, IDOR, prompt-injection trap in a README). A public part,
+  shown with the methodology, and a private rotating part, so authors cannot tune
+  for the test. Ratio and rotation cadence: tbd.
+- **Harness.** Open source, in this repository. It loads a declarative package
+  (prompt with default settings, copied skills, pinned MCP servers from the
+  validated list), runs it on a reference model against each task, and scores the
+  output with a deterministic checker per task. Protocol published.
+- **Runs.** Several per agent per task (tbd: 3 to 5), with mean and spread shown.
+  Each run records model, cost, time and the full trace. Runs are the recorded
+  examples on the card; nothing is run twice for display.
+- **Traps.** Security traps are scored separately and shown as "resisted X of Y".
+- **Ranking.** Per trial. Columns: score, spread, cost per task, time, model.
+  AgentHive's own agents are marked as baselines. A single reference model at
+  first; per-model and per-tool rankings when the budget allows (open question).
+- **Neutrality.** No paid ranking, no paid badge, ever. Private trials (see Teams)
+  never feed the public ranking.
+- **Submission.** `agent-cli push` of a package to a trial, or the web form. The
+  trial runs on the next batch; batches are scheduled to stay under the monthly cap.
+- **Report.** A monthly results page, citable, with the methodology version.
+
+The v1.3 author cases (`spec.tests`) stay as the author's own smoke tests, labelled
+as such, and never enter a ranking.
 
 ## Measurement
 
@@ -301,16 +343,20 @@ runs a month. Recordings first, trial quotas tight, own key always available.
 
 ### Leaderboard
 
-Per kind and per goal. For packages the formula drops the availability term, which
-only the gateway can measure: `0.6 · benchmark + 0.4 · checks` (proposed), with the
-registry-case tier ranked above the author-case tier. Eligibility stays: a published
-version, checks computed, a benchmark of the current version. Daily snapshots,
-history and deltas are unchanged. `runs30d` is replaced by `retrievals30d` for
-packages.
+One ranking per trial, from trial results only. Checks are shown on the card but
+do not enter the score; a failed blocking check removes the agent from the ranking.
+The availability term disappears for packages, since only the gateway can measure
+it. Eligibility: a published version, checks computed, a trial result of the
+current version. Daily snapshots, history and deltas in `server/leaderboard.ts`
+are unchanged; `runs30d` becomes `retrievals30d` for packages. The v1 category
+leaderboard remains for the hosted mode.
 
 ## Retrieval
 
-Targets first: Cursor and Claude Code. Both read skills and MCP configuration.
+Targets first: Claude Code and Cursor, then Codex. All three converge on MCP plus
+Markdown instructions (SKILL.md, AGENTS.md); Claude Code's plugin format already
+bundles skills, MCP and subagents and is the likely target there (tbd: verify each
+tool's current support for skills, subagents and plugins before freezing the export).
 
 - **Claude Code**: skills go under `.claude/skills/<name>/`, MCP servers into the
   project `.mcp.json` with the pinned package and the declared env names left empty,
@@ -357,8 +403,11 @@ is removed.
 - **Updates**: when a parent publishes a new version, forks get a notice in the
   dashboard. No automatic merge.
 
-Why republish, answered in product terms: a published fork gets measured, ranked
-within its family and credited on the parent's page; a local copy gets none of that.
+Why republish, answered in product terms: a resubmitted fork gets a trial score,
+a place in the ranking ("beats the original by 12 points") and credit on the
+parent's page; a local copy gets none of that. The on-site editor and live test
+come after third-party submissions exist; until then the CLI round trip is the
+fork path.
 
 ## Community (later)
 
@@ -366,46 +415,58 @@ Profiles with published artifacts and forks, organisations, likes, trending by
 retrievals and forks, per-artifact discussions. Sign-in adds Google and email next
 to GitHub so an account does not require GitHub; better-auth already supports both.
 
-## Teams, prepared not built
+## Teams and freelancers, prepared not built
 
-Every feature above has a team version to keep in mind while designing, so the
-data model does not block it: a private namespace with visibility `private`, an
-approval policy on which artifacts a team may retrieve, checks run on the team's
-internal bricks, SSO. None of it ships in v2; conversations with security and
-product teams start by month 3 to shape it.
+Revenue, proposed: free forever for public rankings, cards, recorded runs,
+retrieval and submission. First paid offer for freelancers and integrators:
+private trials on a client's code or data, a comparative report under their name
+or white-label, version history of their agents. Later, a team offer: private
+trials on internal code before deployment, an approved-agents registry, approval
+policy, SSO; EU hosting and AI Act compliance as the angle against Snyk and Vercel.
+Nothing ships in v2; the data model keeps a `visibility` column on trials and
+packages so private trials are a flag, not a rewrite. Validation without code:
+show a hand-made ranking to five AI freelancers and ask whether they would pay to
+run the same trial at a client.
 
 ## Metrics
 
-Primary: weekly active users, counted from retrievals, live trials and publishes.
-Supply: artifacts published by third parties per week, claimed indexed pages.
-Loop: forks published per week. Business: teams asking for a private version.
+Primary: agents submitted to a trial by third parties. Then retrievals measured
+from Claude Code, Cursor and Codex, and freelancers or teams ready to pay for a
+private trial. Weekly active users and forks are secondary.
 
 Gateway metrics (`runs30d`, availability) remain for the hosted mode only.
 
 ## Rollout
 
-Maps onto VISION's steps. Supply runs throughout.
+Maps onto VISION's six-month roadmap. Sized for one trial done well; the owner has
+two other jobs.
 
-1. **Validate** (weeks 1 to 2). Minimal v2 format on paper, five hand-written
-   `code-audit` agents, Copy-prompt modal for Cursor and Claude Code, ten testers.
-   Google and email sign-in. Stale modal replaced, `serve` removed, seeds labelled
-   then removed as real agents land.
-2. **Index and prove** (weeks 2 to 6). Indexing job for public skills and MCP
-   servers with claimable pages; checks engine on packages; the code-audit agent run
-   on demo vibe-coded apps with published results. Terms, report and takedown
-   before any promotion.
-3. **Packages** (weeks 4 to 8). `owner/name` with redirects, v2 manifest, package
-   upload and storage, `agent-cli push` of a folder, package endpoint, `pull`.
-   Public upload opens at the end of this step. 20 to 30 real agents with their
-   authors.
-4. **Measure** (weeks 8 to 14). Sandbox service, benchmark moved into it, recorded
-   examples on cards, live trial with quotas, own key. Registry cases for
-   `code-audit`. Leaderboard per kind and goal.
-5. **Remix** (weeks 14 to 20). Fork, editor, test before publish, republish with
-   lineage, families, CLI round trip.
-6. **Community** (from week 20). Likes, trending, discussions, community cases.
+1. **Month 1, the site says what the vision says.** Fictional agents removed,
+   How-it-works modal and home page rewritten in English around the trial,
+   `serve` removed, server-side rendering of cards and rankings (today the body is
+   empty without JavaScript), Google and email sign-in.
+2. **Months 1 to 2, the first trial.** v2 package format and `owner/name` with
+   redirects, the harness, the `code-audit` trial with public and private tasks,
+   the first pool of 5 to 10 agents, recorded runs with cost and variance, the
+   ranking page. Terms, report and takedown written.
+3. **Months 2 to 3, publish and open.** Results posted (Hacker News, Reddit),
+   methodology page, submission open to third parties via `agent-cli push` and the
+   web form. Authors of ranked MCP servers contacted one by one.
+4. **Month 3, revenue check.** Five freelancers and first teams shown the ranking
+   and asked about private trials.
+5. **Months 3 to 4, retrieval.** `agent-cli pull` and the copy-prompt modal for
+   Claude Code and Cursor, then Codex. Retrievals counted.
+6. **Months 4 to 6, reference.** Second trial, monthly report, "best agent for X"
+   MCP tool on the existing catalog server, per-model or per-tool columns if the
+   budget allows.
+
+After these proofs, and only if third parties submit: live sandbox trial with
+quotas, on-site fork editor, families, community features.
 
 ## What is reused
+
+The harness is the benchmark executor; trial results reuse the benchmark tables
+with a `trial_id`, and the ranking reuses the leaderboard snapshots.
 
 Accounts, API keys, dashboard, Hono app, Drizzle schema and migrations,
 `agent_versions`, publish rules, manifest validation (extended), the audit engine's
@@ -420,7 +481,13 @@ text, `agent-cli serve`, the availability term for packages.
 
 ## Open questions
 
-- Sandbox provider and model, after a pricing check. Candidates: Vercel Sandbox,
+- Public versus private share of trial tasks, and the rotation cadence.
+- Runs per agent for an acceptable spread within the monthly cap.
+- One reference model, or per-model and per-tool rankings.
+- Who reviews the trial tasks (external security experts).
+- Price and content of the freelancer offer.
+- Response if Vercel connects skills.sh and DeepsecBench.
+- Harness provider and model, after a pricing check. Candidates: Vercel Sandbox,
   E2B, Fly Machines; model mid-range with a tight per-run cap.
 - Exact file layouts for Claude Code and Cursor, and whether deep links exist.
 - Index sources and the allowlist for month one.

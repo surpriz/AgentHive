@@ -1,8 +1,9 @@
 # Vision d'AgentHive
 
-Document de référence, mis à jour le 2026-11-02. La partie « Vision validée » est
-décidée par le porteur de projet. La partie « Roadmap » et les choix de conception
-sont des propositions, sauf mention contraire.
+Document de référence, mis à jour le 2026-11-03. La partie « Vision validée » et les
+décisions datées sont celles du porteur de projet. La stratégie, la roadmap et les choix
+de conception sont des propositions, sauf mention contraire. Les contradictions entre
+décisions successives sont listées dans « À arbitrer ».
 
 ## Vision validée
 
@@ -55,262 +56,342 @@ cet assemblage transparent et facile.
 - **Noms `owner/name` :** chaque artefact vit sous un utilisateur ou une organisation, les
   noms plats redirigent. Conception détaillée dans `specs/2026-11-02-v2-hub-design.md`.
 
-## Stratégie
+### Décision du 2026-11-03
 
-Décidée par le porteur de projet le 2026-11-02, après discussion. Elle précise la
-vision sans la contredire : le hub, le sandbox et le remix sont des moyens, la
-confiance mesurée est la fin.
+- **Premier pool d'agents :** AgentHive constitue lui-même le premier pool, 5 à 10 agents,
+  plus des assemblages de skills et de serveurs MCP open source connus, licence vérifiée
+  et crédit aux auteurs. Les agents d'AgentHive sont identifiés comme tels et servent de
+  référence de base.
 
-### Positionnement
+## À arbitrer
 
-**La couche de confiance des agents IA, quel que soit l'outil.** Pas le plus gros
-catalogue, mais le seul endroit où un agent, une skill ou un serveur MCP a un score
-mesuré par un tiers neutre. Les éditeurs d'outils (Anthropic, Cursor, OpenAI) auront
-leur propre hub et ne noteront jamais objectivement ce qui tourne chez un concurrent.
-Les annuaires MCP ont déjà gagné la course au volume. La neutralité et la mesure sont
-la place qui reste, et le code existant (audit, benchmark, classement) est déjà dessus.
+Points où la synthèse du 2026-11-03 contredit une décision antérieure. Rien n'est
+supprimé, le porteur tranche.
 
-### Pourquoi « le Hugging Face des agents » ne se copie pas tel quel
+| Décidé avant | Proposé le 2026-11-03 | Ce que ça change |
+|---|---|---|
+| « Le Hugging Face des agents IA » (vision) | Dire « banc d'essai des agents », ne jamais ouvrir par « hub » ou « registre » | Le produit reste le même, le mot d'ordre change. Le pitch évite HF, la vision peut le garder en interne. |
+| « Priorité au sandbox et au fork » (2026-11-02) | Sandbox en direct et fork sur le site après les preuves (épreuve, résultats publiés, soumissions de tiers) | Le sandbox sert d'abord à produire les runs de l'épreuve, pas à l'essai libre. Le fork attend le mois 6. |
+| Stratégie « couche de confiance neutre », indexer et noter l'existant en premier (2026-11-02) | Abandonner l'indexation comme pari principal : skills.sh, Glama, Snyk et une dizaine de projets le font déjà | L'indexation devient au mieux un complément. L'épreuve devient le cœur. |
+| Parcours « Tester : sandbox simple sur le site » | « Tester » = regarder les runs enregistrés de l'épreuve, l'essai en direct est un bonus | Même étape, coût divisé. |
+| « Premiers utilisateurs : communautés en ligne » | Inchangé, mais on y arrive avec un classement chiffré, jamais avec l'annonce d'un hub | Rien à arbitrer, précision. |
 
-Hugging Face a gagné grâce à un artefact lourd que personne ne voulait héberger et à
-une librairie installée partout. Un agent déclaratif fait quelques kilo-octets et se
-copie-colle : aucune friction d'hébergement, donc aucune raison naturelle de passer
-par un hub. La raison doit venir d'ailleurs : la confiance mesurée, et la présence
-dans l'outil de l'utilisateur.
+## Stratégie proposée : le banc d'essai des agents par métier
 
-### Trois conséquences
+Proposition du 2026-11-03, à valider. Elle remplace la stratégie « couche de confiance »
+du 2026-11-02, sauf arbitrage contraire.
 
-1. **Indexer ce qui existe déjà, sans attendre les uploads.** Scanner et noter des
-   skills et serveurs MCP publics (registre officiel, GitHub, autres hubs) donne un
-   contenu international dès le premier mois, un référencement naturel sur les
-   requêtes du type « is X safe », et une raison pour les auteurs de venir réclamer
-   leur page et améliorer leur score. C'est la stratégie de Snyk Advisor et de
-   Libraries.io. L'upload et le remix viennent par-dessus, pour ceux qui publient chez
-   nous.
-2. **L'audit de code et de sécurité comme preuve publique.** Un agent d'AgentHive qui
-   trouve de vraies failles dans des apps vibe-codées de démonstration, résultats
-   publiés. C'est ce qui fait un lancement sur Hacker News, pas l'annonce d'un hub.
-3. **Préparer le revenu sans rien facturer.** Le business n'est pas la communauté.
-   Hugging Face gagne de l'argent avec les hubs privés, le SSO et le compute. Pour les
-   agents, l'équivalent est la gouvernance : quelles briques tournent dans l'équipe,
-   avec quelles permissions et quelles clés, validées par qui. Les équipes sécurité
-   bloquent déjà les MCP en entreprise. Chaque fonctionnalité communautaire doit avoir
-   une version entreprise évidente (registre privé, politique d'approbation, audit des
-   briques internes), et les premières conversations avec des équipes sécurité
-   commencent au mois 3, pas au mois 7.
+### Diagnostic
 
-### Ce que les six mois doivent prouver
+La couche de confiance neutre arrive tard :
 
-« Plateforme internationale » avec une personne, six mois et un budget modéré est une
-levée de fonds à préparer, pas un plan d'exécution. Les six mois doivent produire des
-preuves lisibles par un investisseur et par une communauté :
+- **Skills :** skills.sh (Vercel) indexe déjà toutes les skills publiques, les classe par
+  installations et affiche des audits de partenaires (Socket, Snyk). Environ 1 million de
+  skills et 280 millions d'installations en sept mois.
+- **Serveurs MCP :** registre officiel, Glama (note de qualité, observation du comportement),
+  Smithery (racheté par Arcade.dev en août 2026).
+- **Notes de confiance :** une dizaine de projets font la même chose. La note devient une
+  commodité.
+- **Gouvernance entreprise :** Snyk Agent Scan et Evo imposent déjà une politique d'adoption
+  des skills et MCP entre équipes.
+- **Le scan statique ne protège pas :** skills piégées sur skills.sh malgré les audits
+  (1,7 million d'installations), serveur empoisonné accepté par 9 registres sur 11,
+  ClawHavoc sur ClawHub.
 
-- des publications hebdomadaires par des tiers, pas seulement par le porteur ;
-- des récupérations mesurables depuis Cursor et Claude Code ;
-- deux ou trois équipes qui ont demandé une version privée.
+Conclusion : indexer et noter l'existant ferait d'AgentHive un scanner de plus, face à
+Vercel et Snyk.
 
-Sans ces preuves, l'international n'arrive pas, quel que soit le produit.
+Le vrai trou : **l'agent assemblé** (prompt + skills + MCP), évalué sur un vrai travail.
+Les composants sont couverts, l'assemblage ne l'est pas. Vercel prédit lui-même que la
+mesure passera des installations à l'efficacité. C'est la fenêtre.
 
-### Ce que ça change dans l'ordre de travail
+### Promesse
 
-Le sandbox et le fork restent la différenciation produit. Ils passent après deux
-preuves moins chères : que la confiance mesurée attire (indexation et preuve publique),
-et que des gens récupèrent réellement les agents (test à la main). Un sandbox vide et
-un fork sans forkeurs ne prouvent rien. Le fork, en particulier, est le pari le plus
-incertain : réécrire un prompt localement coûte trente secondes, donc une version
-republiée doit gagner quelque chose qu'une copie locale n'a pas, scores, place au
-classement, filiation visible.
+« AgentHive, c'est le banc d'essai des agents IA : on les fait passer sur les mêmes tests
+réels, et on publie lequel fait vraiment le travail. »
 
-### Risque juridique
+Accroche : « Trouvez l'agent qui fait vraiment le travail, prouvé sur des tests publics. »
 
-Héberger depuis l'UE des instructions que des gens exécutent sur leur machine, après
-la campagne de skills malveillantes subie par ClawHub, impose CGU, procédure de
-signalement et de retrait, et un avis d'avocat avant toute promotion. Un incident de
-sécurité public tue un hub dont la promesse est la confiance.
+### Principe
+
+Pour chaque objectif métier, AgentHive publie une **épreuve** : un jeu de tâches réalistes
+avec résultat vérifiable. Les agents y sont classés sur ce qu'ils accomplissent. Chaque
+fiche montre les runs enregistrés. Un SWE-bench ou un LMArena pour des agents métier
+packagés, pas pour des modèles.
+
+### Pourquoi ça tient mieux que le hub
+
+- **Défendable :** un prompt se copie en trente secondes. Une épreuve et son historique
+  de résultats, non.
+- **Raison de publier :** on republie une variante pour monter au classement. Le fork
+  devient « je bats l'original de 12 points ». La filiation prend sens.
+- **Coût du sandbox réglé :** les runs de l'épreuve sont les exemples enregistrés. L'essai
+  en direct devient un bonus.
+- **Sécurité sans fausse promesse :** l'épreuve contient des pièges (injection,
+  exfiltration). On affiche « a résisté à X sur Y », jamais une note AAA.
+- **Offre entreprise évidente :** lancer la même épreuve sur son propre code avant de
+  déployer un agent.
+
+### Première épreuve
+
+Audit de code et de sécurité sur des apps vibe-codées de démonstration, avec failles
+placées. Cohérent avec le premier objectif décidé le 2026-11-02.
+
+### Devenir la référence internationale
+
+Une référence se construit niche par niche. Objectif des six mois : être la référence sur
+une seule épreuve, l'audit de code d'apps vibe-codées. Pas sur les agents en général.
+
+1. **Anglais par défaut**, dès la première page.
+2. **Méthodologie publique et reproductible :** harness open source, protocole publié,
+   plusieurs runs par agent avec variance affichée. Les classements de détection de failles
+   sont instables d'une configuration à l'autre.
+3. **Une partie des tâches privée et tournante**, comme Agents' Last Exam, pour éviter
+   qu'on optimise pour l'épreuve.
+4. **Coût et modèle affichés** pour chaque run, comme HAL : précision, coût, temps.
+5. **Neutralité gravée :** jamais de classement payant ni de badge payant. Les agents
+   d'AgentHive sont marqués comme tels.
+6. **Rendez-vous réguliers :** un rapport mensuel de résultats, citable par la presse et
+   les chercheurs.
+7. **Présence dans l'outil :** un serveur MCP ou une skill « trouve le meilleur agent pour
+   X » interrogeable depuis Claude Code ou Cursor. La skill `find-skills` de Vercel prouve
+   que ce canal marche à grande échelle. Le serveur MCP du catalogue existe déjà.
+8. **S'allier aux benchmarks académiques** plutôt que les concurrencer : réutiliser leurs
+   jeux quand la licence le permet, leur proposer des épreuves métier.
+
+### Ce qu'on télécharge
+
+Un agent déclaratif ne contient pas d'IA, il contient des instructions. Une recette, pas
+un four.
+
+```
+audit-securite/
+  agent.yaml        objectif, réglages, MCP et versions, modèle conseillé
+  prompt.md         la méthode de l'agent
+  skills/<nom>/SKILL.md
+  examples/         app d'exemple et rapport attendu
+```
+
+- Le four est le modèle que le client utilise déjà dans Cursor, Codex ou Claude Code.
+- Les serveurs MCP viennent de leur source officielle (npm, PyPI, serveur hébergé), pas
+  d'AgentHive.
+- L'export dépose les fichiers au bon endroit selon l'outil. Les clés restent chez le
+  client et ne passent jamais par AgentHive.
+
+### Personnalisation, pas de fine-tuning
+
+Pas de poids à ajuster. On personnalise : réglages déclarés, prompt adapté aux règles du
+client, skills et MCP ajoutés ou retirés, puis on relance l'épreuve sur la variante.
+Personnaliser puis mesurer, c'est la différence avec une copie locale.
+
+### Multi-outils
+
+Cursor, Codex et Claude Code avec un seul format source. Ces outils convergent vers MCP et
+des instructions en Markdown (SKILL.md, AGENTS.md). `agent.yaml` reste une fine couche qui
+génère la forme attendue par chaque outil. À vérifier avant de figer l'export : la prise en
+charge des skills, sous-agents et plugins dans chaque outil (le format plugin de Claude
+Code regroupe déjà skills, MCP et sous-agents). Afficher le modèle de chaque run et, à
+terme, des résultats par outil cible.
+
+### Qui publie
+
+Règle 90-9-1 : 90 % lisent, 9 % contribuent un peu, 1 % créent. Dans un hub communautaire,
+c'est grave, la boucle remix repose sur le 1 %. Dans un banc d'essai, c'est moins grave :
+les 90 % qui consomment sont la cible, et les publieurs sont motivés par le classement
+(auteurs de MCP, éditeurs d'outils sécurité, consultants, freelances IA).
+
+Plan, à partir du premier pool décidé le 2026-11-03 :
+
+- Aller chercher les auteurs un par un : « ton MCP est 6e sur l'épreuve d'audit, tu veux
+  soumettre ta propre configuration ? »
+- Signal de réussite : un tiers soumet un agent sans qu'on le lui ait demandé.
+
+## Concurrence
+
+État au 2026-11-03.
+
+### Registres et annuaires de composants
+
+| Acteur | Ce qu'il fait | Menace |
+|---|---|---|
+| skills.sh (Vercel) | Index de skills, installations, audits partenaires | Forte sur les skills. Pas de classement d'agents assemblés. |
+| Glama, registre MCP officiel | Index MCP, notes de qualité, observation | Forte sur les MCP. |
+| Smithery / Arcade.dev | Registre MCP et skills, hébergement, OAuth | Moyenne. |
+| Snyk Agent Scan / Evo | Scan et gouvernance entreprise | Forte sur l'offre équipes « registre privé ». |
+| Petits registres de confiance | Notes de sécurité MCP et skills | Commodité. |
+
+### Benchmarks d'agents
+
+| Acteur | Ce qu'il mesure | Différence |
+|---|---|---|
+| HAL (Princeton) | Coût et précision, modèles × scaffolds | Recherche, agents génériques, rien d'installable. |
+| Agents' Last Exam (Berkeley) | Travail professionnel réel, tâches privées tournantes | Mesure les modèles. |
+| Artificial Analysis, DeepsecBench-AA (Vercel) | Modèles sur la recherche de failles dans du code web | Classe des modèles. Vercel a donc déjà une épreuve d'audit. |
+| Endor Labs Agent Security League | Code sûr écrit par modèle × outil | Mesure l'écriture, pas l'audit par un agent packagé. |
+| Arena (agent leaderboard) | Sessions réelles d'utilisateurs, par modèle | Modèles, pas packages. |
+
+### Où AgentHive se démarque
+
+Tous ces classements répondent à « quel modèle ou quel outil ? ». Personne ne répond à la
+question du praticien : « avec mon modèle et mon outil, quelle configuration installable
+fait le mieux ce travail, et combien elle coûte ? » Les benchmarks montrent que le harness
+et la configuration changent fortement le résultat. C'est ce qu'AgentHive mesure et rend
+installable en un clic.
+
+### Menace principale
+
+Vercel possède skills.sh (distribution) et DeepsecBench (épreuve d'audit). S'ils relient les
+deux, ils occupent la place. Réponse : vitesse sur une niche, neutralité, méthodologie,
+installabilité.
+
+## Modèle économique
+
+Proposé, à valider. Le freelance ou intégrateur IA est peut-être le premier client payant :
+il doit prouver à ses clients que l'agent fonctionne, et il facture déjà ce travail.
+
+1. **Gratuit pour toujours :** classements publics, fiches, runs enregistrés,
+   téléchargement, soumission d'agents.
+2. **Offre pro freelances et intégrateurs** (premier revenu, cycle court) : épreuves privées
+   sur le code ou les données d'un client, rapport comparatif à son nom ou en marque
+   blanche, historique des versions de ses agents.
+3. **Offre équipes** (plus tard) : épreuves sur le code interne avant déploiement, registre
+   des agents approuvés, politique d'approbation, SSO. Angle face à Snyk et Vercel :
+   hébergement UE, conformité AI Act.
+
+Règle absolue : on ne paie jamais pour son classement. On vend l'accès aux épreuves privées,
+jamais la position publique.
+
+Validation sans coder : montrer un classement fait à la main à 5 freelances IA (Malt,
+LinkedIn) et demander s'ils paieraient pour lancer la même épreuve chez un client.
 
 ## Où on en est
 
-**Existe déjà :** catalogue, fiches, audit de sécurité, benchmark, classement, CLI,
-serveur MCP du catalogue, gateway d'appel vers le serveur de l'auteur.
+**Existe déjà :** catalogue, fiches, audit statique, benchmark sur les cas de l'auteur,
+classement avec historique, CLI, serveur MCP du catalogue, gateway d'appel vers le serveur
+de l'auteur, runs asynchrones avec webhooks signés, comptes et clés d'API.
 
-**N'existe pas encore :** format de package, sandbox réel, récupération en 1 clic qui
-fonctionne (`agent-cli add` échoue), fork, republication avec filiation.
+**N'existe pas encore :** épreuve, harness d'exécution d'agents déclaratifs, format de
+package, export vers Cursor, Codex ou Claude Code, fork, republication avec filiation.
 
-**Écart à combler :** 6 des 7 agents en ligne sont fictifs, et le sandbox actuel rejoue
-un scénario écrit à la main.
+### Problèmes du site, vérifiés le 2026-11-03
+
+1. **Message en contradiction avec la vision.** La page d'accueil promet « the registry for
+   interoperable AI agents », LangGraph, CrewAI, AutoGen, MCP, A2A, « one manifest, any
+   runtime ». Vérifié dans `src/App.tsx`. À remplacer par la promesse du banc d'essai.
+2. **Rien de visible sans JavaScript.** Vérifié : la page d'accueil, une fiche agent et le
+   classement ne renvoient que les balises meta, le corps est vide. Le prérendu actuel ne
+   couvre que les meta. Il faut un rendu serveur ou des pages statiques pour les fiches et
+   les classements.
+3. **6 agents fictifs sur 7.** Incompatible avec une promesse de confiance. À retirer en
+   priorité, même s'il reste un seul agent.
+4. **`agent-cli add` marche, c'est `agent-cli serve` qui refuse.** `add` installe le serveur
+   MCP du catalogue dans Claude ou Cursor. Ce qui n'existe pas, c'est la récupération d'un
+   agent dans l'outil. Le modal « How it works » décrit encore la v0.
+5. **Connexion GitHub uniquement.** Ajouter Google et email.
 
 ## Roadmap proposée
 
-### Étape 1 : valider
+Six mois, dimensionnés pour une seule épreuve bien faite. Le porteur a deux emplois à côté.
 
-Écrire 5 vrais agents à la main au format ci-dessous, sur les objectifs retenus. Les
-donner à 10 personnes de la cible, nouveaux venus et développeurs. Observer s'ils
-les installent seuls, s'ils y reviennent après une semaine et ce qu'ils modifient.
-
-### Étape 2 : remettre le site au propre et indexer l'existant
-
-Corriger ou retirer `agent-cli add` et remplacer le modal périmé. Retirer les agents
-fictifs dès que les premiers vrais agents sont prêts, pour ne pas laisser un catalogue
-vide. Ajouter une connexion Google et email, car la cible n'a pas toujours GitHub.
-
-En parallèle, indexer et noter des skills et serveurs MCP publics avec l'audit
-existant, avec page réclamable par l'auteur. C'est le contenu international du
-premier mois (voir Stratégie).
-
-### Étape 2 bis : la preuve publique
-
-L'agent d'audit de code d'AgentHive tourne sur des apps vibe-codées de démonstration,
-résultats publiés. C'est le matériau du lancement dans les communautés.
-
-### Étape 3 : tester et récupérer
-
-| Sous-étape | Contenu | Terminé quand |
+| Période | Contenu | Terminé quand |
 |---|---|---|
-| 3a. Format et catalogue | Format de package, catalogue par objectif, 20 à 30 vrais agents | Un agent se publie et s'affiche avec ses briques |
-| 3b. Exemples réels | Runs enregistrés sur chaque fiche | Une fiche montre ce que fait l'agent sans rien lancer |
-| 3c. Sandbox | Run en direct sur le site, avec trace visible | Un visiteur teste sans clone ni installation |
-| 3d. Récupération | Export vers Cursor et Claude Code, puis autres outils | L'agent tourne dans l'outil après une seule action |
+| Mois 1 | Retirer les fictifs, nouveau modal, rendu serveur, page d'accueil en anglais, login Google et email | Le site dit la même chose que la vision |
+| Mois 1 à 2 | Première épreuve d'audit (apps vibe-codées, failles placées), harness, 5 à 10 agents classés, runs enregistrés avec coût et variance | Un classement crédible existe |
+| Mois 2 à 3 | Résultats publiés (Hacker News, Reddit), soumission ouverte aux tiers, CGU et retrait en place | Des agents externes sont soumis |
+| Mois 3 | Conversations avec 5 freelances et de premières équipes sur l'épreuve privée | On sait si quelqu'un paierait |
+| Mois 3 à 4 | Export en un clic vers Claude Code et Cursor, puis Codex | L'agent tourne dans l'outil après une seule action |
+| Mois 4 à 6 | Deuxième épreuve, rapport mensuel, serveur MCP « meilleur agent pour X » | AgentHive est cité comme source |
 
-### Étape 4 : remix
+Sandbox en direct et fork sur le site : après ces preuves.
 
-| Sous-étape | Contenu | Terminé quand |
-|---|---|---|
-| 4a. Fork sur le site | Éditeur de prompt, réglages, skills et MCP | Un utilisateur modifie une copie sans rien installer |
-| 4b. Test avant publication | Sandbox dans l'éditeur, comparaison avec l'original | Il voit l'effet de sa modification |
-| 4c. Republication | Nouvelle version sous son nom, filiation, contrôles | La version publiée pointe vers son original |
-| 4d. Aller-retour CLI | `pull` et `push` depuis Cursor ou le terminal | Une version modifiée en local revient en fork |
-| 4e. Familles | Arbre des variantes, classement dans une même famille | Le catalogue n'est pas noyé sous les variantes |
+### Indicateurs des six mois
 
-### Étape 5 : élargir
+- Agents soumis par des tiers sur l'épreuve (indicateur principal).
+- Récupérations mesurées depuis Claude Code, Cursor et Codex.
+- Freelances ou équipes prêts à payer une épreuve privée.
 
-Communauté (likes, tendances, discussions), agents avec code, personnalisation assistée
-par IA, autres outils cibles.
+## Choix de conception
 
-### En continu : préparer l'offre équipes
+Détail dans `specs/2026-11-02-v2-hub-design.md`. Ce qui reste valable :
 
-Dès le mois 3, conversations avec des équipes sécurité et produit. Chaque brique
-communautaire garde une déclinaison entreprise en tête : registre privé, politique
-d'approbation, audit des briques internes, SSO. Rien n'est facturé avant la preuve
-d'usage, mais la destination est connue.
-
-## Choix de conception proposés
-
-### Le package
-
-```
-my-agent/
-  agent.yaml          objectif, réglages, briques, besoins du modèle, tests
-  prompt.md           la logique de l'agent
-  skills/<nom>/SKILL.md
-  examples/           entrées et données d'exemple pour le sandbox
-```
-
-- **Déclaratif d'abord (décidé) :** pas de code à exécuter dans l'agent, ce qui rend le
-  fork, le test et l'audit beaucoup plus simples. Le code vit dans les serveurs MCP.
-- **Skills copiées dans le package :** un fork reste complet même si la skill d'origine
-  change. Pas de scripts dans les skills pour commencer.
-- **MCP référencés et épinglés :** par version exacte. Le package déclare les noms des
-  variables nécessaires, jamais leurs valeurs.
-- **Réglages typés :** déclarés dans `agent.yaml` et affichés en formulaire, pour
-  personnaliser sans toucher au prompt.
-
-### Les agents open source
-
-Beaucoup sont du code (LangGraph, CrewAI) et n'entrent pas dans ce format. Proposition :
-assembler de vrais agents déclaratifs à partir de skills et de serveurs MCP open source,
-avec licence vérifiée et crédit aux auteurs. Les agents avec code arrivent à l'étape 5.
-Le mode « hébergé par l'auteur » reste disponible via la gateway, sans fork.
-
-### Le sandbox
-
-Une boucle d'agent hébergée par AgentHive : modèle, prompt et skills, puis appels MCP.
-
-- **Entrée :** formulaire simple ou texte collé, pré-rempli avec un exemple.
-- **Trace visible :** skills chargées, appels MCP et réponses. C'est ce qui fait
-  comprendre et donne envie de modifier.
-- **Données :** exemples fournis, texte collé ou ressources publiques. Pas de connexion
-  aux comptes de l'utilisateur à ce stade, avec un avertissement avant de coller des
-  données pro.
-- **Sécurité :** MCP en lecture seule, issus d'une liste validée, isolés. Une brique non
-  validée rend l'agent non testable en direct, et la fiche l'indique.
-- **Coût :** limite d'étapes et de tokens par run, quota par compte, plafond mensuel.
-  Une boucle d'agent consomme bien plus qu'un échange de chat.
-
-Limite assumée : le sandbox montre le comportement sur des exemples, pas sur les
-données réelles de l'utilisateur.
-
-### La récupération en 1 clic
-
-- **Cibles de départ :** Cursor et Claude Code, qui lisent déjà skills et configuration
-  MCP. Cela correspond à la cible et évite l'incertitude sur les chats grand public.
-- **Forme :** une seule action, commande ou prompt à copier, ou lien profond là où c'est
-  possible (à vérifier par outil). Les clés restent à renseigner par l'utilisateur.
-- **Sécurité :** installer un MCP revient à exécuter du code sur sa machine. Permissions
-  affichées en clair avant la copie, versions épinglées, jamais de texte d'auteur dans
-  un prompt généré.
-
-### Le fork
-
-- **Republication contrôlée :** brouillon privé d'abord, contrôle des secrets et des
-  données d'entreprise, licence compatible obligatoire.
-- **Filiation :** enregistrée par le serveur et affichée sur la fiche, avec crédit à
-  l'auteur d'origine.
-- **Scores :** jamais hérités. Chaque version publiée repasse l'audit et les tests.
-- **Mises à jour :** versions immuables, et un fork est prévenu quand son original évolue.
-
-### Garder les développeurs confirmés
-
-CLI et API complètes, aller-retour `pull`/`push`, agents avec code à l'étape 5, et une
-vraie place comme auteurs de serveurs MCP et de skills, dont dépendent les agents.
-
-### Ce qu'on réutilise
-
-Audit, benchmark, classement, CLI, comptes et clés d'API. Le benchmark tourne désormais
-dans le sandbox, et ses runs alimentent les exemples enregistrés.
+- **Déclaratif d'abord (décidé) :** pas de code dans l'agent, le code vit dans les MCP.
+- **Package :** `agent.yaml`, `prompt.md`, `skills/`, `examples/`. Fine couche au-dessus de
+  SKILL.md et MCP. Skills copiées, MCP épinglés, réglages typés, jamais de valeur de clé.
+- **Export :** Cursor et Claude Code d'abord, puis Codex. Permissions affichées avant la
+  copie, versions épinglées, jamais de texte d'auteur dans un prompt généré.
+- **Épreuve :** une partie publique, une partie privée tournante, plusieurs runs par
+  agent, modèle et coût affichés, pièges de sécurité comptés à part.
+- **Fork (plus tard) :** republication contrôlée, filiation, scores jamais hérités, chaque
+  variante repasse l'épreuve.
 
 ## Critiques et risques
 
-Avis formulé le 2026-11-02, à discuter. La direction est cohérente, mais ces points
-peuvent la faire échouer, du plus grave au moins grave.
+Mis à jour le 2026-11-03.
 
-1. **Pourquoi republier ?** La boucle repose sur des gens qui partagent leur version. Or
-   une version adaptée à son entreprise contient souvent du contexte privé, et la plupart
-   des utilisateurs consomment sans publier. Sans raison de publier (réputation, profil,
-   classement des forks), la boucle reste vide.
-2. **Sécurité :** la cible installe sans toujours lire, et n'importe qui peut republier
-   une variante. ClawHub a déjà subi une campagne de centaines de skills malveillantes,
-   dont certaines ont passé ses contrôles. Une note AAA sur un agent texte donnerait une
-   fausse assurance : l'audit statique ne juge pas des instructions malveillantes écrites
-   en langage naturel.
-3. **Valeur par rapport à Cursor :** un agent déclaratif se réécrit vite avec l'IA et
-   s'imite facilement. Ce qui est défendable : les mesures, la communauté, la filiation.
-4. **Écart entre sandbox et usage réel :** le modèle, les outils et les données diffèrent.
-   Un agent qui brille dans le sandbox peut décevoir dans Cursor, et l'export vers chaque
-   outil peut en perdre une partie.
-5. **Ordre de construction :** sandbox et fork sont les pièces les plus chères. Le fork
-   n'a aucun intérêt sans utilisateurs à forker.
-6. **Format :** les standards SKILL.md et MCP existent déjà. Personne n'adoptera un format
-   propre à AgentHive, donc `agent.yaml` doit rester une fine couche au-dessus d'eux.
-7. **Deux mondes :** les développeurs confirmés se méfient des catalogues pour vibe coders.
-   Il faut un objectif qui parle aux deux.
-8. **Durée :** gratuit, avec un coût qui grandit avec le succès et 6 mois de moyens. La
-   réponse pour le mois 7 est dans la section Stratégie : preuves à produire pour lever,
-   et offre équipes préparée dès le mois 3.
+1. **Vercel relie skills.sh et DeepsecBench** et occupe la place. Réponse : vitesse sur la
+   niche, neutralité, installabilité.
+2. **Crédibilité de l'épreuve :** des tâches mal construites et les développeurs confirmés
+   décrochent. Réponse : méthodologie publique, variance, revue par des experts sécurité.
+3. **Gaming de l'épreuve :** les auteurs optimisent pour le test. Réponse : tâches privées
+   tournantes.
+4. **Écart épreuve / usage réel :** modèle, outil et données diffèrent. Réponse : afficher
+   modèle et outil, résultats par outil à terme.
+5. **Coût des runs :** plusieurs runs par agent et par modèle. Réponse : plafond mensuel
+   d'environ 300 EUR, runs mutualisés entre classement et exemples.
+6. **Risque juridique :** on héberge depuis l'UE des instructions que des tiers exécutent.
+   CGU, signalement et retrait, avis d'avocat avant toute promotion.
+7. **Personne ne soumet :** à mesurer dès le mois 3, avant de construire sandbox et fork.
 
-**Pourquoi l'audit de code et de sécurité (retenu).** Les études de 2026 trouvent
-beaucoup de failles dans les apps vibe-codées (secrets exposés, contrôle d'accès). Les
-vibe coders ont le problème, les développeurs ont l'expertise pour écrire et juger les
-agents, et le résultat se mesure sur des failles connues placées dans un code de test.
-L'audit fait aussi écho à l'ADN de confiance du projet.
+## Pitch
+
+**Une phrase :** « AgentHive, c'est le banc d'essai des agents IA : on les fait passer sur
+les mêmes tests réels, et on publie lequel fait vraiment le travail. »
+
+**30 secondes :**
+
+1. Problème : des milliers d'agents IA, personne ne sait lesquels marchent. On choisit aux
+   étoiles ou au marketing.
+2. Solution : des épreuves publiques, par exemple 20 apps avec des failles cachées. Chaque
+   agent passe la même épreuve, classement sur le résultat.
+3. Usage : regarder le classement, voir l'agent travailler, l'installer en un clic dans son
+   outil. Si on l'améliore, on le resoumet.
+4. Pourquoi maintenant : les agents se multiplient plus vite que la confiance, les
+   annuaires comptent les téléchargements, personne ne mesure l'efficacité de l'agent
+   installable.
+
+**Analogies :** Que Choisir des agents IA (grand public), SWE-bench pour agents métier
+(développeurs), Lighthouse pour les agents (investisseurs).
+
+**À éviter :** ouvrir par « hub », « registre » ou « Hugging Face des agents ». Parler de
+MCP, skills ou fork dans les deux premières minutes. Toujours avoir un résultat chiffré
+sous la main.
 
 ## Questions ouvertes
 
-1. **Modèle du sandbox :** lequel choisir dans le plafond de 300 EUR/mois ? Un petit modèle
-   peut faire paraître un bon agent mauvais. Clé de l'utilisateur en option dans tous les cas.
-2. **Raison de republier :** réputation, profil, classement des forks ? Et un fork est-il
-   public par défaut ?
-3. **Sécurité des agents texte :** comment présenter la note sans donner une fausse assurance ?
-4. **Plan d'acquisition :** quelles communautés précises, avec quel message ?
-5. **Offre payante :** son contenu et le seuil d'usage qui la déclenche.
-6. **Fournisseurs :** sandbox et stockage, après vérification des prix.
-7. **Licences :** quelles licences acceptées pour autoriser le fork ?
+1. Quelle part des tâches de l'épreuve rendre publique, et à quel rythme les renouveler ?
+2. Combien de runs par agent pour une variance acceptable, dans le plafond de coût ?
+3. Classement par modèle et outil, ou classement unique avec un modèle de référence ?
+4. Qui revoit les épreuves (experts sécurité externes) ?
+5. Prix et contenu exact de l'offre pro freelances.
+6. Positionnement face à Vercel si skills.sh et DeepsecBench se rapprochent.
+7. Modèle de référence pour les runs de l'épreuve, dans le plafond de 300 EUR/mois.
+8. Fork public par défaut une fois publié ?
+9. Licences acceptées pour autoriser le fork.
+10. Fournisseur du harness d'exécution, après vérification des prix.
+
+## Sources
+
+- skills.sh : https://skills.sh/about
+- Vercel State of Agent Skills (résumé) : https://ecosistemastartup.com/vercel-skills-sh-alcanza-1-millon-de-agent-skills/
+- Comparatif registres MCP : https://qveris.ai/guides/mcp-registry-comparison/index.html
+- Smithery / Arcade.dev : https://www.ai.engineer/orgs/smithery
+- Snyk Agent Scan : https://dev.co/ai/mcp/agent-scan
+- mcpm, registres et serveur empoisonné : https://socket.dev/npm/package/@getmcpm/cli/overview/0.29.0
+- HAL (Princeton) : https://hal.cs.princeton.edu/
+- Agents' Last Exam : https://noqta.tn/en/blog/agents-last-exam-ale-benchmark-ai-agents-real-work-2026
+- DeepsecBench-AA : https://benchlm.ai/benchmarks/aadeepsecbench
+- Agent Security League (Endor Labs) : https://benchmarklist.com/benchmarks/agent_security_league/
+- Instabilité des classements de détection (EVMbench) : https://arxiv.org/html/2603.10795v1
+- Arena agent leaderboard : https://casrai.org/news/agentic-ai-benchmarks-research-automation-governance
+- find-skills (Vercel) : https://skillselion.com/skills/vercel-labs/skills/find-skills
+- Sources de la session du 2026-11-02 : dans `HANDOFF-2026-11-02.md`.

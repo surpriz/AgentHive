@@ -21,6 +21,15 @@ disagree. Design: `specs/2026-11-02-v2-hub-design.md`.
 - Fictional agents go, replaced by real ones. Sandbox and fork come first.
 - The first goal covered is code and security audit.
 
+Update, 2026-11-03: a second session proposed turning the hub into a proving
+ground (public trials per professional goal, agents ranked on what they do,
+recorded runs, retrieval into Claude Code, Cursor and Codex), with indexing of
+public skills and MCP servers dropped as the main bet and the live sandbox and
+on-site fork moved after third-party submissions. Decided that day: AgentHive
+builds the first pool of 5 to 10 agents. The rest is proposed and the
+contradictions with the 2026-11-02 decisions are listed in `VISION.md` under
+"À arbitrer". The six-month plan is in `VISION.md`, "Roadmap proposée".
+
 The validated vision and the proposed steps are in `VISION.md`, which takes
 precedence over everything below.
 
