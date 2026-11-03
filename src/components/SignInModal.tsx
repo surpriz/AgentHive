@@ -27,7 +27,7 @@ export function SignInModal({ open, onClose, config, onSocial }: { open: boolean
       if (mode === 'signup') {
         const r = await authClient.signUp.email({ email, password, name: name.trim() || email.split('@')[0], callbackURL: '/dashboard' });
         if (r.error) throw new Error(r.error.message ?? 'sign-up failed');
-        setNotice(`Check ${email}: the account is created once you open the link we just sent.`);
+        setNotice(`Check ${email} and open the link from this browser. From another device you will be asked to set your password again.`);
       } else if (mode === 'reset') {
         const r = await authClient.requestPasswordReset({ email, redirectTo: '/' });
         if (r.error) throw new Error(r.error.message ?? 'request failed');

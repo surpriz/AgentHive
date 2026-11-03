@@ -28,6 +28,8 @@ describe('email sign-in', () => {
   it('sends a verification link on sign-up, refuses sign-in until it is used, then signs the user in', async () => {
     const up = await req('/api/auth/sign-up/email', { method: 'POST', body: JSON.stringify(body) });
     expect(up.status).toBe(200);
+    const signupCookie = (up.headers.get('set-cookie') ?? '').split(/,(?=[^ ])/).find((c) => c.startsWith('ah_signup='))!;
+    expect(signupCookie).toBeDefined();
     expect(outbox).toHaveLength(1);
     expect(outbox[0].to).toBe(body.email);
     expect(outbox[0].subject).toMatch(/Confirm/);
@@ -39,7 +41,8 @@ describe('email sign-in', () => {
     // no handle is held while the address is unproven
     expect((await ctx.db.query.user.findFirst({ where: eq(userTable.email, body.email) }))?.login).toMatch(/^pending-/);
 
-    const verify = await ctx.app.request(url!, { headers: { origin: 'https://agenthive.sh' } });
+    // same browser as the sign-up: the chosen password stays
+    const verify = await ctx.app.request(url!, { headers: { origin: 'https://agenthive.sh', cookie: signupCookie.split(';')[0] } });
     expect([200, 302]).toContain(verify.status);
     // the link alone does not sign anyone in
     expect(verify.headers.get('set-cookie') ?? '').not.toContain('better-auth.session_token=');
@@ -51,6 +54,19 @@ describe('email sign-in', () => {
     const me = await req('/api/v1/me', { headers: { cookie: cookie.split(';')[0] } });
     expect(me.status).toBe(200);
     expect(((await me.json()) as { user: { login: string } }).user.login).toBe('jane');
+  });
+
+  it('a verification from another browser drops the unproven password and sends a reset link', async () => {
+    const parked = { email: 'victim@example.com', password: 'attacker-chosen-password', name: 'Mallory' };
+    expect((await req('/api/auth/sign-up/email', { method: 'POST', body: JSON.stringify(parked) })).status).toBe(200);
+    const url = /https:\/\/\S+/.exec(outbox[outbox.length - 1].text)![0];
+    const verify = await ctx.app.request(url, { headers: { origin: 'https://agenthive.sh' } });
+    expect([200, 302]).toContain(verify.status);
+    // the stranger's password no longer works
+    expect((await req('/api/auth/sign-in/email', { method: 'POST', body: JSON.stringify({ email: parked.email, password: parked.password }) })).status).toBe(401);
+    const last = outbox[outbox.length - 1];
+    expect(last.to).toBe(parked.email);
+    expect(last.subject).toMatch(/Reset/);
   });
 
   it('purges password-only accounts that never verified, after the grace period', async () => {

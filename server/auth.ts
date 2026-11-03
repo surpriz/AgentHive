@@ -4,7 +4,7 @@ import { apiKey } from '@better-auth/api-key';
 import type { Db } from './db/client';
 import * as authSchema from './db/auth-schema';
 import { and, eq, lt } from 'drizzle-orm';
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { resetMail, verificationMail, type MailSender } from './email';
 
 export interface AuthEnv {
@@ -22,7 +22,9 @@ export interface AuthEnv {
 export function createAuth(db: Db, env: AuthEnv) {
   // A mail sender turns email sign-in on with a verification link; the dev password login never verifies.
   const verify = Boolean(env.email) && env.passwordLogin !== true;
-  return betterAuth({
+  // Set once the instance exists: the verification hook needs the reset endpoint of the very auth it belongs to.
+  let requestReset: ((email: string) => Promise<unknown>) | null = null;
+  const auth = betterAuth({
     appName: 'agenthive.sh',
     secret: env.secret,
     baseURL: env.baseURL,
@@ -49,10 +51,17 @@ export function createAuth(db: Db, env: AuthEnv) {
             autoSignInAfterVerification: false,
             sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => env.email!.send(verificationMail(user.email, url)),
             // The handle becomes claimable only once the mailbox is proven, and nothing that existed before survives.
-            afterEmailVerification: async (user: { id: string; email: string; login?: string | null }) => {
+            afterEmailVerification: async (user: { id: string; email: string; login?: string | null }, request?: Request) => {
               await db.delete(authSchema.session).where(eq(authSchema.session.userId, user.id));
               const current = (await db.query.user.findFirst({ where: eq(authSchema.user.id, user.id) }))?.login ?? '';
               if (current.startsWith(PENDING_PREFIX)) await db.update(authSchema.user).set({ login: await uniqueLogin(db, loginFromEmail(user.email)) }).where(eq(authSchema.user.id, user.id));
+              // The password was chosen before the address was proven. It survives only when the link is opened by the browser
+              // that signed up; anyone else who confirms (the real owner, after a stranger parked their address) sets a new one.
+              if (!hasSignupCookie(request, user.id, env.secret)) {
+                await db.update(authSchema.account).set({ password: null }).where(and(eq(authSchema.account.userId, user.id), eq(authSchema.account.providerId, 'credential')));
+                await db.delete(authSchema.apikey).where(eq(authSchema.apikey.referenceId, user.id));
+                await requestReset?.(user.email);
+              }
             },
           },
         }
@@ -107,9 +116,29 @@ export function createAuth(db: Db, env: AuthEnv) {
       }),
     ],
   });
+  requestReset = (email) => auth.api.requestPasswordReset({ body: { email, redirectTo: '/' } });
+  return auth;
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+const SIGNUP_COOKIE = 'ah_signup';
+
+/** Marks the browser that signed up, so its own verification click keeps the password it chose. Valid one hour, like the link. */
+export function signupCookie(userId: string, secret: string, secure: boolean): string {
+  const mac = createHmac('sha256', secret).update(`signup:${userId}`).digest('hex');
+  return `${SIGNUP_COOKIE}=${userId}.${mac}; Path=/api/auth; Max-Age=3600; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
+}
+
+export function hasSignupCookie(request: Request | undefined, userId: string, secret: string): boolean {
+  const raw = request?.headers.get('cookie') ?? '';
+  const m = new RegExp(`(?:^|;\\s*)${SIGNUP_COOKIE}=([^;]+)`).exec(raw);
+  if (!m) return false;
+  const [id, mac] = m[1].split('.');
+  if (id !== userId || !mac) return false;
+  const expected = createHmac('sha256', secret).update(`signup:${userId}`).digest('hex');
+  return mac.length === expected.length && timingSafeEqual(Buffer.from(mac), Buffer.from(expected));
+}
 
 const LOGIN_RE = /[^a-z0-9-]/g;
 /** Login held by a password sign-up until its email is verified. Never claimable by anyone else. */

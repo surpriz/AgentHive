@@ -8,7 +8,7 @@ import { user as userTable } from './db/auth-schema';
 import { publishLocalAgents } from './dev/localAgents';
 import { withSnapshot } from './ssr';
 import { agentSnapshot, homeSnapshot, leaderboardSnapshot } from '../src/ssr/snapshot';
-import { createAuth, type Auth, type AuthEnv, purgeUnverifiedUsers } from './auth';
+import { createAuth, type Auth, type AuthEnv, purgeUnverifiedUsers, signupCookie } from './auth';
 import { parseManifest, isV2, validatePackageFiles, MAX_PACKAGE_BYTES } from './manifest';
 import { latestAudit, publishManifest, reauditAgent, latestVersion } from './publish';
 import { defaultContext, offlineContext, type AuditContext } from './audit';
@@ -135,6 +135,16 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   };
 
   // ---- auth -------------------------------------------------------------
+  // A successful password sign-up marks this browser, so its own verification click keeps the chosen password (see createAuth).
+  app.post('/api/auth/sign-up/email', async (c) => {
+    const res = await auth.handler(c.req.raw);
+    if (res.status !== 200) return res;
+    const body = (await res.clone().json().catch(() => null)) as { user?: { id?: string } } | null;
+    if (!body?.user?.id) return res;
+    const headers = new Headers(res.headers);
+    headers.append('set-cookie', signupCookie(body.user.id, opts.auth.secret, opts.auth.baseURL.startsWith('https://')));
+    return new Response(res.body, { status: res.status, headers });
+  });
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
   // ---- public registry ---------------------------------------------------
