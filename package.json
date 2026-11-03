@@ -19,6 +19,7 @@
     "build:api": "node scripts/bundle-api.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1161.0",
     "@better-auth/api-key": "1.7.14",
     "@neondatabase/serverless": "^1.2.0",
     "@tailwindcss/vite": "^4.3.3",
