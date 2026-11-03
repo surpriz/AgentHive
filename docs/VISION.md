@@ -1,14 +1,16 @@
 # Vision d'AgentHive
 
-Document de référence, mis à jour le 2026-11-03. La partie « Vision validée » et les
-décisions datées sont celles du porteur de projet. La stratégie, la roadmap et les choix
-de conception sont des propositions, sauf mention contraire. Les contradictions entre
-décisions successives sont listées dans « À arbitrer ».
+Document de référence, mis à jour le 2026-11-03. La partie « Vision validée », les
+décisions datées et la stratégie sont celles du porteur de projet. La roadmap et les
+choix de conception sont des propositions, sauf mention contraire. Les arbitrages entre
+décisions successives sont consignés dans « Arbitrages du 2026-11-03 ».
 
 ## Vision validée
 
-Le Hugging Face des agents IA, indépendant de GitHub, communautaire et gratuit pour
-l'instant.
+Le banc d'essai des agents IA : on les fait passer sur les mêmes tests réels, et on
+publie lequel fait vraiment le travail. Indépendant de GitHub, communautaire et gratuit
+pour l'instant. (Formulation du 2026-11-03 ; « le Hugging Face des agents » reste une
+image interne, jamais une accroche.)
 
 ### Cible
 
@@ -40,7 +42,9 @@ cet assemblage transparent et facile.
 ### Conséquences sur la roadmap
 
 - Fin des agents fictifs, remplacés par de vrais agents, open source ou créés proprement.
-- Priorité au sandbox et au fork, cœur de la proposition de valeur.
+- Priorité à l'épreuve et au classement. Sandbox en direct et fork sur le site viennent
+  après les premières soumissions de tiers (arbitrage du 2026-11-03, qui remplace la
+  priorité sandbox + fork du 2026-11-02).
 
 ### Décisions du 2026-11-02
 
@@ -63,23 +67,22 @@ cet assemblage transparent et facile.
   et crédit aux auteurs. Les agents d'AgentHive sont identifiés comme tels et servent de
   référence de base.
 
-## À arbitrer
+## Arbitrages du 2026-11-03
 
-Points où la synthèse du 2026-11-03 contredit une décision antérieure. Rien n'est
-supprimé, le porteur tranche.
+Tranchés par le porteur de projet. La stratégie « couche de confiance neutre » du
+2026-11-02 est abandonnée au profit du banc d'essai.
 
-| Décidé avant | Proposé le 2026-11-03 | Ce que ça change |
+| Avant | Tranché | Conséquence |
 |---|---|---|
-| « Le Hugging Face des agents IA » (vision) | Dire « banc d'essai des agents », ne jamais ouvrir par « hub » ou « registre » | Le produit reste le même, le mot d'ordre change. Le pitch évite HF, la vision peut le garder en interne. |
-| « Priorité au sandbox et au fork » (2026-11-02) | Sandbox en direct et fork sur le site après les preuves (épreuve, résultats publiés, soumissions de tiers) | Le sandbox sert d'abord à produire les runs de l'épreuve, pas à l'essai libre. Le fork attend le mois 6. |
-| Stratégie « couche de confiance neutre », indexer et noter l'existant en premier (2026-11-02) | Abandonner l'indexation comme pari principal : skills.sh, Glama, Snyk et une dizaine de projets le font déjà | L'indexation devient au mieux un complément. L'épreuve devient le cœur. |
-| Parcours « Tester : sandbox simple sur le site » | « Tester » = regarder les runs enregistrés de l'épreuve, l'essai en direct est un bonus | Même étape, coût divisé. |
-| « Premiers utilisateurs : communautés en ligne » | Inchangé, mais on y arrive avec un classement chiffré, jamais avec l'annonce d'un hub | Rien à arbitrer, précision. |
+| « Le Hugging Face des agents IA » | Dire « banc d'essai des agents ». HF reste une image interne. | Pitch, page d'accueil et docs publics ne parlent ni de hub ni de registre. |
+| « Priorité au sandbox et au fork » | Épreuve et classement d'abord. Sandbox en direct et fork après les soumissions de tiers. | Le sandbox sert à produire les runs de l'épreuve. Le fork passe par la CLI jusque-là. |
+| Indexer et noter l'existant en premier | Abandonné comme pari. Complément possible plus tard. | Pas de job d'indexation au mois 1. |
+| « Tester » = sandbox simple sur le site | « Tester » = regarder les runs enregistrés. L'essai en direct est un bonus. | Coût divisé, même étape du parcours. |
 
-## Stratégie proposée : le banc d'essai des agents par métier
+## Stratégie : le banc d'essai des agents par métier
 
-Proposition du 2026-11-03, à valider. Elle remplace la stratégie « couche de confiance »
-du 2026-11-02, sauf arbitrage contraire.
+Décidée par le porteur de projet le 2026-11-03. Elle remplace la stratégie « couche de
+confiance » du 2026-11-02.
 
 ### Diagnostic
 

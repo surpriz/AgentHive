@@ -2,9 +2,9 @@
 
 Status: design, written 2026-11-02 and revised 2026-11-03 from `../VISION.md`.
 Decided by the project owner: declarative agents first and `owner/name` names
-(2026-11-02), a first pool of agents built by AgentHive (2026-11-03). The
-2026-11-03 direction (trials instead of a trust layer) is proposed and pending the
-arbitration listed in VISION's "À arbitrer"; this document is written for it.
+(2026-11-02), a first pool of agents built by AgentHive and the proving-ground
+direction, trials instead of a trust layer, which replaces the 2026-11-02 strategy
+(2026-11-03).
 Everything marked (proposed) is the builder's call; numbers marked (tbd) are
 placeholders until prices and tool behaviours are verified. Replaces the v1
 decision "AgentHive exposes agents, it does not host them".
@@ -62,7 +62,7 @@ trial under their own name with visible lineage.
 | `owner/name` | decided | every artifact lives under a user or organisation; flat names redirect |
 | First pool of agents | decided | 5 to 10 agents built by AgentHive, plus open-source assemblies with credit |
 | First goal | decided | code and security audit |
-| Proving-ground positioning | proposed, pending arbitration | trials and rankings first; indexing dropped as the main bet; sandbox and fork after submissions |
+| Proving-ground positioning | decided | trials and rankings first; indexing dropped as the main bet; sandbox and fork after submissions |
 | Package layout | proposed | `agent.yaml`, `prompt.md`, `skills/`, `examples/` |
 | Three artifact kinds | proposed | `Agent`, `Skill`, `McpServer`; `Prompt` folded into `Agent` |
 | Storage in Postgres | proposed | packages are text and small; no object storage in v2 |
