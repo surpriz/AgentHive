@@ -9,7 +9,7 @@ const index: RegistryIndex = {
   apiVersion: 'agenthive.sh/v0', generatedAt: '', count: 2,
   agents: [
     { name: 'pg-query-optimizer', version: '3.0.4', author: 'dbforge', tagline: 'Tunes SQL.', framework: 'MCP Server', category: 'Data & Analytics', grade: 'AA', successRate: 97.2, costPerRun: 0.006, tools: ['Postgres'], tags: ['sql'], capabilities: ['explain.analyze'], url: 'https://reg.test/agents/pg-query-optimizer', agentCard: '', install: '' },
-    { name: 'eu-ai-act-auditor', version: '1.8.0', author: 'lexgraph', tagline: 'Audits.', framework: 'LangGraph', category: 'Security & Audit', grade: 'AAA', successRate: 96.9, costPerRun: 0.041, tools: ['PDF Parser'], tags: ['compliance'], capabilities: ['classify.risk'], url: '', agentCard: '', install: '' },
+    { name: 'eu-ai-act-auditor', version: '1.8.0', author: 'lexgraph', apiVersion: 'v2', tagline: 'Audits.', framework: 'LangGraph', category: 'Security & Audit', grade: 'AAA', successRate: 96.9, costPerRun: 0.041, tools: ['PDF Parser'], tags: ['compliance'], capabilities: ['classify.risk'], url: '', agentCard: '', install: '' },
   ],
 };
 
@@ -57,12 +57,12 @@ describe('@agenthive-sh/mcp', () => {
     expect(textOf(missing)).toContain('HTTP 404');
   });
 
-  it('install_snippet returns a pinned mcpServers entry', async () => {
+  it('install_snippet gives the gateway call for hosted agents and the pull command for packages', async () => {
     const c = await connect();
     const r = await c.callTool({ name: 'install_snippet', arguments: { name: 'pg-query-optimizer' } });
-    expect(JSON.parse(textOf(r)).mcpServers['pg-query-optimizer'].args).toContain('dbforge/pg-query-optimizer@3.0.4');
+    expect(textOf(r)).toContain('agent-cli run pg-query-optimizer');
     const cursor = await c.callTool({ name: 'install_snippet', arguments: { name: 'eu-ai-act-auditor', target: 'cursor' } });
-    expect(textOf(cursor)).toContain('.cursorrules — eu-ai-act-auditor');
+    expect(textOf(cursor)).toContain('agent-cli pull eu-ai-act-auditor --target cursor');
   });
 
   it('resource exposes the raw index', async () => {
