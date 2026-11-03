@@ -267,6 +267,13 @@ jamais la position publique.
 Validation sans coder : montrer un classement fait à la main à 5 freelances IA (Malt,
 LinkedIn) et demander s'ils paieraient pour lancer la même épreuve chez un client.
 
+## Décisions du 2026-11-03 (épreuve)
+
+- Modèle de référence : `claude-haiku-5-5`, 3 runs par tâche. Deuxième colonne : `claude-sonnet-5-5`, 1 run. Autres modèles (Kimi, GPT, DeepSeek, Qwen, GLM, Mistral) en colonnes plus tard, jamais en référence au départ.
+- Sandbox d'exécution des outils : E2B, plan Hobby. Runner hébergé sur GitHub Actions (dépôt public). Clé modèle jamais dans la sandbox.
+- Budget : 300 €/mois, arrêt dur dans le runner. Estimation : ~175 $/mois avec les deux colonnes.
+- Détail dans `docs/specs/2026-11-03-code-audit-trial-design.md`.
+
 ## Où on en est
 
 **Existe déjà :** catalogue, fiches, audit statique, benchmark sur les cas de l'auteur,
