@@ -1,8 +1,7 @@
 [
   {
     "file": "src/routes/auth.ts",
-    "category": "rate-limit",
-    "note": "No rate limit on login or signup; real, not planted, neutral in this task."
+    "note": "No rate limit on login or signup and the signup reveals taken emails; real, not planted, neutral in this task."
   },
   {
     "file": "src/routes/orders.ts",

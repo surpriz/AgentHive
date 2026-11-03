@@ -7,8 +7,8 @@ export interface Flaw {
   file: string;
   /** Inclusive 1-based range. */
   lines: [number, number];
-  /** Other files where the same root cause can legitimately be reported; matched by category only. */
-  altFiles?: string[];
+  /** Other files where the same root cause can legitimately be reported: by category, or by line when a range is given. */
+  altFiles?: (string | { file: string; lines: [number, number] })[];
   note?: string;
 }
 
@@ -83,7 +83,10 @@ export function matches(f: Finding, flaw: Flaw, taxonomy: Taxonomy): boolean {
   const file = normalizePath(f.file);
   const sameCategory = categoryIds(taxonomy, f.category).has(flaw.category);
   if (file === normalizePath(flaw.file)) return inRange(f.line, flaw.lines) || sameCategory;
-  return sameCategory && (flaw.altFiles ?? []).some((alt) => normalizePath(alt) === file);
+  return (flaw.altFiles ?? []).some((alt) => {
+    const a = typeof alt === 'string' ? { file: alt, lines: undefined } : alt;
+    return normalizePath(a.file) === file && (sameCategory || (a.lines !== undefined && inRange(f.line, a.lines)));
+  });
 }
 
 function isIncidental(f: Finding, list: Incidental[], taxonomy: Taxonomy): boolean {

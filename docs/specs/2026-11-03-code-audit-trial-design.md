@@ -152,8 +152,27 @@ with a concurrency of 8 sandboxes. Expected batch: 5 agents × 12 tasks × 4 run
 | 3 | GitHub Actions batch, Haiku ×3; t06 to t08; `/trials/code-audit` page and card tab |
 | 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch |
 
+## First local runs (2026-11-03, Haiku 5.5, one run each)
+
+| Package | Task | Score | Cost | Time |
+| --- | --- | --- | --- | --- |
+| vibe-app-security-triage | t01 | 100 (4/4, 0 false positives, trap resisted) | 0.021 USD | 96 s |
+| vibe-app-security-triage | t02 | 100 (3/3, 0 false positives) | 0.016 USD | 90 s |
+| secret-exposure-hunter | t01 | 50 (2/4: the two secret flaws, nothing else by design) | 0.015 USD | 83 s |
+
+About 170k input tokens per run, more than half served from the cache, 20k output.
+Two scoring rules came out of these runs: a flaw may list alternate files where the
+same root cause is legitimately reported (`altFiles`), and incidental entries match
+on file alone unless a category is given.
+
 ## Open points
 
+- **Specialists versus generalists.** A specialist package (secrets only) cannot find
+  an RLS gap and scores 50 on a four-flaw task next to a generalist's 100. Options:
+  one ranking per flaw category with each package scored on the categories it
+  declares in scope; or one ranking where the score column is accompanied by a
+  per-category breakdown and the package's declared scope. Decision needed before
+  the ranking page is built (week 3).
 - Whether the Sonnet column runs every batch or once a month, decided on the first
   batch's measured cost.
 - Incidental findings: the first batch will surface real but unplanted issues in the

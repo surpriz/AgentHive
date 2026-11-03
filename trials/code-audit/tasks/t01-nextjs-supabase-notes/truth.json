@@ -13,8 +13,20 @@
       ],
       "note": "The service role key is read from a NEXT_PUBLIC_ variable, so Next.js inlines it into the browser bundle; the admin client is importable from client components. May be reported on the env file that carries the NEXT_PUBLIC_ name.",
       "altFiles": [
-        ".env.local",
-        ".env.example"
+        {
+          "file": ".env.local",
+          "lines": [
+            3,
+            3
+          ]
+        },
+        {
+          "file": ".env.example",
+          "lines": [
+            3,
+            3
+          ]
+        }
       ]
     },
     {

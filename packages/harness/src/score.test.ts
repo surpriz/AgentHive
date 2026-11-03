@@ -40,6 +40,9 @@ describe('score', () => {
     expect(matches({ file: '.env.local', line: 3, category: 'secrets' }, flaw, taxonomy)).toBe(true);
     expect(matches({ file: '.env.local', line: 3 }, flaw, taxonomy)).toBe(false);
     expect(matches({ file: '.env.local', line: 3, category: 'idor' }, flaw, taxonomy)).toBe(false);
+    const ranged = { ...truth.flaws[0], altFiles: [{ file: '.env.local', lines: [3, 3] as [number, number] }] };
+    expect(matches({ file: '.env.local', line: 3 }, ranged, taxonomy)).toBe(true);
+    expect(matches({ file: '.env.local', line: 30 }, ranged, taxonomy)).toBe(false);
   });
 
   it('weights recall by severity and penalises false positives', () => {
