@@ -8,6 +8,14 @@ test('trial page renders, with the methodology link and either rows or the empty
   if ((await rows.count()) === 0) await expect(page.getByTestId('trial-empty')).toBeVisible();
 });
 
+test('a package card has a Trial tab with its recorded runs or an empty state', async ({ page }) => {
+  await page.goto('/agents/vibe-app-security-triage');
+  await page.getByRole('tab', { name: /Trial/ }).click();
+  const rows = page.getByTestId('trial-run-row');
+  if ((await rows.count()) === 0) await expect(page.getByTestId('trial-tab-empty')).toBeVisible();
+  else await expect(page.getByTestId('trial-tab')).toBeVisible();
+});
+
 test('the navbar reaches the trial and the trial page is served with a snapshot', async ({ page, request }) => {
   await page.goto('/');
   await page.getByRole('link', { name: /Trial/ }).click();

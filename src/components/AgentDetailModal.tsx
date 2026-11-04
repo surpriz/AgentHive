@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, FileCode2, Download, X, ShieldCheck, Play, Package, ListChecks } from 'lucide-react';
+import { BookOpen, FileCode2, Download, X, ShieldCheck, Play, Package, ListChecks, FlaskConical } from 'lucide-react';
 import { agentPath } from '../lib/router';
 import { CopyButton } from './ui/CodeBlock';
 import type { Agent } from '../types';
@@ -12,8 +12,9 @@ import { AuditTab } from './tabs/AuditTab';
 import { RunTab, runnableReason } from './tabs/RunTab';
 import { PackageTab } from './tabs/PackageTab';
 import { GetTab } from './tabs/GetTab';
+import { TrialTab } from './tabs/TrialTab';
 
-type TabId = 'overview' | 'run' | 'audit' | 'manifest' | 'package' | 'get';
+type TabId = 'overview' | 'run' | 'audit' | 'manifest' | 'package' | 'get' | 'trial';
 
 export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent: Agent | null; onClose: () => void; signedIn: boolean; onSignIn: () => void }) {
   const [tab, setTab] = useState<TabId>('overview');
@@ -69,6 +70,7 @@ export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent
                     { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
                     { id: 'package', label: 'Package', icon: <Package size={14} /> },
                     { id: 'audit', label: 'Checks', icon: <ListChecks size={14} /> },
+                    { id: 'trial', label: 'Trial', icon: <FlaskConical size={14} /> },
                     { id: 'get', label: 'Get it', icon: <Download size={14} /> },
                   ]
                 : [
@@ -89,6 +91,7 @@ export function AgentDetailModal({ agent, onClose, signedIn, onSignIn }: { agent
             {tab === 'manifest' && <ManifestTab agent={agent} />}
             {tab === 'package' && <PackageTab agent={agent} />}
             {tab === 'get' && <GetTab agent={agent} />}
+            {tab === 'trial' && <TrialTab agent={agent} />}
           </div>
         </>
       )}
