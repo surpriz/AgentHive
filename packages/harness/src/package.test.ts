@@ -43,5 +43,7 @@ describe('sandbox command lines', () => {
   it('quotes every argument and points uvx at the installer path', () => {
     expect(brickCommandLine({ name: 'fs', package: 'npm:@modelcontextprotocol/server-filesystem@2.1.0', args: ['.', "it's"], env: [], permissions: { network: [], filesystem: 'read' } })).toBe(`npx '-y' '@modelcontextprotocol/server-filesystem@2.1.0' '.' 'it'\\''s'`);
     expect(brickCommandLine({ name: 'git', package: 'pypi:mcp-server-git==2026.10.28', args: [], env: [], permissions: { network: [], filesystem: 'read' } })).toBe(`$HOME/.local/bin/uvx 'mcp-server-git==2026.10.28'`);
+    expect(brickCommandLine({ name: 'git', package: 'pypi:mcp-server-git==2026.10.28', args: [], env: [], permissions: { network: [], filesystem: 'read' } }, { offline: true })).toBe(`$HOME/.local/bin/uvx --offline 'mcp-server-git==2026.10.28'`);
+    expect(brickCommandLine({ name: 'fs', package: 'npm:@modelcontextprotocol/server-filesystem@2.1.0', args: ['.'], env: [], permissions: { network: [], filesystem: 'read' } }, { offline: true })).toBe(`npx --offline '-y' '@modelcontextprotocol/server-filesystem@2.1.0' '.'`);
   });
 });

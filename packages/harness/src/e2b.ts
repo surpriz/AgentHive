@@ -31,11 +31,17 @@ const UV_INSTALL = 'curl -LsSf https://astral.sh/uv/install.sh | sh';
 
 const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-/** The brick's command line, quoted for the sandbox shell. `uvx` lives where the installer puts it. */
-export function brickCommandLine(brick: McpBrick): string {
+/**
+ * The brick's command line, quoted for the sandbox shell. `uvx` lives where the
+ * installer puts it. Once internet is off, both launchers must be told to use
+ * their cache only: without `--offline`, npx hangs on a registry check even for
+ * a cached package.
+ */
+export function brickCommandLine(brick: McpBrick, opts: { offline?: boolean } = {}): string {
   const { command, args } = commandFor(brick);
   const bin = command === 'uvx' ? '$HOME/.local/bin/uvx' : command;
-  return [bin, ...args.map(shellQuote)].join(' ');
+  const flags = opts.offline ? ['--offline'] : [];
+  return [bin, ...flags, ...args.map(shellQuote)].join(' ');
 }
 
 /**
@@ -132,7 +138,7 @@ export async function createE2bSession(appDir: string, bricks: McpBrick[], opts:
   return {
     id: sandbox.sandboxId,
     cwd: APP_DIR,
-    host: { transportFor: (brick, cwd) => new SandboxStdioTransport(sandbox, brickCommandLine(brick), cwd, log) },
+    host: { transportFor: (brick, cwd) => new SandboxStdioTransport(sandbox, brickCommandLine(brick, { offline: true }), cwd, log) },
     close: async () => {
       await sandbox.kill().catch(() => false);
     },
