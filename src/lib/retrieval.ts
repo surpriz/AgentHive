@@ -53,8 +53,13 @@ export interface Layout {
 }
 
 /** One `[mcp_servers.<name>]` table for Codex's config.toml. */
+const TOML_BARE_KEY = /^[A-Za-z0-9_-]+$/;
+
 export function codexMcpToml(m: McpWrite): string {
   const q = (s: string) => JSON.stringify(s);
+  // Names and env keys are written as bare TOML keys: anything else could open a new table or key.
+  if (!TOML_BARE_KEY.test(m.name)) throw new Error(`invalid MCP server name for config.toml: ${JSON.stringify(m.name)}`);
+  for (const k of Object.keys(m.entry.env)) if (!TOML_BARE_KEY.test(k)) throw new Error(`invalid env key for config.toml: ${JSON.stringify(k)}`);
   const lines = [`[mcp_servers.${m.name}]`, `command = ${q(m.entry.command)}`, `args = [${m.entry.args.map(q).join(', ')}]`];
   const env = Object.keys(m.entry.env);
   if (env.length) lines.push(`env = { ${env.map((k) => `${k} = ${q(m.entry.env[k])}`).join(', ')} }`);

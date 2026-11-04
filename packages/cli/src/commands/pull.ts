@@ -9,8 +9,13 @@ import { c, sanitize } from '../ui.js';
 export const PULL_TARGETS: RetrievalTarget[] = ['claude', 'cursor', 'codex'];
 
 /** One `[mcp_servers.<name>]` table for Codex's config.toml. */
+const TOML_BARE_KEY = /^[A-Za-z0-9_-]+$/;
+
 export function mcpToml(name: string, entry: { command: string; args: string[]; env: Record<string, string> }): string {
   const q = (s: string) => JSON.stringify(s);
+  // Names and env keys are written as bare TOML keys: anything else could open a new table or key, so a package from any registry is refused here.
+  if (!TOML_BARE_KEY.test(name)) throw new Error(`invalid MCP server name for config.toml: ${JSON.stringify(name)}`);
+  for (const k of Object.keys(entry.env)) if (!TOML_BARE_KEY.test(k)) throw new Error(`invalid env key for config.toml: ${JSON.stringify(k)}`);
   const lines = [`[mcp_servers.${name}]`, `command = ${q(entry.command)}`, `args = [${entry.args.map(q).join(', ')}]`];
   const env = Object.keys(entry.env);
   if (env.length) lines.push(`env = { ${env.map((k) => `${k} = ${q(entry.env[k])}`).join(', ')} }`);

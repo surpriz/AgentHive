@@ -120,5 +120,7 @@ describe('pull', () => {
     expect(forced.text).toContain('[mcp_servers.fs]\ncommand = "uvx"');
     expect(forced.text).not.toContain('a@1.0.0');
     expect(forced.text).toContain('[mcp_servers.other]');
+    expect(() => mcpToml('fs]\n[evil', { command: 'x', args: [], env: {} })).toThrow(/invalid MCP server name/);
+    expect(() => mcpToml('fs', { command: 'x', args: [], env: { 'A"\n[evil]': '' } })).toThrow(/invalid env key/);
   });
 });
