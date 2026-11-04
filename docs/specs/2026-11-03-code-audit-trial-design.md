@@ -150,7 +150,7 @@ with a concurrency of 8 sandboxes. Expected batch: 5 agents × 12 tasks × 4 run
 | 1 | Harness loop against one task with the filesystem brick, local run, trace and score; `taxonomy.yaml`; t01 and t02 | done 2026-11-03 |
 | 2 | E2B template and sandboxed bricks, caps, cost accounting; t03 to t05; results endpoint and tables | done 2026-11-04 (default E2B template with a prefetch step, no custom template yet) |
 | 3 | GitHub Actions batch, Haiku ×3; t06 to t08; `/trials/code-audit` page and card tab | done 2026-11-04 |
-| 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch | Sonnet batch launched 2026-11-04; private set prepared with p01 and p02 (p03, p04 open), repository to be pushed by the owner; methodology page is the trials README for now |
+| 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch | Sonnet column live 2026-11-04 (1 run); private repository `surpriz/agenthive-trials-private` online with p01 to p04, checked out by the workflow through `TRIALS_PRIVATE_TOKEN` since batch 3; methodology page is the trials README for now |
 
 ### Specialists versus generalists: decided 2026-11-04
 
