@@ -287,12 +287,14 @@ réseau, Haiku 5.5 ×3 et Sonnet 5.5 ×1, batch hebdomadaire sur GitHub Actions,
 `/trials/code-audit` avec score, variance, coût, temps, pièges et détail par catégorie,
 onglet Trial sur chaque fiche avec les runs enregistrés, méthodologie sur la page.
 Trois batches, environ 20 $ au total. Toute personne connectée peut déjà publier un
-package avec `agent-cli push` et il entre dans le batch suivant.
+package avec `agent-cli push` et il entre dans le batch suivant. Signalement depuis
+chaque fiche (mail aux mainteneurs), dépublication par l'auteur, retrait par un admin
+avec pierre tombale sur le nom (410), résultats d'épreuve conservés ; compteur de
+récupérations (`pulls`) sur chaque package.
 
-**N'existe pas encore :** CGU, signalement et retrait (requis avant toute promotion,
-voir `specs/2026-11-02-v2-hub-design.md`, « Moderation and terms ») ; résultats
-publiés hors du site ; agents tiers classés ; retrait vers Codex ; comptage des
-récupérations ; rapport mensuel ; deuxième épreuve ; fork avec filiation.
+**N'existe pas encore :** CGU publiées (brouillon dans `legal/terms-draft.md`, à faire
+relire) ; résultats publiés hors du site ; agents tiers classés ; retrait vers Codex ;
+rapport mensuel ; deuxième épreuve ; fork avec filiation.
 
 ### Problèmes du site, relevés le 2026-11-03
 
