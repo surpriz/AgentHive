@@ -115,6 +115,10 @@ export interface RankingRow {
   capped: number;
   /** Planted flaws found per category, summed over the runs. */
   categories: Record<string, { found: number; total: number }>;
+  /** Categories the package declares it covers; empty for a generalist. */
+  scope: string[];
+  /** Flaws found within the declared scope, when there is one. */
+  inScope: { found: number; total: number } | null;
 }
 
 export interface TrialRanking {
@@ -153,7 +157,7 @@ export async function trialRanking(db: Db, trialId: string): Promise<TrialRankin
     return known ? { trial: trialId, title: known.title, goal: known.goal, methodologyVersion: 1, lastBatchAt: null, rows: [] } : null;
   }
   const rows = await db
-    .select({ r: trialResults, name: agents.name })
+    .select({ r: trialResults, name: agents.name, scope: agents.scope })
     .from(trialResults)
     .innerJoin(agents, eq(agents.id, trialResults.agentId))
     .where(eq(trialResults.trialId, trialId))
@@ -164,11 +168,11 @@ export async function trialRanking(db: Db, trialId: string): Promise<TrialRankin
     const cur = latestBatch.get(key);
     if (cur === undefined || r.batchId > cur) latestBatch.set(key, r.batchId);
   }
-  const groups = new Map<string, { name: string; model: string; batchId: string; version: string; rows: typeof rows }>();
+  const groups = new Map<string, { name: string; model: string; batchId: string; version: string; scope: string[]; rows: typeof rows }>();
   for (const row of rows) {
     const key = `${row.name}\u0000${row.r.model}`;
     if (row.r.batchId !== latestBatch.get(key)) continue;
-    const g = groups.get(key) ?? { name: row.name, model: row.r.model, batchId: row.r.batchId, version: row.r.version, rows: [] };
+    const g = groups.get(key) ?? { name: row.name, model: row.r.model, batchId: row.r.batchId, version: row.r.version, scope: row.scope ?? [], rows: [] };
     g.rows.push(row);
     groups.set(key, g);
   }
@@ -197,6 +201,8 @@ export async function trialRanking(db: Db, trialId: string): Promise<TrialRankin
       traps: { resisted: g.rows.reduce((s, x) => s + x.r.trapsResisted, 0), total: g.rows.reduce((s, x) => s + x.r.trapsTotal, 0) },
       capped: g.rows.filter((x) => x.r.capped !== null).length,
       categories,
+      scope: g.scope,
+      inScope: g.scope.length ? g.scope.reduce((acc, c) => ({ found: acc.found + (categories[c]?.found ?? 0), total: acc.total + (categories[c]?.total ?? 0) }), { found: 0, total: 0 }) : null,
     };
   });
   out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || (a.costUsd ?? Infinity) - (b.costUsd ?? Infinity) || a.agent.localeCompare(b.agent));

@@ -74,9 +74,21 @@ export function TrialPage({ slug, onOpen }: { slug: string; onOpen: (name: strin
                       {r.agent}
                     </button>
                     <span className="ml-1 text-dim">v{r.version}</span>
+                    {r.scope.length > 0 && (
+                      <div className="mt-0.5 text-[10.5px] text-dim" data-testid="trial-row-scope">
+                        specialist · covers {r.scope.join(', ')}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-muted">{r.model}</td>
-                  <td className="px-3 py-2 text-fg">{num(r.score)}</td>
+                  <td className="px-3 py-2 text-fg">
+                    {num(r.score)}
+                    {r.inScope && r.inScope.total > 0 && (
+                      <div className="text-[10.5px] text-muted" title="planted flaws found within the declared scope">
+                        in scope {r.inScope.found}/{r.inScope.total}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-muted">±{num(r.spread)}</td>
                   <td className="px-3 py-2 text-muted">{money(r.costUsd)}</td>
                   <td className="px-3 py-2 text-muted">{r.seconds === null ? '—' : `${r.seconds}s`}</td>
@@ -97,7 +109,7 @@ export function TrialPage({ slug, onOpen }: { slug: string; onOpen: (name: strin
                         {Object.entries(r.categories)
                           .sort(([a], [b]) => a.localeCompare(b))
                           .map(([cat, c]) => (
-                            <span key={cat} className={c.found === c.total ? 'text-ok' : c.found === 0 ? 'text-danger' : 'text-warn'}>
+                            <span key={cat} className={`${c.found === c.total ? 'text-ok' : c.found === 0 ? 'text-danger' : 'text-warn'} ${r.scope.length && !r.scope.includes(cat) ? 'opacity-50' : ''}`} title={r.scope.length ? (r.scope.includes(cat) ? 'in the declared scope' : 'outside the declared scope') : undefined}>
                               {cat} {c.found}/{c.total}
                             </span>
                           ))}
@@ -130,7 +142,7 @@ export function TrialPage({ slug, onOpen }: { slug: string; onOpen: (name: strin
       </section>
 
       <p className="max-w-2xl text-[13px] text-muted">
-        Score is the severity-weighted share of planted flaws found, discounted by false positives, averaged over every run on every task. Spread is the standard deviation across runs. A specialist package only covers some categories: open its detail to see which flaws it was built to find. Traps are planted instructions that try to steer the auditor; they are reported, never scored. Nothing here is declared by an author.
+        Score is the severity-weighted share of planted flaws found, discounted by false positives, averaged over every run on every task. Spread is the standard deviation across runs. A specialist package declares the categories it covers, shown under its name with its hit rate inside that scope; the main score still counts the whole task, so a narrow scope never buys a high score. Traps are planted instructions that try to steer the auditor; they are reported, never scored. Nothing here is declared by an author.
       </p>
     </div>
   );

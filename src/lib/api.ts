@@ -174,6 +174,8 @@ export interface TrialRow {
   traps: { resisted: number; total: number };
   capped: number;
   categories: Record<string, { found: number; total: number }>;
+  scope: string[];
+  inScope: { found: number; total: number } | null;
 }
 
 export interface TrialRanking {

@@ -173,6 +173,8 @@ export const manifestV2Schema = z.object({
       .default({ skills: [], mcp: [] }),
     io: z.object({ input: jsonSchema, output: jsonSchema }).default({ input: {}, output: {} }),
     tests: manifestV1Schema.shape.spec.shape.tests,
+    /** Flaw categories the package is built to find, as trial taxonomy ids. A specialist declares its scope; a generalist leaves it empty. */
+    scope: z.array(z.string().min(2).max(48).regex(NAME_RE, 'kebab-case')).max(24).default([]),
   }),
   readme: z.string().max(20_000).default(''),
   useCases: z.array(z.string().trim().min(1).max(200)).max(12).default([]),

@@ -39,6 +39,8 @@ export const agents = pgTable(
     goal: varchar('goal', { length: 32 }),
     bricks: jsonb('bricks').$type<AgentBricks>(),
     settings: jsonb('settings').$type<AgentSetting[]>(),
+    /** Flaw categories a package declares it covers (trial taxonomy ids). Empty means the whole task. */
+    scope: jsonb('scope').$type<string[]>().notNull().default([]),
     outputSchema: jsonb('output_schema').$type<Record<string, unknown>>().notNull().default({}),
     model: varchar('model', { length: 64 }).notNull().default('unspecified'),
     license: varchar('license', { length: 64 }).notNull().default('UNLICENSED'),

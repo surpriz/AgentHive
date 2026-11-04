@@ -129,7 +129,7 @@ interface TrialRankingLike {
   title: string;
   methodologyVersion: number;
   lastBatchAt: string | null;
-  rows: { agent: string; version: string; model: string; score: number | null; spread: number | null; costUsd: number | null; seconds: number | null; traps: { resisted: number; total: number }; runs: number; tasks: number }[];
+  rows: { agent: string; version: string; model: string; score: number | null; spread: number | null; costUsd: number | null; seconds: number | null; traps: { resisted: number; total: number }; runs: number; tasks: number; scope?: string[]; inScope?: { found: number; total: number } | null }[];
 }
 
 const cell = (v: number | null, f: (n: number) => string) => (v === null ? '—' : f(v));
@@ -140,9 +140,9 @@ export function trialSnapshot(r: TrialRankingLike): ReactNode {
       'tr',
       { key: `${row.agent}-${row.model}` },
       h('td', null, `#${i + 1}`),
-      h('td', null, h('a', { href: `/agents/${row.agent}`, className: 'text-accent' }, row.agent), ` v${row.version}`),
+      h('td', null, h('a', { href: `/agents/${row.agent}`, className: 'text-accent' }, row.agent), ` v${row.version}`, row.scope?.length ? ` (specialist: ${row.scope.join(', ')})` : ''),
       h('td', null, row.model),
-      h('td', null, cell(row.score, (n) => n.toFixed(1))),
+      h('td', null, cell(row.score, (n) => n.toFixed(1)), row.inScope?.total ? ` (in scope ${row.inScope.found}/${row.inScope.total})` : ''),
       h('td', null, cell(row.spread, (n) => `±${n.toFixed(1)}`)),
       h('td', null, cell(row.costUsd, (n) => `$${n.toFixed(3)}`)),
       h('td', null, cell(row.seconds, (n) => `${n}s`)),

@@ -139,4 +139,14 @@ describe('packages', () => {
     const g = (await ghost.json()) as { audit: { findings: { check: string; severity: string }[] } };
     expect(g.audit.findings.some((f) => f.check === 'bricks' && f.severity === 'high')).toBe(true);
   });
+
+  it('stores a declared scope and serves it on the catalog and the package', async () => {
+    const scoped = MANIFEST.replace('version: 1.0.0', 'version: 9.9.9').replace('  io:', '  scope: [secret-exposure, committed-env]\n  io:');
+    const res = await publish({ manifest: scoped, files: FILES });
+    expect(res.status).toBe(200);
+    const catalog = (await (await req('/api/catalog.json')).json()) as { agents: { name: string; scope: string[] }[] };
+    expect(catalog.agents.find((a) => a.name === 'secret-hunter')?.scope).toEqual(['secret-exposure', 'committed-env']);
+    const bad = await publish({ manifest: scoped.replace('version: 9.9.9', 'version: 9.9.10').replace('committed-env', 'Not Kebab'), files: FILES });
+    expect(bad.status).toBe(422);
+  });
 });

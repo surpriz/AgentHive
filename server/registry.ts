@@ -37,6 +37,7 @@ export function rowToAgent(r: AgentRow): Agent {
     transport: r.transport as Agent['transport'],
     endpoint: r.endpoint,
     publishedAt: r.createdAt.toISOString().slice(0, 10),
+    scope: r.scope ?? [],
     pulls: r.pulls,
     hiddenAt: r.hiddenAt ? r.hiddenAt.toISOString() : null,
   };
@@ -68,6 +69,7 @@ export function manifestToColumns(m: Manifest) {
       goal: m.metadata.goal,
       bricks: m.spec.bricks,
       settings: m.spec.settings,
+      scope: m.spec.scope,
     };
   }
   return {
