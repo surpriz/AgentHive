@@ -1,0 +1,25 @@
+{
+  "name": "docspace",
+  "version": "0.9.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "iron-session": "^8.0.4",
+    "next": "15.5.4",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.1.12",
+    "prisma": "^6.16.2",
+    "typescript": "^5.9.2"
+  }
+}

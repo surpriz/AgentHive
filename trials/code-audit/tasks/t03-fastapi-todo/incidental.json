@@ -1,0 +1,6 @@
+[
+  { "file": "app/main.py", "note": "Swagger UI enabled in development only; neutral." },
+  { "file": "app/routes/auth.py", "lines": [17, 33], "note": "No rate limit on login or signup and signup reveals taken emails; real, not planted, neutral." },
+  { "file": "app/auth.py", "lines": [12, 12], "note": "JWT_SECRET defaults to an empty string when unset; neutral, part of the same auth weakness as f1." },
+  { "file": "requirements.txt", "note": "Pinned versions; any advisory the agent cites is a real observation, neutral." }
+]

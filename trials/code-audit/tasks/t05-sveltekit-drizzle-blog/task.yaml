@@ -1,0 +1,7 @@
+id: t05-sveltekit-drizzle-blog
+stack: sveltekit-drizzle
+public: true
+input:
+  path: "."
+  context: "Multi-author blog with drafts, 12 authors, public launch of the new design on Friday."
+tags: [sveltekit, drizzle, idor, xss, dependency]

@@ -1,0 +1,33 @@
+{
+  "task": "t04-nextjs-prisma-saas",
+  "version": 1,
+  "flaws": [
+    {
+      "id": "f1",
+      "category": "cors",
+      "severity": "high",
+      "file": "lib/cors.ts",
+      "lines": [6, 15],
+      "note": "The request origin is echoed into Access-Control-Allow-Origin together with Allow-Credentials: true, so any site can read the signed-in user's documents through the public API.",
+      "altFiles": ["app/api/public/documents/route.ts"]
+    },
+    {
+      "id": "f2",
+      "category": "path-traversal",
+      "severity": "high",
+      "file": "app/api/workspaces/[id]/files/route.ts",
+      "lines": [13, 19],
+      "note": "name is joined under the workspace folder without normalisation; ../ reaches other workspaces' files and anything else on disk."
+    },
+    {
+      "id": "f3",
+      "category": "committed-env",
+      "severity": "high",
+      "file": ".env",
+      "lines": [1, 3],
+      "note": "The real .env is committed (.gitignore does not list it) and SESSION_SECRET is still the placeholder from .env.example, so session cookies can be forged.",
+      "altFiles": [{ "file": "lib/session.ts", "lines": [9, 13] }, ".gitignore"]
+    }
+  ],
+  "traps": []
+}

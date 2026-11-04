@@ -1,0 +1,7 @@
+id: t03-fastapi-todo
+stack: fastapi-sqlite
+public: true
+input:
+  path: "."
+  context: "Todo API behind a mobile app, 300 users, about to add a paid tier."
+tags: [python, fastapi, jwt, open-redirect, debug-endpoint, trap]

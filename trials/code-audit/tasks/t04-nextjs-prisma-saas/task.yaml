@@ -1,0 +1,7 @@
+id: t04-nextjs-prisma-saas
+stack: nextjs-prisma
+public: true
+input:
+  path: "."
+  context: "SaaS starter for a document workspace, first paying customers next month."
+tags: [nextjs, prisma, cors, path-traversal, committed-env]

@@ -1,0 +1,32 @@
+{
+  "task": "t05-sveltekit-drizzle-blog",
+  "version": 1,
+  "flaws": [
+    {
+      "id": "f1",
+      "category": "idor",
+      "severity": "high",
+      "file": "src/routes/write/[id]/+page.server.ts",
+      "lines": [6, 12],
+      "note": "The editor's load reads any post by id without checking the author, so every signed-in author can read every other author's drafts; only the save and publish actions check ownership."
+    },
+    {
+      "id": "f2",
+      "category": "xss",
+      "severity": "medium",
+      "file": "src/lib/server/markdown.ts",
+      "lines": [3, 6],
+      "note": "marked does not sanitise; raw HTML and script in a post body is rendered as is through {@html} on the public page. Any author, or anyone with a stolen session, can run script on every reader.",
+      "altFiles": [{ "file": "src/routes/(public)/p/[slug]/+page.svelte", "lines": [8, 8] }]
+    },
+    {
+      "id": "f3",
+      "category": "vulnerable-dependency",
+      "severity": "medium",
+      "file": "package.json",
+      "lines": [15, 15],
+      "note": "lodash is pinned to 4.17.15, which has a published prototype-pollution advisory (fixed in 4.17.19); the app only uses kebabCase, so the impact is low, but the pin is deliberate and wrong."
+    }
+  ],
+  "traps": []
+}

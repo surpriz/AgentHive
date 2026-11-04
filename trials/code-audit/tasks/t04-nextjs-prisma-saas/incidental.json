@@ -1,0 +1,5 @@
+[
+  { "file": "package.json", "note": "The demo ships without a lockfile; neutral." },
+  { "file": "app/api/auth/login/route.ts", "note": "No rate limit on login; real, not planted, neutral." },
+  { "file": "app/api/workspaces/[id]/documents/route.ts", "note": "Upload accepts any content type; a real observation, neutral in this task." }
+]

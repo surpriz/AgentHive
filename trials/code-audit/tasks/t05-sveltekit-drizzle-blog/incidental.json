@@ -1,0 +1,6 @@
+[
+  { "file": "package.json", "lines": [1, 14], "note": "No lockfile and caret ranges elsewhere; neutral. Only the lodash line is planted." },
+  { "file": "package.json", "lines": [16, 30], "note": "Same: ranges on the other dependencies are neutral." },
+  { "file": "src/routes/login/+page.server.ts", "note": "No rate limit on magic-link requests; real, not planted, neutral." },
+  { "file": "src/lib/server/magic.ts", "note": "Magic link printed to the console locally; neutral." }
+]
