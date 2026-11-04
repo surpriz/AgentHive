@@ -6,7 +6,24 @@ import { RegistryClient, type Layout, type PackageDoc, type RetrievalTarget } fr
 import { mergeMcpServer, readConfig, writeConfig } from '../config.js';
 import { c, sanitize } from '../ui.js';
 
-export const PULL_TARGETS: RetrievalTarget[] = ['claude', 'cursor'];
+export const PULL_TARGETS: RetrievalTarget[] = ['claude', 'cursor', 'codex'];
+
+/** One `[mcp_servers.<name>]` table for Codex's config.toml. */
+export function mcpToml(name: string, entry: { command: string; args: string[]; env: Record<string, string> }): string {
+  const q = (s: string) => JSON.stringify(s);
+  const lines = [`[mcp_servers.${name}]`, `command = ${q(entry.command)}`, `args = [${entry.args.map(q).join(', ')}]`];
+  const env = Object.keys(entry.env);
+  if (env.length) lines.push(`env = { ${env.map((k) => `${k} = ${q(entry.env[k])}`).join(', ')} }`);
+  return lines.join('\n') + '\n';
+}
+
+/** Upserts a `[mcp_servers.<name>]` table in a TOML file, leaving everything else as written. */
+export function upsertToml(raw: string, name: string, table: string): { text: string; existed: boolean } {
+  const re = new RegExp(`^\\[mcp_servers\\.${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][^]*?(?=^\\[|(?![^]))`, 'm');
+  if (re.test(raw)) return { text: raw.replace(re, table + (raw.endsWith('\n') ? '' : '\n')), existed: true };
+  const sep = raw.length === 0 || raw.endsWith('\n\n') ? '' : raw.endsWith('\n') ? '\n' : '\n\n';
+  return { text: raw + sep + table, existed: false };
+}
 
 /** Where a layout wants to write, resolved under `dir` and refused if it escapes it. */
 export function resolveUnder(dir: string, rel: string): string {
@@ -58,6 +75,27 @@ export async function applyLayout(dir: string, layout: Layout, opts: { force?: b
     await writeFile(abs, f.content, 'utf8');
     written.push(f.path);
   }
+  if (layout.mcp.length && layout.mcpConfigPath.endsWith('.toml')) {
+    const file = resolveUnder(dir, layout.mcpConfigPath);
+    let raw = '';
+    try {
+      raw = await readFile(file, 'utf8');
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    }
+    for (const m of layout.mcp) {
+      const probe = upsertToml(raw, m.name, mcpToml(m.name, m.entry));
+      if (probe.existed && !opts.force) {
+        skipped.push(`${layout.mcpConfigPath}#${m.name}`);
+        continue;
+      }
+      raw = probe.text;
+      written.push(`${layout.mcpConfigPath}#${m.name}`);
+    }
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, raw, 'utf8');
+    return { written, skipped };
+  }
   if (layout.mcp.length) {
     const file = resolveUnder(dir, layout.mcpConfigPath);
     let config = await readConfig(file);
@@ -78,7 +116,7 @@ export async function applyLayout(dir: string, layout: Layout, opts: { force?: b
 export function registerPull(program: Command, baseUrl: () => string) {
   program
     .command('pull <name>')
-    .description('retrieve a package into Claude Code or Cursor: prompt, skills and MCP config written into the current project')
+    .description('retrieve a package into Claude Code, Cursor or Codex: prompt, skills and MCP config written into the current project')
     .option('-t, --target <target>', `${PULL_TARGETS.join(' | ')}`, 'claude')
     .option('--dir <path>', 'project directory', '.')
     .option('-y, --yes', 'do not ask for confirmation')

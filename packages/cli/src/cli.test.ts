@@ -92,4 +92,33 @@ describe('pull', () => {
     expect(second.skipped).toEqual(['.claude/agents/x.md', '.claude/skills/s/SKILL.md', '.mcp.json#fs']);
     expect(() => resolveUnder(dir, '../outside.md')).toThrow(/outside/);
   });
+
+  it('writes Codex MCP servers as TOML tables and keeps what is already there', async () => {
+    const { mkdtemp, mkdir, readFile, writeFile } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    const { applyLayout, upsertToml, mcpToml } = await import('./commands/pull.js');
+    const dir = await mkdtemp(path.join(tmpdir(), 'ah-pull-codex-'));
+    await mkdir(path.join(dir, '.codex'), { recursive: true });
+    await writeFile(path.join(dir, '.codex', 'config.toml'), 'model = "o4-mini"\n\n[mcp_servers.other]\ncommand = "x"\nargs = []\n', 'utf8');
+    const layout = {
+      target: 'codex' as const,
+      files: [{ path: '.agents/skills/x/SKILL.md', content: '# x' }],
+      mcp: [{ name: 'fs', entry: { command: 'npx', args: ['-y', 'a@1.0.0', '.'], env: { TOKEN: '' } }, permissions: { network: [], filesystem: 'read' as const }, package: 'npm:a@1.0.0' }],
+      mcpConfigPath: '.codex/config.toml',
+    };
+    const first = await applyLayout(dir, layout);
+    expect(first.written).toEqual(['.agents/skills/x/SKILL.md', '.codex/config.toml#fs']);
+    const toml = await readFile(path.join(dir, '.codex', 'config.toml'), 'utf8');
+    expect(toml).toContain('model = "o4-mini"');
+    expect(toml).toContain('[mcp_servers.other]');
+    expect(toml).toContain('[mcp_servers.fs]\ncommand = "npx"\nargs = ["-y", "a@1.0.0", "."]\nenv = { TOKEN = "" }');
+    const second = await applyLayout(dir, layout);
+    expect(second.skipped).toEqual(['.agents/skills/x/SKILL.md', '.codex/config.toml#fs']);
+    const forced = upsertToml(toml, 'fs', mcpToml('fs', { command: 'uvx', args: ['b==2'], env: {} }));
+    expect(forced.existed).toBe(true);
+    expect(forced.text).toContain('[mcp_servers.fs]\ncommand = "uvx"');
+    expect(forced.text).not.toContain('a@1.0.0');
+    expect(forced.text).toContain('[mcp_servers.other]');
+  });
 });

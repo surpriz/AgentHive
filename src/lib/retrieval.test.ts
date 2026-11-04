@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLayout, copyPrompt, mcpEntryFor, renderPrompt } from './retrieval';
+import { buildLayout, codexMcpToml, copyPrompt, mcpEntryFor, renderPrompt } from './retrieval';
 
 const pkg = {
   name: 'secret-hunter',
@@ -33,6 +33,21 @@ describe('retrieval layouts', () => {
     expect(l.files[0].content).toContain('.claude/skills/secret-patterns/SKILL.md');
     expect(l.mcpConfigPath).toBe('.mcp.json');
     expect(l.mcp).toHaveLength(3);
+  });
+
+  it('codex: the agent is a skill under .agents/skills, its skills next to it, MCP in config.toml', () => {
+    const l = buildLayout(pkg, 'codex');
+    expect(l.files.map((f) => f.path)).toEqual(['.agents/skills/secret-hunter/SKILL.md', '.agents/skills/secret-patterns/SKILL.md']);
+    expect(l.files[0].content).toMatch(/^---\nname: secret-hunter\ndescription: "Finds leaked secrets."\n---/);
+    expect(l.files[0].content).toContain('Report at most 10 findings.');
+    expect(l.files[0].content).toContain('.agents/skills/secret-patterns/SKILL.md');
+    expect(l.files[0].content).toContain('.codex/config.toml');
+    expect(l.mcpConfigPath).toBe('.codex/config.toml');
+    expect(codexMcpToml(l.mcp[1])).toBe('[mcp_servers.github]\ncommand = "npx"\nargs = ["-y", "@modelcontextprotocol/server-github@2025.4.8"]\nenv = { GITHUB_PERSONAL_ACCESS_TOKEN = "" }\n');
+    const p = copyPrompt('secret-hunter', 'codex', 'https://agenthive.sh');
+    expect(p).toContain('[mcp_servers.<name>]');
+    expect(p).toContain('start with .agents/');
+    expect(p).toContain('trusted in Codex');
   });
 
   it('cursor: one rule with the skills inlined, frontmatter stripped', () => {

@@ -196,7 +196,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     background(countPull(db, row.id));
     const a = rowToAgent(row);
     const base = { name: a.name, version: a.version, author: a.author, apiVersion: 'v2' as const, goal: a.goal ?? null, license: a.license, value: a.value, tagline: a.tagline, settings: a.settings ?? [], bricks: a.bricks ?? { skills: [], mcp: [] }, files: v.files ?? {}, sha256: v.sha256 ?? null, publishedAt: a.publishedAt, url: `${opts.origin}/agents/${a.name}` };
-    const doc: PackageDoc = { ...base, layouts: { claude: buildLayout(base, 'claude'), cursor: buildLayout(base, 'cursor') } };
+    const doc: PackageDoc = { ...base, layouts: { claude: buildLayout(base, 'claude'), cursor: buildLayout(base, 'cursor'), codex: buildLayout(base, 'codex') } };
     return publicJson(c, doc);
   });
 

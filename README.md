@@ -39,7 +39,7 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/api/catalog.json` | full agent objects for the SPA |
 | `/agents/<name>/agent.json`, `agent.yaml` | A2A agent card, AgentHive manifest |
 | `/agents/<name>/audit.json` | public audit report behind the grade (hosted agents) or the checks list (packages, [docs/CHECKS.md](docs/CHECKS.md)) |
-| `/agents/<name>/package.json` | a declarative agent's files, bricks and per-tool layouts for Claude Code and Cursor |
+| `/agents/<name>/package.json` | a declarative agent's files, bricks and per-tool layouts for Claude Code, Cursor and Codex |
 | `POST /api/v1/run/<name>` | run gateway: forwards JSON to the author's endpoint, signed and logged; `x-agenthive-async: 1` returns a run id, `x-agenthive-webhook` posts the signed result ([docs/GATEWAY.md](docs/GATEWAY.md)) |
 | `GET /api/v1/runs/<runId>`, `/api/v1/webhooks/secret` | async run state and output, caller webhook secret |
 | `POST /api/v1/echo` | public echo upstream to try the gateway |

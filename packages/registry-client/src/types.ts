@@ -70,7 +70,7 @@ export interface SearchOptions {
 
 export type InstallTarget = 'claude' | 'cursor' | 'cli';
 
-export type RetrievalTarget = 'claude' | 'cursor';
+export type RetrievalTarget = 'claude' | 'cursor' | 'codex';
 
 export interface AgentSetting {
   name: string;

@@ -43,8 +43,8 @@ Sur le site, agenthive.sh :
   *Overview* (ce qu'il fait, modèle requis, licence, pulls), *Package* (les fichiers,
   lisibles en entier), *Checks* (ce que le registre a vérifié : secrets, versions,
   vulnérabilités connues), *Trial* (ses runs enregistrés sur l'épreuve, trace JSON par
-  run), *Get it* (comment l'installer dans Claude Code ou Cursor, avec les permissions
-  affichées avant la copie).
+  run), *Get it* (comment l'installer dans Claude Code, Cursor ou Codex, avec les
+  permissions affichées avant la copie).
 - **Le classement** (`/trials/code-audit`, lien « Trial » dans la barre) : une ligne
   par package et par modèle, score, spread, coût par run, temps, pièges résistés,
   et « by category » pour voir quelles failles il rate. La méthodologie est en bas de page.
@@ -62,7 +62,9 @@ npx -y -p @agenthive-sh/cli agent-cli pull vibe-app-security-triage --target cla
 ```
 
 `pull` écrit le package dans le projet courant au bon endroit pour l'outil choisi
-(`claude` ou `cursor`), affiche les permissions et demande avant d'écrire.
+(`claude`, `cursor` ou `codex`), affiche les permissions et demande avant d'écrire.
+Pour Codex, l'agent devient un skill dans `.agents/skills/` et les serveurs MCP vont
+dans `.codex/config.toml`, lu seulement si le projet est marqué de confiance dans Codex.
 
 Depuis Claude Code ou Cursor : `agent-cli setup` installe le serveur MCP du catalogue
 (`@agenthive-sh/mcp`), qui expose `search_agents`, `get_agent`, `get_manifest`,

@@ -18,7 +18,7 @@ const STEPS = [
   {
     icon: <Download size={16} />,
     title: '3. Get it into your tool',
-    body: 'One command writes the agent, its skills and its MCP config into your project, for Claude Code or Cursor. It shows the permissions and asks before writing. Or paste the copy prompt and let your tool fetch the package itself.',
+    body: 'One command writes the agent, its skills and its MCP config into your project, for Claude Code, Cursor or Codex. It shows the permissions and asks before writing. Or paste the copy prompt and let your tool fetch the package itself.',
     code: 'agent-cli pull vibe-app-security-triage --target claude',
   },
   {
@@ -35,7 +35,7 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
       <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
         <p className="text-[13.5px] leading-relaxed text-muted">
           AgentHive is the proving ground for AI agents: every agent goes through the same real tests, and the results are published. Agents are packages you
-          can read in full, checked by the registry, pulled into Claude Code or Cursor in one action, and improved under your own name.
+          can read in full, checked by the registry, pulled into Claude Code, Cursor or Codex in one action, and improved under your own name.
         </p>
 
         <ol className="space-y-4">
@@ -60,7 +60,7 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
           </div>
           <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-fg/80">
             <li>
-              <span className="text-ok">Real:</span> packages, checks, retrieval into Claude Code and Cursor, the CLI, the catalog MCP server, the gateway for agents hosted by their authors, and the code-audit trial: every package is run three times on every task in an isolated sandbox, with cost and spread on the ranking.
+              <span className="text-ok">Real:</span> packages, checks, retrieval into Claude Code, Cursor and Codex, the CLI, the catalog MCP server, the gateway for agents hosted by their authors, and the code-audit trial: every package is run three times on every task in an isolated sandbox, with cost and spread on the ranking.
             </li>
             <li>
               <span className="text-warn">Not yet:</span> only AgentHive's own five packages are ranked, on one trial, with two models. Terms and a takedown process are being written before the ranking is promoted.

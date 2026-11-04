@@ -51,6 +51,7 @@ export function GetTab({ agent }: { agent: Agent }) {
             ))}
             {layout.mcp.length === 0 && <li className="text-muted">no MCP server: prompt and skills only, nothing runs on your machine</li>}
           </ul>
+          {target === 'codex' && <p className="mt-2 text-[12px] text-muted">Codex reads <span className="text-fg">.codex/config.toml</span> and <span className="text-fg">.agents/skills</span> only in a project you have marked as trusted. Start the agent with its skill name.</p>}
           <p className="mt-2 text-[12px] text-muted">Read the Package tab first. The registry checks secrets, pinned versions and known vulnerabilities; it does not read the prompt for intent. Declared permissions are what the author says the server needs: your tool does not enforce them.</p>
         </section>
       )}
