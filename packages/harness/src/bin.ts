@@ -22,8 +22,10 @@ program
   .option('--max-output <n>', 'output-token cap per run', String(DEFAULT_CAPS.outputTokens))
   .option('--max-turns <n>', 'tool-turn cap per run', String(DEFAULT_CAPS.turns))
   .option('--max-minutes <n>', 'wall-clock cap per run', String(DEFAULT_CAPS.wallClockMs / 60_000))
+  .option('--sandbox <kind>', 'where the bricks run: local or e2b', 'local')
   .option('--quiet', 'no per-turn output')
-  .action(async (o: { package: string; task: string; taxonomy: string; model: string; runs: string; out: string; maxInput: string; maxOutput: string; maxTurns: string; maxMinutes: string; quiet?: boolean }) => {
+  .action(async (o: { package: string; task: string; taxonomy: string; model: string; runs: string; out: string; maxInput: string; maxOutput: string; maxTurns: string; maxMinutes: string; sandbox: string; quiet?: boolean }) => {
+    if (o.sandbox !== 'local' && o.sandbox !== 'e2b') throw new Error(`unknown sandbox: ${o.sandbox}`);
     const pkg = await loadPackage(o.package);
     const task = await loadTask(o.task);
     const taxonomy = await loadTaxonomy(o.taxonomy);
@@ -38,6 +40,7 @@ program
         taxonomy,
         runIndex: i,
         caps: { inputTokens: Number(o.maxInput), outputTokens: Number(o.maxOutput), turns: Number(o.maxTurns), wallClockMs: Number(o.maxMinutes) * 60_000 },
+        sandbox: o.sandbox,
         onEvent: o.quiet ? undefined : (e) => console.error(`  ${e.kind}: ${e.detail}`),
       });
       const file = path.join(o.out, `${task.meta.id}--${pkg.name}--${o.model}--${i}.json`);

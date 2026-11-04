@@ -2,7 +2,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type Anthropic from '@anthropic-ai/sdk';
 import { runLoop, type Caps, type LoopResult, type MessagesClient } from './loop.js';
-import { startBricks, type ToolHost } from './mcp.js';
+import { createE2bSession, type SandboxSession } from './e2b.js';
+import { localHost, startBricks } from './mcp.js';
 import { buildSystemPrompt, type LoadedPackage } from './package.js';
 import { findingsOf, score, type Score, type Taxonomy } from './score.js';
 import { stageApp, type LoadedTask } from './task.js';
@@ -13,6 +14,7 @@ export interface RunRecord {
   harness: string;
   package: { name: string; version: string; author: string };
   task: { id: string; version: number; stack: string };
+  sandbox: { kind: 'local' | 'e2b'; id: string };
   model: string;
   runIndex: number;
   startedAt: string;
@@ -29,7 +31,8 @@ export interface RunOptions {
   taxonomy: Taxonomy;
   runIndex?: number;
   caps?: Partial<Caps>;
-  host?: ToolHost;
+  /** Where the bricks run: on this machine (tests, author runs) or in an E2B sandbox (batches). */
+  sandbox?: 'local' | 'e2b';
   settings?: Record<string, unknown>;
   onEvent?: (e: { kind: string; detail: string }) => void;
 }
@@ -42,12 +45,17 @@ async function initRepo(dir: string): Promise<void> {
   await exec('git', ['commit', '-q', '-m', 'initial import'], { cwd: dir, env });
 }
 
+/** The local session: bricks as child processes in the staged directory. */
+const localSession = (dir: string): SandboxSession => ({ host: localHost, cwd: dir, id: 'local', close: async () => {} });
+
 export async function runTask(opts: RunOptions): Promise<RunRecord> {
   const startedAt = new Date().toISOString();
   const staged = await stageApp(opts.task);
+  let session: SandboxSession | null = null;
   try {
     await initRepo(staged.dir);
-    const bricks = await startBricks(opts.pkg.bricks.mcp, staged.dir, opts.host);
+    session = opts.sandbox === 'e2b' ? await createE2bSession(staged.dir, opts.pkg.bricks.mcp, { onLog: (l) => opts.onEvent?.({ kind: 'sandbox', detail: l }) }) : localSession(staged.dir);
+    const bricks = await startBricks(opts.pkg.bricks.mcp, session.cwd, session.host);
     try {
       const result = await runLoop({
         client: opts.client,
@@ -64,6 +72,7 @@ export async function runTask(opts: RunOptions): Promise<RunRecord> {
         harness: '0.1.0',
         package: { name: opts.pkg.name, version: opts.pkg.version, author: opts.pkg.author },
         task: { id: opts.task.meta.id, version: opts.task.truth.version, stack: opts.task.meta.stack },
+        sandbox: { kind: opts.sandbox ?? 'local', id: session.id },
         model: opts.model,
         runIndex: opts.runIndex ?? 0,
         startedAt,
@@ -75,6 +84,7 @@ export async function runTask(opts: RunOptions): Promise<RunRecord> {
       await bricks.close();
     }
   } finally {
+    await session?.close();
     await staged.cleanup();
   }
 }

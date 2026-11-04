@@ -12,3 +12,5 @@ export { runTask } from './run.js';
 export type { RunRecord, RunOptions } from './run.js';
 export { PRICES, PRICES_AS_OF, costUsd } from './prices.js';
 export type { Usage, Price } from './prices.js';
+export { createE2bSession, brickCommandLine } from './e2b.js';
+export type { SandboxSession, E2bOptions } from './e2b.js';

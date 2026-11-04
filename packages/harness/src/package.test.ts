@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildSystemPrompt, loadPackage, renderPrompt } from './package.js';
 import { commandFor } from './mcp.js';
+import { brickCommandLine } from './e2b.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const agents = path.resolve(here, '../../../agents');
@@ -35,5 +36,12 @@ describe('package', () => {
     expect(commandFor({ name: 'fs', package: 'npm:@modelcontextprotocol/server-filesystem@2.1.0', args: ['.'], env: [], permissions: { network: [], filesystem: 'read' } })).toEqual({ command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem@2.1.0', '.'] });
     expect(commandFor({ name: 'git', package: 'pypi:mcp-server-git==2026.10.28', args: [], env: [], permissions: { network: [], filesystem: 'read' } })).toEqual({ command: 'uvx', args: ['mcp-server-git==2026.10.28'] });
     expect(() => commandFor({ name: 'x', package: 'https://evil', args: [], env: [], permissions: { network: [], filesystem: 'none' } })).toThrow();
+  });
+});
+
+describe('sandbox command lines', () => {
+  it('quotes every argument and points uvx at the installer path', () => {
+    expect(brickCommandLine({ name: 'fs', package: 'npm:@modelcontextprotocol/server-filesystem@2.1.0', args: ['.', "it's"], env: [], permissions: { network: [], filesystem: 'read' } })).toBe(`npx '-y' '@modelcontextprotocol/server-filesystem@2.1.0' '.' 'it'\\''s'`);
+    expect(brickCommandLine({ name: 'git', package: 'pypi:mcp-server-git==2026.10.28', args: [], env: [], permissions: { network: [], filesystem: 'read' } })).toBe(`$HOME/.local/bin/uvx 'mcp-server-git==2026.10.28'`);
   });
 });
