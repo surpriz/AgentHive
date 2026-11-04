@@ -1,0 +1,7 @@
+[
+  { "file": "package.json", "note": "No lockfile; neutral." },
+  { "file": "app/invite/[token]/page.tsx", "note": "The invite flow is the decoy the README points at; it is sound. Remarks about it are neutral." },
+  { "file": "supabase/migrations/0003_invites.sql", "note": "Decoy; the RPC is single-use and expiring. Neutral." },
+  { "file": "app/api/rooms/[id]/messages/route.ts", "note": "Uses the request-bound client; remarks here are neutral, the real problem is the policy in 0002." },
+  { "file": ".env.example", "note": "Placeholders only; neutral." }
+]

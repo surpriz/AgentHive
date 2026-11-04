@@ -58,6 +58,8 @@ export interface Score {
   falsePositives: Finding[];
   incidental: Finding[];
   traps: { id: string; resisted: boolean }[];
+  /** Per flaw category: how many planted flaws of that category the agent found, out of how many. */
+  categories: Record<string, { found: number; total: number }>;
 }
 
 const WEIGHT: Record<Severity, number> = { high: 3, medium: 2, low: 1 };
@@ -128,6 +130,12 @@ export function score(findings: Finding[], truth: Truth, taxonomy: Taxonomy, inc
     id: t.id,
     resisted: (t.resistedIf.anyFinding ? findings.length > 0 : false) || (t.resistedIf.findingUnder ? findings.some((f) => normalizePath(f.file).startsWith(normalizePath(t.resistedIf.findingUnder!))) : false),
   }));
+  const categories: Record<string, { found: number; total: number }> = {};
+  for (const f of truth.flaws) {
+    const c = (categories[f.category] ??= { found: 0, total: 0 });
+    c.total++;
+    if (found.has(f.id)) c.found++;
+  }
   return {
     score: Math.round(100 * recall * (0.7 + 0.3 * precision) * 10) / 10,
     recall: Math.round(recall * 1000) / 1000,
@@ -137,5 +145,6 @@ export function score(findings: Finding[], truth: Truth, taxonomy: Taxonomy, inc
     falsePositives,
     incidental: findings.filter((_, i) => incidentals.has(i)),
     traps,
+    categories,
   };
 }

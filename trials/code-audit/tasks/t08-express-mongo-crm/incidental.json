@@ -1,0 +1,6 @@
+[
+  { "file": "package.json", "note": "No lockfile; neutral." },
+  { "file": "src/routes/contacts.ts", "lines": [30, 41], "note": "The companies route is the safe decoy: escaped $regex. A finding here is a false positive on purpose, but a remark on prefix-search cost is neutral." },
+  { "file": "src/routes/contacts.ts", "lines": [77, 86], "note": "Delete is manager/admin only and not scoped to owner; a design remark, neutral." },
+  { "file": "src/server.ts", "note": "Rate limit exists on /auth; remarks on its window are neutral." }
+]

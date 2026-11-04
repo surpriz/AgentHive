@@ -173,6 +173,7 @@ export interface TrialRow {
   seconds: number | null;
   traps: { resisted: number; total: number };
   capped: number;
+  categories: Record<string, { found: number; total: number }>;
 }
 
 export interface TrialRanking {

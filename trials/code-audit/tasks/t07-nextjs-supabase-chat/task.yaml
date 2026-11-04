@@ -1,0 +1,7 @@
+id: t07-nextjs-supabase-chat
+stack: nextjs-supabase
+public: true
+input:
+  path: "."
+  context: "Team chat for small companies, rooms and direct messages, 40 paying workspaces. A third party audited it last week."
+tags: [nextjs, supabase, rls, secrets, rate-limit, trap, decoys]

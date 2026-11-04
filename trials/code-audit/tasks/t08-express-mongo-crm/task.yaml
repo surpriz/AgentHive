@@ -1,0 +1,7 @@
+id: t08-express-mongo-crm
+stack: express-mongodb
+public: true
+input:
+  path: "."
+  context: "CRM for a sales team of 25, contacts and deals, deployed on Render with MongoDB Atlas. Customer data under GDPR."
+tags: [express, mongodb, mongoose, nosql-injection, privilege-escalation, error-leakage, decoys]

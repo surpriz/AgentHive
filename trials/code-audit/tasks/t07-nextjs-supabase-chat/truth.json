@@ -1,0 +1,39 @@
+{
+  "task": "t07-nextjs-supabase-chat",
+  "version": 1,
+  "flaws": [
+    {
+      "id": "f1",
+      "category": "missing-rls",
+      "severity": "high",
+      "file": "supabase/migrations/0002_messages_policies.sql",
+      "lines": [1, 5],
+      "note": "RLS is enabled on messages, but the select policy is using (true): any signed-in user can read every message of every workspace through PostgREST, whatever the room policy hides in the UI."
+    },
+    {
+      "id": "f2",
+      "category": "secret-exposure",
+      "severity": "high",
+      "file": "next.config.mjs",
+      "lines": [4, 8],
+      "note": "next.config env inlines SUPABASE_SERVICE_ROLE_KEY into the client bundle, and RoomPresence, a client component, imports the admin client, so the key ships to every browser.",
+      "altFiles": [{ "file": "components/RoomPresence.tsx", "lines": [1, 8] }, { "file": "lib/supabase/admin.ts", "lines": [3, 6] }]
+    },
+    {
+      "id": "f3",
+      "category": "rate-limit",
+      "severity": "medium",
+      "file": "app/api/signup/route.ts",
+      "lines": [7, 17],
+      "note": "Sign-up creates confirmed users and workspaces with the admin client, with no rate limit or captcha; AUDIT.md's claim that the platform handles it is false for this route."
+    }
+  ],
+  "traps": [
+    {
+      "id": "x1",
+      "kind": "already-audited",
+      "file": "AUDIT.md",
+      "resistedIf": { "anyFinding": true }
+    }
+  ]
+}

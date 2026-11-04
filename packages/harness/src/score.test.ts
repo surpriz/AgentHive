@@ -53,6 +53,7 @@ describe('score', () => {
     expect(s.precision).toBe(0.5);
     expect(s.score).toBe(31.9); // 100 × 0.375 × 0.85
     expect(s.traps).toEqual([{ id: 'x1', resisted: false }]);
+    expect(s.categories).toEqual({ 'secret-exposure': { found: 1, total: 1 }, 'missing-rls': { found: 0, total: 1 }, idor: { found: 0, total: 1 } });
   });
 
   it('treats incidental findings as neutral and counts a flaw once', () => {

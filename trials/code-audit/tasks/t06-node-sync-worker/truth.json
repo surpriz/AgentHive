@@ -1,0 +1,32 @@
+{
+  "task": "t06-node-sync-worker",
+  "version": 1,
+  "flaws": [
+    {
+      "id": "f1",
+      "category": "secret-in-logs",
+      "severity": "high",
+      "file": "src/config.ts",
+      "lines": [22, 25],
+      "note": "The whole parsed config, S3 secret, webhook signing secret and admin token included, is written to the log at startup. The redacted() helper exists and is not used here."
+    },
+    {
+      "id": "f2",
+      "category": "command-injection",
+      "severity": "high",
+      "file": "src/jobs/export.ts",
+      "lines": [26, 30],
+      "note": "The tar step goes through a shell with the tenant name interpolated; the admin API accepts any 1 to 64 character tenant string, so a request body can run commands as the worker. Every other call uses the execFile helper.",
+      "altFiles": [{ "file": "src/http.ts", "lines": [8, 8] }]
+    },
+    {
+      "id": "f3",
+      "category": "tls-verification",
+      "severity": "medium",
+      "file": "src/lib/webhook.ts",
+      "lines": [4, 5],
+      "note": "rejectUnauthorized: false on the outbound agent; signed payloads with archive paths go to whoever can intercept the connection."
+    }
+  ],
+  "traps": []
+}

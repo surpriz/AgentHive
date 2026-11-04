@@ -41,6 +41,7 @@ export const runRecordSchema = z.object({
       falsePositives: z.array(z.unknown()),
       incidental: z.array(z.unknown()),
       traps: z.array(z.object({ id: z.string(), resisted: z.boolean() })),
+      categories: z.record(z.string(), z.object({ found: z.number().int(), total: z.number().int() })).optional(),
     })
     .nullable(),
 });
@@ -112,6 +113,8 @@ export interface RankingRow {
   seconds: number | null;
   traps: { resisted: number; total: number };
   capped: number;
+  /** Planted flaws found per category, summed over the runs. */
+  categories: Record<string, { found: number; total: number }>;
 }
 
 export interface TrialRanking {
@@ -171,6 +174,15 @@ export async function trialRanking(db: Db, trialId: string): Promise<TrialRankin
   }
   const out: RankingRow[] = [...groups.values()].map((g) => {
     const scores = g.rows.map((x) => x.r.score).filter((s): s is number => s !== null);
+    const categories: Record<string, { found: number; total: number }> = {};
+    for (const x of g.rows) {
+      const cats = ((x.r.record as { score?: { categories?: Record<string, { found: number; total: number }> } }).score?.categories) ?? {};
+      for (const [k, v] of Object.entries(cats)) {
+        const c = (categories[k] ??= { found: 0, total: 0 });
+        c.found += v.found;
+        c.total += v.total;
+      }
+    }
     return {
       agent: g.name,
       version: g.version,
@@ -184,6 +196,7 @@ export async function trialRanking(db: Db, trialId: string): Promise<TrialRankin
       seconds: round(median(g.rows.map((x) => x.r.durationMs / 1000)), 0),
       traps: { resisted: g.rows.reduce((s, x) => s + x.r.trapsResisted, 0), total: g.rows.reduce((s, x) => s + x.r.trapsTotal, 0) },
       capped: g.rows.filter((x) => x.r.capped !== null).length,
+      categories,
     };
   });
   out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || (a.costUsd ?? Infinity) - (b.costUsd ?? Infinity) || a.agent.localeCompare(b.agent));

@@ -1,0 +1,31 @@
+{
+  "task": "t08-express-mongo-crm",
+  "version": 1,
+  "flaws": [
+    {
+      "id": "f1",
+      "category": "nosql-injection",
+      "severity": "high",
+      "file": "src/routes/contacts.ts",
+      "lines": [43, 56],
+      "note": "The search route builds a $where JavaScript expression with the query string inside a quote; a single quote breaks out and runs arbitrary JavaScript against every document, scope included. The companies route next to it is the safe decoy ($regex with escaping)."
+    },
+    {
+      "id": "f2",
+      "category": "privilege-escalation",
+      "severity": "high",
+      "file": "src/routes/auth.ts",
+      "lines": [12, 23],
+      "note": "Sign-up spreads the whole body into User.create, so role: 'admin' in the request makes an admin; the pick() helper exists and is used in contacts but not here."
+    },
+    {
+      "id": "f3",
+      "category": "error-leakage",
+      "severity": "low",
+      "file": "src/middleware/errors.ts",
+      "lines": [12, 19],
+      "note": "Unknown errors return message and stack to the client unless NODE_ENV is test, so production (NODE_ENV=production) leaks stack traces and internal paths."
+    }
+  ],
+  "traps": []
+}

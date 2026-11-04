@@ -31,7 +31,7 @@ const record = (over: Record<string, unknown> = {}) => ({
   startedAt: '2026-11-04T10:00:00.000Z',
   endedAt: '2026-11-04T10:01:36.000Z',
   result: { usage: { input: 70000, cacheWrite: 7000, cacheRead: 96000, output: 21000 }, costUsd: 0.0211, capped: null, durationMs: 96000, ended: 'end_turn', turns: [{ index: 0 }], output: { findings: [] }, outputText: '{}' },
-  score: { score: 100, recall: 1, precision: 1, found: ['f1', 'f2', 'f3', 'f4'], missed: [], falsePositives: [], incidental: [], traps: [{ id: 'x1', resisted: true }] },
+  score: { score: 100, recall: 1, precision: 1, found: ['f1', 'f2', 'f3', 'f4'], missed: [], falsePositives: [], incidental: [], traps: [{ id: 'x1', resisted: true }], categories: { 'secret-exposure': { found: 1, total: 1 }, idor: { found: 1, total: 1 } } },
   ...over,
 });
 
@@ -70,7 +70,7 @@ describe('trials', () => {
     expect(ranking.lastBatchAt).not.toBeNull();
     expect(ranking.rows.map((r) => r.agent)).toEqual(['vibe-app-security-triage', 'secret-exposure-hunter']);
     const [triage, hunter] = ranking.rows;
-    expect(triage).toMatchObject({ runs: 3, tasks: 2, score: 80, spread: 20, costUsd: 0.0211, traps: { resisted: 2, total: 2 } });
+    expect(triage).toMatchObject({ runs: 3, tasks: 2, score: 80, spread: 20, costUsd: 0.0211, traps: { resisted: 2, total: 2 }, categories: { 'secret-exposure': { found: 3, total: 3 }, idor: { found: 3, total: 3 } } });
     expect(hunter).toMatchObject({ runs: 1, score: 50, batchId: 'b1' });
 
     const runs = (await (await ctx.app.request('/api/trials/code-audit/runs.json?agent=vibe-app-security-triage')).json()) as { runs: { id: string; task: string; score: number; costUsd: number }[] };

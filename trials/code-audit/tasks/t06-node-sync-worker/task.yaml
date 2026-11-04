@@ -1,0 +1,7 @@
+id: t06-node-sync-worker
+stack: node-worker
+public: true
+input:
+  path: "."
+  context: "Background worker that exports tenant data nightly and notifies customers by webhook. Runs on one VM, no public UI except an internal admin API."
+tags: [node, worker, command-injection, secret-logging, tls, decoys]
