@@ -1,0 +1,57 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: competitor-teardown
+  version: 1.0.0
+  license: MIT
+  goal: growth
+  value: "Reads pasted public material about a competitor (site, pricing, changelog, reviews) and returns what they bet on, where they are weak, and what to do."
+  tagline: "Structured teardown from text you collected: positioning, segments, pricing logic, proof, recent moves, and the gaps a smaller player can take; every claim tied to the pasted source."
+  tags: [growth, competitive-analysis, strategy, pricing, positioning, marketing]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: focus, type: enum, values: [all, positioning, pricing, product, go-to-market], default: all, description: "Which part of the teardown to go deep on" }
+  bricks:
+    skills: [teardown-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [material, our_context]
+      properties:
+        material: { type: string, description: "Pasted public text about the competitor: home page, pricing page, feature pages, changelog, job posts, review excerpts; label each piece" }
+        our_context: { type: string, description: "Who you are, your segment, and the decision this teardown should inform" }
+    output:
+      type: object
+      required: [summary, teardown]
+      properties:
+        summary: { type: string }
+        teardown: { type: object, required: [positioning, segments, pricing, proof, recent_moves, weaknesses], properties: { positioning: { type: string }, segments: { type: array, items: { type: string } }, pricing: { type: string }, proof: { type: string }, recent_moves: { type: array, items: { type: string } }, weaknesses: { type: array, items: { type: object, properties: { weakness: { type: string }, evidence: { type: string }, how_to_use: { type: string } } } } } }
+        recommendations: { type: array, items: { type: object, properties: { action: { type: string }, why: { type: string }, risk: { type: string } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { material: "[home] All-in-one finance for SMEs. [pricing] From 29 EUR per month, accountant access add-on 49 EUR. [reviews] Great but setup took weeks.", our_context: "We sell bookkeeping automation to restaurant groups" }
+      expect: { jsonPath: { path: teardown.weaknesses.length, min: 1 } }
+    - name: writes a usable summary
+      input: { material: "[home] All-in-one finance for SMEs. [pricing] From 29 EUR per month, accountant access add-on 49 EUR. [reviews] Great but setup took weeks.", our_context: "We sell bookkeeping automation to restaurant groups" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Competitor Teardown turns public material you collected about a competitor (their pages, pricing,
+  changelog, job posts, review excerpts) into a structured read: what they claim to be, which
+  segments they serve and court, how their pricing is built and what it signals, what proof they
+  show, what they shipped or hired for recently, and the weaknesses a focused player can use. It
+  ends with recommendations tied to the decision you said you are making.
+
+  Every statement cites the pasted piece it comes from; nothing is inferred about the competitor
+  from outside the input, and the output never includes text meant to pass as the competitor's.
+useCases:
+  - "Before a pricing change"
+  - "When a competitor ships a feature your customers ask about"
+  - "To brief a new sales hire on the main alternative"
+  - "Quarterly, to track where a competitor moves"

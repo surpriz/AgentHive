@@ -1,0 +1,59 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: experiment-results-reader
+  version: 1.0.0
+  license: MIT
+  goal: data-analysis
+  value: "Reads pasted A/B test numbers and tells you whether the result means anything, what could have broken it, and what to decide."
+  tagline: "From sample sizes, conversions and the test setup, computes the lift and its uncertainty, checks sample ratio, duration and peeking, lists the ways the result could be wrong, and recommends ship, extend or stop."
+  tags: [data-analysis, ab-testing, experiments, statistics, product, growth]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: confidence, type: number, min: 0.8, max: 0.99, default: 0.95, description: "Confidence level for the interval" }
+    - { name: minimum_effect, type: number, min: 0, max: 1, default: 0.02, description: "Smallest relative lift worth shipping, as a fraction" }
+  bricks:
+    skills: [experiment-reading-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [results]
+      properties:
+        results: { type: string, description: "The numbers: users and conversions per variant, duration, when it started; any segment breakdowns" }
+        setup: { type: string, description: "Optional: hypothesis, primary metric, planned sample size or duration, allocation" }
+    output:
+      type: object
+      required: [summary, validity_checks]
+      properties:
+        summary: { type: string }
+        reading: { type: object, required: [lift, interval, verdict], properties: { control_rate: { type: number }, variant_rate: { type: number }, lift: { type: number }, interval: { type: array, items: { type: number } }, p_value_note: { type: string }, verdict: { type: string, enum: [ship, extend, stop, invalid] }, reason: { type: string } } }
+        validity_checks: { type: array, items: { type: object, properties: { check: { type: string }, status: { type: string, enum: [pass, fail, unknown] }, detail: { type: string } } } }
+        risks: { type: array, items: { type: string } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { results: "Control: 10,000 users, 500 conversions. Variant: 9,400 users, 540 conversions. Ran 6 days." }
+      expect: { jsonPath: { path: validity_checks.length, min: 1 } }
+    - name: writes a usable summary
+      input: { results: "Control: 10,000 users, 500 conversions. Variant: 9,400 users, 540 conversions. Ran 6 days." }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Experiment Results Reader takes the numbers from an A/B test and does what a careful analyst
+  does before anyone celebrates: computes the lift and the confidence interval from the counts,
+  checks whether the sample ratio matches the allocation, whether the test ran its planned
+  duration and full weeks, whether the result was read early, and whether segment effects are
+  real or the product of slicing. It then gives one of four verdicts (ship, extend, stop, invalid)
+  with the reason, and lists what could still make the result wrong.
+
+  It computes from the counts you paste and shows its arithmetic; it does not know your product.
+useCases:
+  - "Before a ship decision on a test"
+  - "When a test is \"winning\" after three days"
+  - "To explain to a stakeholder why a 15 % lift on mobile is not a result"
+  - "To write the experiment readout"

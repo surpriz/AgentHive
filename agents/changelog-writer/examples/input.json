@@ -1,0 +1,5 @@
+{
+  "changes": "feat(auth): add Google sign-in (#412)\nfix(export): CSV with quotes in names was corrupted (#418)\nchore(deps): bump vite to 7.1\nfeat(api)!: remove v1 endpoints, use v2 (#401)\nrefactor(pricing): extract pricing module\nfeat(dashboard): filter runs by date (#420)",
+  "product": "AgentHive, a registry and proving ground for AI agents used by developers",
+  "version": "1.4.0"
+}

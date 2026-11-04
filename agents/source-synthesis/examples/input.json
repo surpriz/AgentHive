@@ -1,0 +1,4 @@
+{
+  "sources": "[S1 Smith 2024, industry survey, n=400] 62 % of teams report faster code reviews after adopting AI review tools; defect rates self-reported as unchanged.\n[S2 Lee 2025, randomised trial, n=120 developers] No statistically significant difference in defects per KLOC between AI-assisted and control reviews; review time down 28 %.\n[S3 Vendor whitepaper 2025] Customers see 40 % fewer production incidents.",
+  "question": "Do AI code review tools reduce defects, and what is the evidence quality?"
+}

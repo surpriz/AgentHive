@@ -44,7 +44,7 @@ interface Job {
 export const recordFileName = (r: Pick<RunRecord, 'task' | 'package' | 'model' | 'runIndex'>) => `${r.task.id}--${r.package.name}--${r.model}--${r.runIndex}.json`;
 
 /** Loads every package under `agentsDir` and every task under each of `tasksDirs` (missing directories are skipped). */
-export async function planBatch(agentsDir: string, tasksDirs: string | string[], models: Record<string, number>, only: { packages?: string[]; tasks?: string[] } = {}): Promise<BatchPlan> {
+export async function planBatch(agentsDir: string, tasksDirs: string | string[], models: Record<string, number>, only: { packages?: string[]; tasks?: string[]; goal?: string } = {}): Promise<BatchPlan> {
   const packages = await Promise.all((await listPackages(agentsDir)).map(loadPackage));
   const taskDirs: string[] = [];
   for (const dir of Array.isArray(tasksDirs) ? tasksDirs : [tasksDirs]) {
@@ -56,7 +56,7 @@ export async function planBatch(agentsDir: string, tasksDirs: string | string[],
   }
   const tasks = await Promise.all(taskDirs.map(loadTask));
   return {
-    packages: packages.filter((p) => !only.packages?.length || only.packages.includes(p.name)),
+    packages: packages.filter((p) => (!only.goal || p.goal === only.goal) && (!only.packages?.length || only.packages.includes(p.name))),
     tasks: tasks.filter((t) => !only.tasks?.length || only.tasks.includes(t.meta.id)),
     models,
   };

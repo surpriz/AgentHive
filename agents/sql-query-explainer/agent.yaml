@@ -1,0 +1,60 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: sql-query-explainer
+  version: 1.0.0
+  license: MIT
+  goal: data-analysis
+  value: "Explains a pasted SQL query in plain words, line by line, and points out where it may not compute what its author thinks."
+  tagline: "Walks through joins, filters, grouping and window functions in reading order, states the result grain, flags fan-out joins, NULL traps, filter placement and date boundary mistakes, and suggests the check query to run."
+  tags: [data-analysis, sql, queries, explanation, debugging, postgres, bigquery]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: dialect, type: enum, values: [auto, postgres, mysql, bigquery, snowflake, sqlite], default: auto, description: "SQL dialect for function semantics" }
+    - { name: depth, type: enum, values: [overview, line-by-line], default: line-by-line, description: "How detailed the walkthrough is" }
+  bricks:
+    skills: [sql-pitfalls]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string, description: "The SQL query" }
+        intent: { type: string, description: "Optional: what the query is supposed to compute, in the author's words" }
+        schema: { type: string, description: "Optional: table definitions or a description of the tables and their grain" }
+    output:
+      type: object
+      required: [summary, explanation]
+      properties:
+        summary: { type: string }
+        explanation: { type: array, items: { type: object, required: [part, meaning], properties: { part: { type: string }, meaning: { type: string } } } }
+        result_grain: { type: string }
+        warnings: { type: array, items: { type: object, required: [warning, where, why, check], properties: { warning: { type: string }, where: { type: string }, why: { type: string }, check: { type: string }, severity: { type: string, enum: [likely-wrong, risky, style] } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { query: "SELECT c.city, SUM(o.amount) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.status = 'paid' GROUP BY 1" }
+      expect: { jsonPath: { path: explanation.length, min: 1 } }
+    - name: writes a usable summary
+      input: { query: "SELECT c.city, SUM(o.amount) FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.status = 'paid' GROUP BY 1" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  SQL Query Explainer reads a query the way the database does, in logical order (from, joins,
+  where, group by, having, select, order), and explains each part in plain words. Then it states
+  what one row of the result represents and checks the query against the mistakes that produce
+  plausible wrong numbers: a left join cancelled by a where clause, a join that multiplies rows,
+  COUNT(*) counting the wrong thing, NULLs dropped by a comparison, a date range that misses the
+  last day, a window function partitioned on the wrong key.
+
+  For every warning it gives the one check query that would confirm or clear it.
+useCases:
+  - "Reviewing a query an assistant or a colleague wrote before trusting the number"
+  - "Understanding an inherited report query"
+  - "Debugging a total that does not match the dashboard"
+  - "Teaching junior analysts why a join changed the count"

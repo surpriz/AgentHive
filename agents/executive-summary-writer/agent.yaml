@@ -1,0 +1,58 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: executive-summary-writer
+  version: 1.0.0
+  license: MIT
+  goal: writing
+  value: "Condenses a pasted document or thread into a one-page summary for a decision maker: the decision, the facts, the risks, the ask."
+  tagline: "Reads a long report, proposal, thread or meeting notes and writes the page an executive reads first: recommendation up top, three to five supporting facts with their source in the text, risks, open questions, and the exact ask."
+  tags: [writing, executive-summary, communication, management, reporting, decision]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: max_words, type: integer, min: 100, max: 400, default: 250, description: "Length of the summary" }
+    - { name: stance, type: enum, values: [neutral, recommend], default: recommend, description: "Neutral brief, or lead with a recommendation" }
+  bricks:
+    skills: [executive-summary-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [document, reader]
+      properties:
+        document: { type: string, description: "The full text to summarise: report, proposal, email thread, meeting notes" }
+        reader: { type: string, description: "Who reads the summary and what decision they must make" }
+    output:
+      type: object
+      required: [summary, brief]
+      properties:
+        summary: { type: string }
+        brief: { type: object, required: [recommendation, facts, risks, ask], properties: { recommendation: { type: string }, facts: { type: array, items: { type: object, properties: { fact: { type: string }, source: { type: string } } } }, risks: { type: array, items: { type: string } }, open_questions: { type: array, items: { type: string } }, ask: { type: string } } }
+        text: { type: string }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { document: "Q3 report: revenue 1.2M (+18%), churn 4.1% (up from 3.2%), two enterprise deals slipped to Q4, support backlog 340 tickets. Proposal: hire two support engineers now.", reader: "CEO deciding on Q4 hiring" }
+      expect: { jsonPath: { path: brief.facts.length, min: 1 } }
+    - name: writes a usable summary
+      input: { document: "Q3 report: revenue 1.2M (+18%), churn 4.1% (up from 3.2%), two enterprise deals slipped to Q4, support backlog 340 tickets. Proposal: hire two support engineers now.", reader: "CEO deciding on Q4 hiring" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Executive Summary Writer reads the whole document (a report, a proposal, a long thread, meeting
+  notes) and writes the page a decision maker reads first: the recommendation in the first line,
+  the three to five facts that support it with where they come from in the text, the risks and
+  what is still unknown, and the exact ask with its deadline. It writes to the reader's decision,
+  not to the document's structure, and keeps numbers exactly as they appear.
+
+  It does not add information. When the document does not support a recommendation, it says so and
+  writes a neutral brief instead.
+useCases:
+  - "Before a leadership meeting, from the long report"
+  - "Turning a 40-message thread into a decision memo"
+  - "Summarising a vendor proposal for the person who signs"
+  - "Writing the top of a board update"

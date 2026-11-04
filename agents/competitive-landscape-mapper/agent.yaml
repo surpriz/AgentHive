@@ -1,0 +1,58 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: competitive-landscape-mapper
+  version: 1.0.0
+  license: MIT
+  goal: research
+  value: "Organises your pasted notes about several players into a landscape: who does what for whom, on which axes they differ, and where the open space is."
+  tagline: "From notes on five to twenty players (what they offer, price, segment, strengths), builds a comparison table on the axes that matter for your question, groups the players, and names the gaps and the crowded spots."
+  tags: [research, market-map, competitive-landscape, strategy, analysis, startup]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: max_axes, type: integer, min: 2, max: 6, default: 4, description: "Comparison axes to keep" }
+  bricks:
+    skills: [landscape-mapping-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [players, question]
+      properties:
+        players: { type: string, description: "Notes per player, each starting with a label like [Name] on its own line: offer, segment, price, strengths, weaknesses, anything you know" }
+        question: { type: string, description: "What the map must help decide: where to position, whom to partner with, which segment to enter" }
+    output:
+      type: object
+      required: [summary, table]
+      properties:
+        summary: { type: string }
+        axes: { type: array, items: { type: object, properties: { axis: { type: string }, why: { type: string }, values: { type: array, items: { type: string } } } } }
+        table: { type: array, items: { type: object, properties: { player: { type: string }, cells: { type: object }, group: { type: string }, source_note: { type: string } } } }
+        groups: { type: array, items: { type: object, properties: { group: { type: string }, players: { type: array, items: { type: string } }, shared: { type: string } } } }
+        gaps: { type: array, items: { type: object, properties: { gap: { type: string }, evidence: { type: string }, caveat: { type: string } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { players: "[A] expense capture for SMEs, 29 EUR, strong mobile. [B] full finance suite, 69 EUR, accountant seat. [C] free, freelancers only.", question: "Where should a restaurant-focused bookkeeping tool position?" }
+      expect: { jsonPath: { path: table.length, min: 1 } }
+    - name: writes a usable summary
+      input: { players: "[A] expense capture for SMEs, 29 EUR, strong mobile. [B] full finance suite, 69 EUR, accountant seat. [C] free, freelancers only.", question: "Where should a restaurant-focused bookkeeping tool position?" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Competitive Landscape Mapper takes your notes about a set of players and organises them: it
+  picks the few axes that matter for the decision you named, fills a comparison table from the
+  notes (and marks the cells the notes do not fill), groups players that compete on the same
+  thing, and names the open spaces and the crowded ones. It separates competitors from potential
+  partners when the question asks.
+
+  It uses only the notes you paste. Empty cells stay empty; it does not fill them from memory.
+useCases:
+  - "Before a positioning or pricing decision"
+  - "For a fundraising deck competition slide, with sources you control"
+  - "To find partners among adjacent players"
+  - "To onboard a new hire on the market"

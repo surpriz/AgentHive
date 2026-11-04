@@ -1,0 +1,4 @@
+{
+  "definitions": "Active users: users who logged in this month.\nChurn rate: customers lost divided by customers.\nRevenue: sum of paid orders.\nConversion: signups that became paying.",
+  "context": "B2B SaaS with monthly and annual plans, trials of 14 days, data in Postgres and Stripe"
+}

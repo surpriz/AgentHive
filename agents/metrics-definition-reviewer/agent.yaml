@@ -1,0 +1,58 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: metrics-definition-reviewer
+  version: 1.0.0
+  license: MIT
+  goal: data-analysis
+  value: "Reviews pasted metric definitions (what counts, from where, over what period) and finds the ambiguities that make two teams report different numbers."
+  tagline: "For each metric: the exact numerator, denominator, grain, time window, filters, and source; then the ambiguities, the edge cases nobody decided, and a rewritten definition ready for the glossary."
+  tags: [data-analysis, metrics, kpi, definitions, analytics, governance, dashboard]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: rewrite, type: boolean, default: true, description: "Include a rewritten definition per metric" }
+  bricks:
+    skills: [metric-definition-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [definitions]
+      properties:
+        definitions: { type: string, description: "The metric definitions as currently written: a glossary, a dashboard description, a Slack thread" }
+        context: { type: string, description: "Optional: the business, the systems the data comes from, who uses the metrics" }
+    output:
+      type: object
+      required: [summary, metrics]
+      properties:
+        summary: { type: string }
+        metrics: { type: array, items: { type: object, required: [name, numerator, denominator, grain, window, ambiguities], properties: { name: { type: string }, numerator: { type: string }, denominator: { type: string }, grain: { type: string }, window: { type: string }, filters: { type: string }, source: { type: string }, ambiguities: { type: array, items: { type: string } }, edge_cases: { type: array, items: { type: string } }, rewritten: { type: string } } } }
+        conflicts: { type: array, items: { type: string } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { definitions: "Active users: users who logged in this month. Churn: customers lost divided by customers. Revenue: sum of orders." }
+      expect: { jsonPath: { path: metrics.length, min: 1 } }
+    - name: writes a usable summary
+      input: { definitions: "Active users: users who logged in this month. Churn: customers lost divided by customers. Revenue: sum of orders." }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Metrics Definition Reviewer takes the way your metrics are currently defined (a glossary, a
+  dashboard tooltip, a thread) and makes each one explicit: numerator, denominator, grain, time
+  window, filters, source system. Then it lists what is still ambiguous (logged in by whom, lost
+  when, counted in which currency), the edge cases nobody decided (trials, refunds, reactivations,
+  time zones), and proposes a definition precise enough that two analysts would get the same
+  number.
+
+  It flags conflicts between metrics defined on different bases, and it never picks a business
+  rule for you: edge cases come back as questions with the options.
+useCases:
+  - "Before building the company dashboard"
+  - "When two teams report different churn"
+  - "To write the metrics glossary"
+  - "Before a board deck, to make sure the numbers are defined"

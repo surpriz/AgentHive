@@ -9,7 +9,12 @@ const root = path.resolve(here, '../../..');
 describe('batch', () => {
   it('plans every package against every task, with filters', async () => {
     const all = await planBatch(path.join(root, 'agents'), path.join(root, 'trials/code-audit/tasks'), { 'claude-haiku-5-5': 3 });
-    expect(all.packages.length).toBe(5);
+    expect(all.packages.length).toBeGreaterThanOrEqual(15);
+    // The code-audit trial runs code-audit packages only; text agents (growth, writing...) stay out of its batch.
+    const audit = await planBatch(path.join(root, 'agents'), path.join(root, 'trials/code-audit/tasks'), { m: 1 }, { goal: 'code-audit' });
+    expect(audit.packages.length).toBe(15);
+    expect(audit.packages.every((p) => p.goal === 'code-audit')).toBe(true);
+    expect(all.packages.length).toBeGreaterThan(audit.packages.length);
     expect(all.tasks.length).toBeGreaterThanOrEqual(5);
     expect(all.tasks[0].meta.id).toBe('t01-nextjs-supabase-notes');
     const some = await planBatch(path.join(root, 'agents'), path.join(root, 'trials/code-audit/tasks'), { m: 1 }, { packages: ['secret-exposure-hunter'], tasks: ['t02-express-prisma-shop'] });

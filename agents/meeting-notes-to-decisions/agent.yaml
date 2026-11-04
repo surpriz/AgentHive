@@ -1,0 +1,61 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: meeting-notes-to-decisions
+  version: 1.0.0
+  license: MIT
+  goal: research
+  value: "Turns raw meeting notes or a transcript into the record: decisions with reasons, actions with owners and dates, open questions, and what was only discussed."
+  tagline: "Reads messy notes or a transcript and separates decided from discussed, assigns each action an owner and a date from the text or flags the gap, and writes the short recap to send to attendees."
+  tags: [research, meetings, notes, decisions, actions, management, communication]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: recap_style, type: enum, values: [slack, email, doc], default: slack, description: "Shape of the recap text" }
+  bricks:
+    skills: [meeting-record-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [notes]
+      properties:
+        notes: { type: string, description: "The raw notes or transcript, with speaker names when available" }
+        attendees: { type: string, description: "Optional: who attended, with roles" }
+        purpose: { type: string, description: "Optional: what the meeting was meant to decide" }
+    output:
+      type: object
+      required: [summary, decisions]
+      properties:
+        summary: { type: string }
+        decisions: { type: array, items: { type: object, required: [decision, reason, decided_by], properties: { decision: { type: string }, reason: { type: string }, decided_by: { type: string }, evidence: { type: string } } } }
+        actions: { type: array, items: { type: object, required: [action, owner, due], properties: { action: { type: string }, owner: { type: string }, due: { type: string }, evidence: { type: string } } } }
+        open_questions: { type: array, items: { type: string } }
+        discussed_only: { type: array, items: { type: string } }
+        recap: { type: string }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { notes: "Marc: we go with Stripe for EU, decided. Léa: I will draft the migration plan by Friday. Someone should check the fees, not sure who. We also talked about pricing, no conclusion." }
+      expect: { jsonPath: { path: decisions.length, min: 1 } }
+    - name: writes a usable summary
+      input: { notes: "Marc: we go with Stripe for EU, decided. Léa: I will draft the migration plan by Friday. Someone should check the fees, not sure who. We also talked about pricing, no conclusion." }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Meeting Notes to Decisions reads what was typed or transcribed during a meeting and produces the
+  record: what was decided, by whom and why (quoting the line), what each person committed to and
+  by when, what stayed open, and what was only discussed so it does not get mistaken for a
+  decision. It writes the recap to send, in the shape of the channel (Slack, email, doc), short
+  enough that people read it.
+
+  It never promotes a discussion to a decision, and it flags actions with no owner or no date
+  instead of inventing them.
+useCases:
+  - "Right after a meeting, before the notes go stale"
+  - "Turning a transcript into a decision log entry"
+  - "Checking a meeting against its agenda"
+  - "Giving absentees the record without the noise"

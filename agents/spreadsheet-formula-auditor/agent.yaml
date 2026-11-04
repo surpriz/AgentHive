@@ -1,0 +1,57 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: spreadsheet-formula-auditor
+  version: 1.0.0
+  license: MIT
+  goal: data-analysis
+  value: "Audits pasted spreadsheet formulas for the errors that silently corrupt models: wrong ranges, off-by-one, broken references, hard-coded numbers."
+  tagline: "Reads formulas with their cell addresses and what the sheet is for, traces inputs to outputs, and flags ranges that stop early, relative references that drift, lookups that match the wrong thing, and constants buried in formulas."
+  tags: [data-analysis, spreadsheet, excel, google-sheets, formulas, financial-model, audit]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: max_findings, type: integer, min: 3, max: 30, default: 12, description: "Cap on the findings" }
+  bricks:
+    skills: [spreadsheet-error-patterns]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [formulas]
+      properties:
+        formulas: { type: string, description: "Cell addresses with their formulas, one per line (A1: =SUM(B2:B12)), plus header rows or a description of the layout" }
+        purpose: { type: string, description: "Optional: what the sheet computes and which cells are the outputs that matter" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings: { type: array, items: { type: object, required: [cell, formula, problem, severity], properties: { cell: { type: string }, formula: { type: string }, problem: { type: string }, severity: { type: string, enum: [wrong-result, fragile, style] }, fix: { type: string } } } }
+        dependency_notes: { type: array, items: { type: string } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { formulas: "B14: =SUM(B2:B12)\nC14: =SUM(C2:C13)\nD2: =B2*1.2\nE2: =VLOOKUP(A2,Prices!A:B,2)" }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { formulas: "B14: =SUM(B2:B12)\nC14: =SUM(C2:C13)\nD2: =B2*1.2\nE2: =VLOOKUP(A2,Prices!A:B,2)" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Spreadsheet Formula Auditor reads formulas with their addresses and the layout you describe,
+  traces which cells feed the outputs that matter, and finds the mistakes that do not raise an
+  error: a SUM that stops one row short, a lookup without exact match, a constant typed into a
+  formula instead of a cell, a relative reference copied where an absolute one was needed, a
+  percentage divided by the wrong base, totals that mix units. Each finding names the cell, the
+  problem, how much it can change the output, and the corrected formula.
+
+  It works from the text you paste; it cannot see values, so it says when a check needs one.
+useCases:
+  - "Before sending a model to a board or an investor"
+  - "After inheriting a spreadsheet"
+  - "When two versions of a sheet give different totals"
+  - "To review a forecast built in a hurry"

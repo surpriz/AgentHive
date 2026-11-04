@@ -84,12 +84,13 @@ program
   .option('--models <spec>', 'model=runs pairs, comma separated', 'claude-haiku-5-5=3')
   .option('--packages <names>', 'only these packages, comma separated', '')
   .option('--only-tasks <ids>', 'only these tasks, comma separated', '')
+  .option('--goal <goal>', 'only packages declaring this goal', 'code-audit')
   .option('--taxonomy <file>', 'taxonomy file', 'trials/code-audit/taxonomy.yaml')
   .option('--sandbox <kind>', 'local or e2b', 'e2b')
   .option('--concurrency <n>', 'runs in flight', '4')
   .option('--max-spend <usd>', 'stop scheduling runs past this spend', '40')
   .option('--out <dir>', 'where run records are written', 'runs')
-  .action(async (o: { agents: string; tasks: string; models: string; packages: string; onlyTasks: string; taxonomy: string; sandbox: string; concurrency: string; maxSpend: string; out: string }) => {
+  .action(async (o: { agents: string; tasks: string; models: string; packages: string; onlyTasks: string; goal: string; taxonomy: string; sandbox: string; concurrency: string; maxSpend: string; out: string }) => {
     if (o.sandbox !== 'local' && o.sandbox !== 'e2b') throw new Error(`unknown sandbox: ${o.sandbox}`);
     const models: Record<string, number> = {};
     for (const pair of list(o.models)) {
@@ -97,7 +98,7 @@ program
       if (!model || !Number(runs)) throw new Error(`bad model spec: ${pair}`);
       models[model] = Number(runs);
     }
-    const plan = await planBatch(o.agents, list(o.tasks), models, { packages: list(o.packages), tasks: list(o.onlyTasks) });
+    const plan = await planBatch(o.agents, list(o.tasks), models, { packages: list(o.packages), tasks: list(o.onlyTasks), goal: o.goal });
     console.log(`${plan.packages.length} packages × ${plan.tasks.length} tasks × ${Object.entries(models).map(([m, n]) => `${m}×${n}`).join(' + ')} → ${o.out}`);
     const summary = await runBatch({
       client: await anthropicClient(),

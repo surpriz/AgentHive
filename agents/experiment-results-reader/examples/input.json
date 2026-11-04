@@ -1,0 +1,4 @@
+{
+  "results": "Control: 10,000 users, 500 conversions (5.0 %). Variant: 9,400 users, 540 conversions (5.74 %). Ran 6 days from a Tuesday. Mobile: control 4.1 %, variant 5.5 %. Desktop: control 6.2 %, variant 6.0 %.",
+  "setup": "Hypothesis: a shorter signup form raises signup completion. Primary metric: signup completion. Planned: 14 days, 50/50 allocation, 12,000 users per arm."
+}

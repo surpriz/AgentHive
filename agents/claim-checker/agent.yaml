@@ -1,0 +1,57 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: claim-checker
+  version: 1.0.0
+  license: MIT
+  goal: research
+  value: "Checks each claim in a pasted text against the sources you paste next to it, and says supported, contradicted, or not covered, with the evidence."
+  tagline: "Extracts the checkable claims from a draft (numbers, causal statements, attributions), looks for each one in the provided sources only, and returns a verdict per claim with the quote that decides it."
+  tags: [research, fact-checking, verification, editing, citations, quality]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: include_minor, type: boolean, default: false, description: "Also check rounding and date precision, not only substance" }
+  bricks:
+    skills: [claim-checking-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [text, sources]
+      properties:
+        text: { type: string, description: "The draft whose claims must be checked" }
+        sources: { type: string, description: "The sources to check against, each starting with a label like [S1 ...] on its own line" }
+    output:
+      type: object
+      required: [summary, claims]
+      properties:
+        summary: { type: string }
+        claims: { type: array, items: { type: object, required: [claim, verdict, evidence], properties: { claim: { type: string }, location: { type: string }, verdict: { type: string, enum: [supported, contradicted, partly-supported, not-covered] }, evidence: { type: string }, suggested_fix: { type: string } } } }
+        verdict_counts: { type: object, properties: { supported: { type: integer }, contradicted: { type: integer }, partly_supported: { type: integer }, not_covered: { type: integer } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { text: "AI review tools cut defects by 40% and are used by most teams.", sources: "[S1 Lee 2025 trial] No significant defect difference. [S2 Smith 2024 survey] 62% of teams use an AI review tool." }
+      expect: { jsonPath: { path: claims.length, min: 1 } }
+    - name: writes a usable summary
+      input: { text: "AI review tools cut defects by 40% and are used by most teams.", sources: "[S1 Lee 2025 trial] No significant defect difference. [S2 Smith 2024 survey] 62% of teams use an AI review tool." }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Claim Checker reads a draft, pulls out every statement that can be checked (a number, a date, a
+  cause-and-effect, an attribution, a superlative), and checks each one against the sources you
+  paste. For each claim it returns a verdict (supported, contradicted, partly supported, not
+  covered), the quote from the source that decides it, and when the verdict is bad, the smallest
+  rewrite that makes the claim honest.
+
+  It checks against the pasted sources only. It does not use outside knowledge to confirm or deny,
+  and it says "not covered" rather than guessing.
+useCases:
+  - "Before publishing a blog post with numbers in it"
+  - "Reviewing a sales deck against the case studies it cites"
+  - "Checking a press release against the report it summarises"
+  - "Editing a summary written by an assistant"

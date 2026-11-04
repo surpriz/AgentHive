@@ -1,0 +1,59 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: positioning-statement-coach
+  version: 1.0.0
+  license: MIT
+  goal: growth
+  value: "Turns your pasted notes about the product, customers and competitors into a positioning statement you can defend, with the alternatives you rejected."
+  tagline: "From what you know (who buys, what they did before, what you do differently, who you lose to), produces one positioning statement, the category choice, the three proofs it needs and the messaging it rules out."
+  tags: [growth, positioning, messaging, strategy, product-marketing, startup]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: alternatives, type: integer, min: 1, max: 4, default: 2, description: "Number of rejected positioning options to show" }
+  bricks:
+    skills: [positioning-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [product, customers]
+      properties:
+        product: { type: string, description: "What the product does, in your words, with the two or three things you believe are different" }
+        customers: { type: string, description: "Who buys and uses it today, what they used before, why they switched, who churned" }
+        competitors: { type: string, description: "Optional: who you lose deals to and what they say about themselves" }
+    output:
+      type: object
+      required: [summary, positioning]
+      properties:
+        summary: { type: string }
+        positioning: { type: object, required: [statement, category, for_whom, unlike, because], properties: { statement: { type: string }, category: { type: string }, for_whom: { type: string }, unlike: { type: string }, because: { type: string }, proofs_needed: { type: array, items: { type: string } }, rules_out: { type: array, items: { type: string } } } }
+        rejected: { type: array, items: { type: object, properties: { statement: { type: string }, why_rejected: { type: string } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { product: "Bookkeeping automation for independent restaurants; receipts matched to the bank nightly", customers: "Owners of 2 to 5 sites; used an accountant plus spreadsheets; switched when a second site opened" }
+      expect: { jsonPath: { path: positioning.statement.length, min: 1 } }
+    - name: writes a usable summary
+      input: { product: "Bookkeeping automation for independent restaurants; receipts matched to the bank nightly", customers: "Owners of 2 to 5 sites; used an accountant plus spreadsheets; switched when a second site opened" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Positioning Statement Coach takes the notes you already have (what the product does, who buys
+  it and what they did before, who you lose to) and produces a positioning you can defend in a
+  sentence: the category you choose to be compared in, the customer you choose to serve first,
+  the alternative you are unlike, and the reason a customer should believe it. It lists the proofs
+  the statement needs, the messaging it rules out, and the alternatives it rejected and why, so the
+  choice is a choice and not a slogan.
+
+  It works from your input only; it does not know your market beyond what you paste, and says
+  where that limits the answer.
+useCases:
+  - "Before rewriting the home page or the pitch deck"
+  - "When sales and marketing describe the product differently"
+  - "After the second or third customer segment appears"
+  - "To prepare a positioning workshop with real material"

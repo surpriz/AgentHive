@@ -1,0 +1,58 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: changelog-writer
+  version: 1.0.0
+  license: MIT
+  goal: writing
+  value: "Turns pasted commit messages, merged PR titles or ticket notes into a release note users can read: what changed for them, grouped and prioritised."
+  tagline: "From raw commits, PR titles and notes, writes user-facing release notes: grouped by impact, in the user's words, with breaking changes first, internal changes dropped, and a short headline per release."
+  tags: [writing, changelog, release-notes, product, documentation, developer-tools]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: audience, type: enum, values: [users, developers, internal], default: users, description: "Who reads the notes; sets vocabulary and what to include" }
+    - { name: include_internal, type: boolean, default: false, description: "Keep refactors, CI and dependency bumps as a short list" }
+  bricks:
+    skills: [release-notes-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [changes]
+      properties:
+        changes: { type: string, description: "Commit messages, PR titles, ticket notes, one per line; include ids if you want them referenced" }
+        product: { type: string, description: "Optional: what the product is and who uses it, so the notes use the right words" }
+        version: { type: string, description: "Optional: version or date of the release" }
+    output:
+      type: object
+      required: [summary, notes]
+      properties:
+        summary: { type: string }
+        notes: { type: object, required: [headline, sections], properties: { headline: { type: string }, sections: { type: array, items: { type: object, properties: { title: { type: string }, items: { type: array, items: { type: object, properties: { text: { type: string }, refs: { type: array, items: { type: string } }, breaking: { type: boolean } } } } } } }, dropped: { type: array, items: { type: string } } } }
+        markdown: { type: string }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { changes: "feat(auth): add Google sign-in\nfix(export): CSV escaped quotes\nchore(deps): bump vite\nfeat(api)!: remove v1 endpoints" }
+      expect: { jsonPath: { path: notes.sections.length, min: 1 } }
+    - name: writes a usable summary
+      input: { changes: "feat(auth): add Google sign-in\nfix(export): CSV escaped quotes\nchore(deps): bump vite\nfeat(api)!: remove v1 endpoints" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Changelog Writer reads the raw material of a release (commit messages, PR titles, ticket notes)
+  and writes the notes the audience will actually read. It drops what the audience does not care
+  about (refactors, CI, dependency bumps, unless asked), groups the rest by what it changes for
+  them, puts breaking changes first with what to do, writes each item as an outcome in the
+  audience's words, keeps the references, and gives the release a one-line headline.
+
+  It never invents a change: every item traces back to a line in the input.
+useCases:
+  - "Every release, from the merged PR list"
+  - "Monthly product update emails from the ticket board"
+  - "Turning a developer changelog into a customer one"
+  - "Writing the GitHub release description"

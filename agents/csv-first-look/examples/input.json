@@ -1,0 +1,4 @@
+{
+  "data": "order_id,date,amount,city,status\n1001,2026-01-03,12.50,Paris,paid\n1002,03/01/2026,,Lyon,paid\n1002,2026-01-04,8.00,paris,refunded\n1003,2026-01-05,1250,Marseille,PAID\n1004,,15.00,Paris,",
+  "goal": "Revenue by city per month"
+}

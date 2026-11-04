@@ -1,0 +1,61 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: cold-email-sequence-writer
+  version: 1.0.0
+  license: MIT
+  goal: growth
+  value: "Writes a short cold outreach sequence for one segment from your pasted offer, proof and the prospect's situation, without the usual AI tells."
+  tagline: "Three to four emails and a LinkedIn note from what you paste about the offer, the proof and the target; plain language, one ask, a reason to reply, and a stop rule when they answer."
+  tags: [growth, outbound, cold-email, sales, copywriting, sequence, b2b]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: tone, type: enum, values: [direct, warm, formal], default: direct, description: "Voice of the written output" }
+    - { name: emails, type: integer, min: 2, max: 5, default: 3, description: "Number of emails in the sequence" }
+  bricks:
+    skills: [outbound-copy-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [offer, target]
+      properties:
+        offer: { type: string, description: "What you sell, for whom, and the result it produces; paste your own words" }
+        proof: { type: string, description: "Optional: one or two real results, customers or numbers you are allowed to cite" }
+        target: { type: string, description: "The segment and the situation that makes them a fit: role, company type, trigger" }
+        sender: { type: string, description: "Optional: who signs and one line about them" }
+    output:
+      type: object
+      required: [summary, sequence]
+      properties:
+        summary: { type: string }
+        sequence: { type: array, items: { type: object, required: [step, channel, send_after_days, subject, body], properties: { step: { type: integer }, channel: { type: string, enum: [email, linkedin] }, send_after_days: { type: integer }, subject: { type: string }, body: { type: string }, goal: { type: string } } } }
+        stop_rules: { type: array, items: { type: string } }
+        personalisation_slots: { type: array, items: { type: string } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { offer: "Bookkeeping automation for restaurants, cuts month-end close from 5 days to 1", target: "Owners of 2 to 5 restaurant groups in France who just opened a new site" }
+      expect: { jsonPath: { path: sequence.length, min: 1 } }
+    - name: writes a usable summary
+      input: { offer: "Bookkeeping automation for restaurants, cuts month-end close from 5 days to 1", target: "Owners of 2 to 5 restaurant groups in France who just opened a new site" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Cold Email Sequence Writer turns what you paste (your offer in your words, the proof you may
+  cite, who you are writing to and why now) into a short sequence: a first email, two or three
+  follow-ups and one LinkedIn note, with send delays, one ask per message and a stop rule the
+  moment they reply. It writes the way a busy person writes: short, plain, specific to the
+  trigger, with no "I hope this finds you well", no "it's not X, it's Y" reveals, no triads.
+
+  It marks every place where you must personalise before sending and refuses to invent proof,
+  numbers or customer names you did not give it.
+useCases:
+  - "First outbound campaign for a new offer"
+  - "Rewriting a sequence nobody answers"
+  - "Giving an SDR a clean base to personalise"
+  - "Testing a new segment with ten hand-sent emails"

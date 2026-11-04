@@ -1,0 +1,60 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: linkedin-profile-opportunities
+  version: 1.0.0
+  license: MIT
+  goal: growth
+  value: "Reads your pasted LinkedIn profile and goal, and lists the concrete opportunities it supports and the gaps that block them."
+  tagline: "From the text of a profile (about, experience, skills, posts) and a stated goal, finds the angles worth pursuing: roles, clients, partnerships, content, and what to change in the profile to get there."
+  tags: [growth, linkedin, personal-branding, career, positioning, opportunities, marketing]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: horizon_months, type: integer, min: 1, max: 24, default: 6, description: "How far ahead the opportunities should be reachable" }
+    - { name: max_opportunities, type: integer, min: 3, max: 15, default: 8, description: "Cap on the list" }
+  bricks:
+    skills: [profile-opportunity-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [profile, goal]
+      properties:
+        profile: { type: string, description: "The profile text, pasted: headline, about, experience, education, skills, recent posts" }
+        goal: { type: string, description: "What you want in the next months: a role, clients, a partnership, visibility on a topic" }
+        constraints: { type: string, description: "Optional: location, availability, things you refuse" }
+    output:
+      type: object
+      required: [summary, opportunities]
+      properties:
+        summary: { type: string }
+        opportunities: { type: array, items: { type: object, required: [title, why_you, evidence, next_step, gap], properties: { title: { type: string }, kind: { type: string, enum: [role, client, partnership, content, community, product] }, why_you: { type: string }, evidence: { type: string }, next_step: { type: string }, gap: { type: string }, confidence: { type: string, enum: [low, medium, high] } } } }
+        profile_changes: { type: array, items: { type: object, properties: { section: { type: string }, change: { type: string }, reason: { type: string } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { profile: "Headline: Product manager, fintech. 8 years in payments. Posts about PSD3 and open banking.", goal: "Find a Head of Product role in a Series A fintech in Paris" }
+      expect: { jsonPath: { path: opportunities.length, min: 1 } }
+    - name: writes a usable summary
+      input: { profile: "Headline: Product manager, fintech. 8 years in payments. Posts about PSD3 and open banking.", goal: "Find a Head of Product role in a Series A fintech in Paris" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  LinkedIn Profile Opportunities takes the text of a profile and a goal, and answers the question
+  most people cannot answer about themselves: where is the opening? It reads the experience,
+  skills and recent posts as evidence, matches them against the goal, and returns a short list of
+  opportunities that the profile already supports (a role type, a client segment, a partnership, a
+  content angle, a community to join), each with the evidence from the profile, the single next
+  step, and the gap in the profile that would stop a reader from believing it.
+
+  It works only from what you paste. It never browses LinkedIn, never scrapes, and never invents
+  companies or people. For each opportunity it says how confident it is and why.
+useCases:
+  - "Before a job search, to know which angle the profile already supports"
+  - "When a freelancer wants to know which clients their history speaks to"
+  - "To decide what to post about for the next quarter"
+  - "Before rewriting the About section"

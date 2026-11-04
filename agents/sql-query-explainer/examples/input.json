@@ -1,0 +1,5 @@
+{
+  "query": "SELECT c.city, COUNT(*) AS customers, SUM(o.amount) AS revenue\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.status = 'paid' AND o.created_at BETWEEN '2026-01-01' AND '2026-01-31'\nGROUP BY 1\nORDER BY revenue DESC",
+  "intent": "Number of customers and January revenue per city, including cities with no paid orders",
+  "schema": "customers(id, city), one row per customer; orders(id, customer_id, amount, status, created_at timestamp), one row per order"
+}

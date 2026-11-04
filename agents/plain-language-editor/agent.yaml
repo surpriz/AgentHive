@@ -1,0 +1,58 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: plain-language-editor
+  version: 1.0.0
+  license: MIT
+  goal: writing
+  value: "Rewrites a pasted text in plain language for a named reader: shorter sentences, concrete words, one idea per sentence, same facts."
+  tagline: "Takes jargon-heavy or over-long text (policy, product doc, email, announcement) and a reader description; returns the plain version, a readability note, and the terms it kept with their definitions."
+  tags: [writing, plain-language, editing, readability, documentation, communication]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: reading_level, type: enum, values: [general, professional, expert], default: general, description: "Who must be able to read it without effort" }
+    - { name: keep_terms, type: string, default: "", description: "Comma-separated terms that must stay as they are" }
+  bricks:
+    skills: [plain-language-rules]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [text, reader]
+      properties:
+        text: { type: string, description: "The text to rewrite" }
+        reader: { type: string, description: "Who reads it, what they know, what they must do after reading" }
+    output:
+      type: object
+      required: [summary, rewritten]
+      properties:
+        summary: { type: string }
+        rewritten: { type: string }
+        readability: { type: object, properties: { avg_sentence_words_before: { type: number }, avg_sentence_words_after: { type: number }, notes: { type: string } } }
+        terms_kept: { type: array, items: { type: object, properties: { term: { type: string }, definition: { type: string } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { text: "Pursuant to the aforementioned policy, users are required to undertake re-authentication procedures at intervals not exceeding 30 days.", reader: "All employees, non-technical, must know what to do" }
+      expect: { jsonPath: { path: rewritten.length, min: 1 } }
+    - name: writes a usable summary
+      input: { text: "Pursuant to the aforementioned policy, users are required to undertake re-authentication procedures at intervals not exceeding 30 days.", reader: "All employees, non-technical, must know what to do" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Plain Language Editor rewrites a text so a named reader understands it on first reading and
+  knows what to do. It shortens sentences, replaces abstract and formal words with concrete ones,
+  puts the action first, keeps every fact, date and obligation, and keeps the technical terms the
+  reader needs (with a definition the first time). It reports the before and after sentence
+  length and lists the terms it chose to keep.
+
+  It changes words and structure, never the rules or commitments in the text.
+useCases:
+  - "Turning a policy into an announcement people read"
+  - "Rewriting an onboarding doc for non-technical hires"
+  - "Simplifying customer-facing emails from support or legal"
+  - "Making a product changelog readable by users"

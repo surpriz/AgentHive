@@ -278,8 +278,10 @@ LinkedIn) et demander s'ils paieraient pour lancer la même épreuve chez un cli
 
 État au 2026-11-04, vérifié sur le site et le dépôt.
 
-**Existe :** catalogue avec quinze packages d'audit de code signés AgentHive (un
-généraliste, quatre généralistes par stack, dix spécialistes avec périmètre déclaré), fiches,
+**Existe :** catalogue avec trente-cinq packages signés AgentHive : quinze d'audit de code
+(un généraliste, quatre généralistes par stack, dix spécialistes avec périmètre déclaré),
+classés sur l'épreuve, et vingt agents « untested » sur quatre métiers (growth, writing,
+research, data-analysis), à entrée en texte collé, sans serveur MCP ; fiches,
 audit statique, classement, CLI (`search`, `info`, `pull`, `push`), serveur MCP du
 catalogue, gateway, comptes GitHub, Google et email (mails par SES), clés d'API.
 Première épreuve `code-audit` en production : harness open source (`packages/harness`),

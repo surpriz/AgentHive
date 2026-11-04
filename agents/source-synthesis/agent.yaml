@@ -1,0 +1,60 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: source-synthesis
+  version: 1.0.0
+  license: MIT
+  goal: research
+  value: "Reads the sources you paste and writes a brief that answers your question with a citation for every claim and a list of where the sources disagree."
+  tagline: "From labelled excerpts (articles, papers, reports, transcripts) and one question, produces a sourced brief: findings with citations, points of disagreement, what the sources do not cover, and how much to trust each."
+  tags: [research, synthesis, literature-review, citations, brief, analysis]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: max_findings, type: integer, min: 3, max: 12, default: 6, description: "Cap on the findings list" }
+    - { name: strictness, type: enum, values: [strict, balanced], default: strict, description: "strict cites every sentence; balanced allows a synthesis sentence per finding" }
+  bricks:
+    skills: [synthesis-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [sources, question]
+      properties:
+        sources: { type: string, description: "The excerpts, each starting with a label like [S1 Author, Year, Title] on its own line" }
+        question: { type: string, description: "The one question the brief must answer" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings: { type: array, items: { type: object, required: [claim, citations, confidence], properties: { claim: { type: string }, citations: { type: array, items: { type: string } }, confidence: { type: string, enum: [low, medium, high] }, note: { type: string } } } }
+        disagreements: { type: array, items: { type: object, properties: { topic: { type: string }, positions: { type: array, items: { type: string } } } } }
+        not_covered: { type: array, items: { type: string } }
+        source_notes: { type: array, items: { type: object, properties: { label: { type: string }, kind: { type: string }, trust: { type: string }, why: { type: string } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { sources: "[S1 Smith 2024 Survey] 62% of teams report faster reviews with AI tools. [S2 Lee 2025 RCT] No significant effect on defect rate (n=120).", question: "Do AI code review tools reduce defects?" }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { sources: "[S1 Smith 2024 Survey] 62% of teams report faster reviews with AI tools. [S2 Lee 2025 RCT] No significant effect on defect rate (n=120).", question: "Do AI code review tools reduce defects?" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Source Synthesis takes the excerpts you paste, each with a label, and one question, and writes
+  the brief a careful analyst would: findings that answer the question, each with the citations
+  that support it and a confidence level; the places where sources disagree, with each position
+  attributed; what the question needs that the sources do not cover; and a note per source on
+  what kind of evidence it is and how much to trust it.
+
+  It uses only the pasted text. It does not know the sources beyond the excerpts, and it says so
+  when an excerpt is too thin to carry a claim.
+useCases:
+  - "Before writing a position piece, from the articles you collected"
+  - "Summarising customer research across interviews and surveys"
+  - "Preparing a literature section from paper excerpts"
+  - "Checking what a set of vendor claims actually rests on"

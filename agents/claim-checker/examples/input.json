@@ -1,0 +1,4 @@
+{
+  "text": "AI code review tools cut production defects by 40 % and are now used by most engineering teams. A 2025 trial confirmed the effect on defects.",
+  "sources": "[S1 Lee 2025, randomised trial, n=120] No statistically significant difference in defects per KLOC; review time down 28 %.\n[S2 Smith 2024, survey, n=400] 62 % of teams report using an AI review tool.\n[S3 Vendor whitepaper 2025] Customers see 40 % fewer production incidents."
+}

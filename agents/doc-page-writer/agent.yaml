@@ -1,0 +1,59 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: doc-page-writer
+  version: 1.0.0
+  license: MIT
+  goal: writing
+  value: "Writes a documentation page from your pasted notes, code comments or a feature description: task-first, with the steps, the example and the failure cases."
+  tagline: "Turns raw material (notes, commit messages, a PR description, a code snippet) into one documentation page: what the reader can do, prerequisites, numbered steps, one working example, what can go wrong, and the terms it had to assume."
+  tags: [writing, documentation, technical-writing, developer-docs, how-to, product]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: page_type, type: enum, values: [how-to, reference, concept], default: how-to, description: "Shape of the page" }
+    - { name: reader_level, type: enum, values: [beginner, practitioner, expert], default: practitioner, description: "How much to explain" }
+  bricks:
+    skills: [doc-page-patterns]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [material, topic]
+      properties:
+        material: { type: string, description: "Notes, comments, a PR description, a code snippet, a support answer: whatever exists about the feature" }
+        topic: { type: string, description: "What the page is about, in one line, and who reads it" }
+    output:
+      type: object
+      required: [summary, page]
+      properties:
+        summary: { type: string }
+        page: { type: object, required: [title, intro, sections], properties: { title: { type: string }, intro: { type: string }, prerequisites: { type: array, items: { type: string } }, sections: { type: array, items: { type: object, properties: { heading: { type: string }, body: { type: string } } } }, example: { type: string }, troubleshooting: { type: array, items: { type: object, properties: { symptom: { type: string }, cause: { type: string }, fix: { type: string } } } } } }
+        markdown: { type: string }
+        gaps: { type: array, items: { type: string } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { material: "PR: add --target codex to pull. Writes .agents/skills/<name>/SKILL.md and [mcp_servers.x] tables in .codex/config.toml. Codex only loads project config when trusted.", topic: "How to install an agent into Codex, for developers" }
+      expect: { jsonPath: { path: page.sections.length, min: 1 } }
+    - name: writes a usable summary
+      input: { material: "PR: add --target codex to pull. Writes .agents/skills/<name>/SKILL.md and [mcp_servers.x] tables in .codex/config.toml. Codex only loads project config when trusted.", topic: "How to install an agent into Codex, for developers" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Doc Page Writer takes whatever exists about a feature (notes, a PR description, code comments,
+  a support reply) and writes the page a reader needs: what they can do after reading it, what
+  they need first, the steps in order with the exact commands or clicks, one example that works
+  end to end, and the things that go wrong with their fix. It chooses the shape (how-to, reference,
+  concept) and the level of explanation from the settings, and lists the gaps where the material
+  did not say enough, instead of guessing.
+
+  It writes from the input only; every command, flag and path comes from the material.
+useCases:
+  - "Documenting a feature from its PR before release"
+  - "Turning a support answer into a help page"
+  - "Writing the README section for a new CLI flag"
+  - "Converting engineer notes into a page product can publish"

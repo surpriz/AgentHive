@@ -1,0 +1,5 @@
+{
+  "notes": "Marc: ok so we go with Stripe for the EU entity, decided, Paddle stays for the US for now. Léa: fine, I will draft the migration plan by Friday. Marc: someone should check the fee difference, not sure who. Tom: pricing page, we talked for 20 minutes, no conclusion, maybe revisit next month. Léa: also the webhook secret rotation, Tom said he would do it this week.",
+  "attendees": "Marc (CEO), Léa (CTO), Tom (engineer)",
+  "purpose": "Choose the payment provider for the EU entity"
+}

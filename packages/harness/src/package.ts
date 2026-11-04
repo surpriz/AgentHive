@@ -18,6 +18,8 @@ export interface McpBrick {
 
 /** The parts of a v2 package the harness needs. Validation is the registry's job; this reader trusts the files. */
 export interface LoadedPackage {
+  /** The goal the package declares (code-audit, growth, ...); a trial only runs packages of its own goal. */
+  goal: string;
   dir: string;
   name: string;
   version: string;
@@ -46,7 +48,7 @@ export function renderPrompt(prompt: string, settings: AgentSetting[], values: R
 export async function loadPackage(dir: string): Promise<LoadedPackage> {
   const manifest = parseYaml(await readFile(path.join(dir, 'agent.yaml'), 'utf8')) as {
     apiVersion?: string;
-    metadata?: { name: string; version: string; value?: string; author?: string };
+    metadata?: { name: string; version: string; value?: string; author?: string; goal?: string };
     spec?: { settings?: AgentSetting[]; bricks?: { skills?: string[]; mcp?: McpBrick[] }; io?: { input: unknown; output: unknown } };
   };
   if (manifest.apiVersion !== 'agenthive.sh/v2' || !manifest.metadata || !manifest.spec) throw new Error(`${dir}/agent.yaml is not a v2 package`);
@@ -60,6 +62,7 @@ export async function loadPackage(dir: string): Promise<LoadedPackage> {
     version: manifest.metadata.version,
     author: manifest.metadata.author ?? 'local',
     value: manifest.metadata.value ?? '',
+    goal: manifest.metadata.goal ?? '',
     settings: manifest.spec.settings ?? [],
     bricks: { skills: skillNames, mcp: manifest.spec.bricks?.mcp ?? [] },
     io: manifest.spec.io ?? { input: { type: 'object' }, output: { type: 'object' } },

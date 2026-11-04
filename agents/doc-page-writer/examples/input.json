@@ -1,0 +1,4 @@
+{
+  "material": "PR #512: add --target codex to agent-cli pull. The agent prompt becomes .agents/skills/<name>/SKILL.md, its skills go next to it, MCP servers are written as [mcp_servers.<name>] tables in .codex/config.toml. Note: Codex only reads project-level .codex/config.toml when the project is trusted. Existing tables are kept; --force replaces a server with the same name.",
+  "topic": "How to install an AgentHive agent into Codex, for developers who already use agent-cli"
+}

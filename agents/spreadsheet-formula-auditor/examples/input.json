@@ -1,0 +1,4 @@
+{
+  "formulas": "Rows 2 to 13: monthly revenue in B, costs in C, one row per month.\nB14: =SUM(B2:B12)\nC14: =SUM(C2:C13)\nD2: =B2*1.2\nD3: =B3*1.2\nE2: =VLOOKUP(A2,Prices!A:B,2)\nF14: =B14-C14\nG14: =F14/B14",
+  "purpose": "Annual P&L summary; F14 (profit) and G14 (margin) go to the board deck"
+}

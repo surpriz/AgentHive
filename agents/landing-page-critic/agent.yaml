@@ -1,0 +1,59 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: landing-page-critic
+  version: 1.0.0
+  license: MIT
+  goal: growth
+  value: "Reviews the pasted copy of a landing page against the job it has to do and returns the fixes in order of expected impact."
+  tagline: "Takes the page text (headline, sections, CTAs, proof) and the audience and offer, finds where a visitor stops believing or stops reading, and rewrites the lines that matter most."
+  tags: [growth, landing-page, conversion, copywriting, cro, marketing, saas]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: max_fixes, type: integer, min: 3, max: 15, default: 8, description: "Cap on the fix list" }
+    - { name: rewrite, type: boolean, default: true, description: "Include rewritten lines for the top fixes" }
+  bricks:
+    skills: [landing-page-review-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [page, audience]
+      properties:
+        page: { type: string, description: "The page copy in reading order: headline, subhead, sections, CTAs, proof, FAQ, footer" }
+        audience: { type: string, description: "Who lands here and from where (ad, search, referral), and what they already know" }
+        goal: { type: string, description: "Optional: the one action the page must produce (signup, demo, purchase)" }
+    output:
+      type: object
+      required: [summary, fixes]
+      properties:
+        summary: { type: string }
+        fixes: { type: array, items: { type: object, required: [rank, where, problem, fix, impact], properties: { rank: { type: integer }, where: { type: string }, problem: { type: string }, fix: { type: string }, rewrite: { type: string }, impact: { type: string, enum: [high, medium, low] }, effort: { type: string, enum: [minutes, hour, day] } } } }
+        what_works: { type: array, items: { type: string } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { page: "Headline: The all-in-one platform for modern teams. Subhead: Streamline everything. CTA: Get started.", audience: "Ops managers at 50-person companies arriving from a Google ad for 'expense software'" }
+      expect: { jsonPath: { path: fixes.length, min: 1 } }
+    - name: writes a usable summary
+      input: { page: "Headline: The all-in-one platform for modern teams. Subhead: Streamline everything. CTA: Get started.", audience: "Ops managers at 50-person companies arriving from a Google ad for 'expense software'" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Landing Page Critic reads the copy of a page the way its visitor does: in order, in a hurry, with
+  one question in mind ("is this for me and does it do what I came for?"). From the audience, the
+  traffic source and the goal, it finds the exact lines where the visitor stops believing or stops
+  reading, ranks the fixes by expected impact on the one action the page exists for, and rewrites
+  the lines that matter most in plain words that the audience would use.
+
+  It judges copy and structure, not design or load time. It never invents proof: if the page needs
+  a number it does not have, the fix says what to measure.
+useCases:
+  - "Before spending on ads for a page nobody reviewed"
+  - "When a page gets traffic and no signups"
+  - "To turn a feature list into a page that says what the product does for whom"
+  - "As a second opinion on a copywriter's draft"

@@ -1,0 +1,57 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: interview-notes-analyst
+  version: 1.0.0
+  license: MIT
+  goal: research
+  value: "Turns pasted user or customer interview notes into themes with quotes, counts per theme, and the decisions they support or contradict."
+  tagline: "Reads several interview transcripts or notes, codes them into themes bottom-up, counts who said what, keeps verbatim quotes, flags what only one person said, and maps themes to the questions you were trying to answer."
+  tags: [research, user-research, interviews, qualitative, product-discovery, customer-research]
+spec:
+  model:
+    requires: { toolCalling: false, minContextTokens: 16000 }
+    recommended: []
+  settings:
+    - { name: language, type: enum, values: [auto, en, fr], default: auto, description: "Language of the output; auto follows the input" }
+    - { name: max_themes, type: integer, min: 3, max: 12, default: 7, description: "Cap on the themes" }
+    - { name: min_mentions, type: integer, min: 1, max: 5, default: 2, description: "Mentions needed for a theme; below that it is a single voice" }
+  bricks:
+    skills: [interview-coding-method]
+    mcp: []
+  io:
+    input:
+      type: object
+      required: [notes, questions]
+      properties:
+        notes: { type: string, description: "The interviews, each starting with a label like [P1 role, company size] on its own line" }
+        questions: { type: string, description: "The research questions or decisions the interviews were meant to inform" }
+    output:
+      type: object
+      required: [summary, themes]
+      properties:
+        summary: { type: string }
+        themes: { type: array, items: { type: object, required: [theme, mentions, participants, quotes], properties: { theme: { type: string }, mentions: { type: integer }, participants: { type: array, items: { type: string } }, quotes: { type: array, items: { type: string } }, implication: { type: string } } } }
+        single_voices: { type: array, items: { type: object, properties: { participant: { type: string }, point: { type: string }, quote: { type: string } } } }
+        answers: { type: array, items: { type: object, properties: { question: { type: string }, answer: { type: string }, support: { type: string }, confidence: { type: string, enum: [low, medium, high] } } } }
+        assumptions: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+  tests:
+    - name: returns a non-empty result
+      input: { notes: "[P1 ops manager] Expense reports take me two days a month. [P2 ops lead] Month-end is two days of chasing receipts. [P3 founder] We do not have expenses, we have cards.", questions: "Is month-end expense work a real pain?" }
+      expect: { jsonPath: { path: themes.length, min: 1 } }
+    - name: writes a usable summary
+      input: { notes: "[P1 ops manager] Expense reports take me two days a month. [P2 ops lead] Month-end is two days of chasing receipts. [P3 founder] We do not have expenses, we have cards.", questions: "Is month-end expense work a real pain?" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Interview Notes Analyst reads several interviews and does the coding work: it finds the themes
+  bottom-up from what people said, counts how many participants raised each one, keeps the quote
+  that says it best, separates what several people said from what only one person said, and then
+  answers the research questions you started with, each with its support and a confidence level.
+
+  It never counts a theme a participant did not raise, and it keeps quotes verbatim.
+useCases:
+  - "After a round of discovery interviews, before the team meeting"
+  - "Turning sales call notes into product evidence"
+  - "Checking whether a pain is shared or anecdotal"
+  - "Preparing the research section of a product brief"
