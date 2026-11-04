@@ -8,7 +8,7 @@ import { optionsFromEnv } from './server/env';
 /** Paths the Hono app owns. Everything else stays with Vite (assets, SPA fallback). */
 const API_RE = /^\/(api\/|sitemap\.xml$|docs\/(grading|leaderboard)$|agents\/[a-z0-9][a-z0-9-]*(\/(agent\.(json|yaml)|audit\.json|benchmark\.json|package\.json))?\/?$)/;
 /** Pages the app serves with a static snapshot when a document is requested. */
-const PAGE_RE = /^\/(leaderboard|dashboard)?\/?(\?|$)/;
+const PAGE_RE = /^\/(leaderboard|dashboard|trials\/[a-z0-9-]+)?\/?(\?|$)/;
 
 /**
  * Mounts the registry API inside the Vite dev server so `pnpm dev` is the

@@ -9,8 +9,9 @@ import { HowItWorksModal } from './components/HowItWorksModal';
 import { SignInModal } from './components/SignInModal';
 import { Dashboard } from './components/Dashboard';
 import { Leaderboard } from './components/Leaderboard';
+import { TrialPage } from './components/TrialPage';
 import { EMPTY_FILTERS, filterAgents } from './lib/filters';
-import { agentPath, useRoute } from './lib/router';
+import { agentPath, trialPath, useRoute } from './lib/router';
 import { api, type RegistryConfig } from './lib/api';
 import { authClient, type SessionUser } from './lib/auth-client';
 import type { Agent, Filters } from './types';
@@ -99,6 +100,9 @@ export default function App() {
       desc?.setAttribute('content', `${selected.value} ${selected.framework} · ${selected.category} · grade ${selected.grade}.`);
     } else if (route.kind === 'dashboard') {
       document.title = `Dashboard · ${base}`;
+    } else if (route.kind === 'trial') {
+      document.title = `${route.slug} trial · ${base}`;
+      desc?.setAttribute('content', `AgentHive ${route.slug} trial: packages ranked on what they find in demo apps with planted flaws, with cost and spread per run.`);
     } else if (route.kind === 'leaderboard') {
       document.title = `Leaderboard · ${base}`;
       desc?.setAttribute('content', 'AgentHive leaderboard: hosted agents ranked per category from measured benchmark, audit and availability numbers.');
@@ -106,7 +110,7 @@ export default function App() {
       document.title = `${base} — The proving ground for AI agents`;
       desc?.setAttribute('content', 'AgentHive runs AI agents through the same real tests and publishes which one does the job. Read the package, pull it into Claude Code or Cursor, improve it and resubmit.');
     }
-  }, [selected, route.kind]);
+  }, [selected, route]);
 
   const onPublished = (a: Agent) => {
     setNewIds((prev) => new Set(prev).add(a.id));
@@ -129,14 +133,22 @@ export default function App() {
         nodeCount={list.length}
         session={{ user, pending: session.isPending, onSignIn: signIn, providers: { github: Boolean(config?.github), google: Boolean(config?.google), email: Boolean(config?.email) }, onSignOut: signOut, onDashboard: () => navigate('/dashboard') }}
         onLeaderboard={() => navigate('/leaderboard')}
+        onTrial={() => navigate(trialPath('code-audit'))}
       />
 
       <main className="mx-auto max-w-7xl px-4 pb-20">
-        {route.kind === 'leaderboard' ? (
+        {route.kind === 'trial' ? (
+          <section className="py-10">
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">trial · {route.slug}</p>
+            <h1 className="mb-2 text-2xl font-semibold tracking-tight text-fg">Code audit of vibe-coded apps.</h1>
+            <p className="mb-8 max-w-2xl text-[14px] text-muted">Every package runs on the same demo applications with planted flaws, several times, on the same model. The ranking shows what each one finds and misses, how stable it is, and what a run costs.</p>
+            <TrialPage slug={route.slug} onOpen={(name) => navigate(agentPath(name))} />
+          </section>
+        ) : route.kind === 'leaderboard' ? (
           <section className="py-10">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-dim">leaderboard</p>
             <h1 className="mb-2 text-2xl font-semibold tracking-tight text-fg">Ranked from measured numbers only.</h1>
-            <p className="mb-8 max-w-2xl text-[14px] text-muted">Hosted agents, per category: benchmark pass rate, audit score and gateway availability. Nothing here is declared by an author. Packages will be ranked by trial results once the first trial runs.</p>
+            <p className="mb-8 max-w-2xl text-[14px] text-muted">Hosted agents, per category: benchmark pass rate, audit score and gateway availability. Nothing here is declared by an author. Packages are ranked by <a href="/trials/code-audit" onClick={(e) => { e.preventDefault(); navigate(trialPath('code-audit')); }} className="text-accent hover:underline">trial results</a>.</p>
             <Leaderboard onOpen={(name) => navigate(agentPath(name))} />
           </section>
         ) : route.kind === 'dashboard' ? (

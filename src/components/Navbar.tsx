@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2, Trophy, Mail } from 'lucide-react';
+import { Hexagon, Terminal, Upload, Code2, CircleHelp, LogOut, LayoutDashboard, Loader2, Trophy, Mail, FlaskConical } from 'lucide-react';
 import { GithubIcon } from './ui/GithubIcon';
 import type { SessionUser } from '../lib/auth-client';
 import { CopyButton } from './ui/CodeBlock';
@@ -17,7 +17,8 @@ export interface NavbarSession {
   onDashboard: () => void;
 }
 
-export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { onPush: () => void; onHow: () => void; onLeaderboard: () => void; nodeCount: number; session: NavbarSession }) {
+export function Navbar({ onPush, onHow, onLeaderboard, onTrial, nodeCount, session }: { onPush: () => void; onHow: () => void; onLeaderboard: () => void;
+  onTrial: () => void; nodeCount: number; session: NavbarSession }) {
   const [cliOpen, setCliOpen] = useState(false);
   const cliRef = useRef<HTMLDivElement>(null);
 
@@ -50,7 +51,7 @@ export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { o
           <span className="relative inline-flex h-2 w-2 rounded-full bg-ok animate-pulse-dot" aria-hidden />
           <span>{nodeCount} agents</span>
           <span className="text-dim">·</span>
-          <span>first trial soon</span>
+          <span>first trial running</span>
         </div>
 
         <nav className="flex items-center gap-2">
@@ -64,6 +65,17 @@ export function Navbar({ onPush, onHow, onLeaderboard, nodeCount, session }: { o
           >
             <Trophy size={14} />
             <span className="hidden sm:inline">Leaderboard</span>
+          </a>
+          <a
+            href="/trials/code-audit"
+            onClick={(e) => {
+              e.preventDefault();
+              onTrial();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
+          >
+            <FlaskConical size={14} />
+            <span className="hidden sm:inline">Trial</span>
           </a>
           <button
             type="button"

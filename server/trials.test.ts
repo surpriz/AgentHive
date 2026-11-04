@@ -83,6 +83,14 @@ describe('trials', () => {
     expect(doc.record.result.turns).toHaveLength(1);
   });
 
+  it('serves the trial page with a static snapshot of the ranking', async () => {
+    const html = await (await ctx.app.request('/trials/code-audit', { headers: { accept: 'text/html' } })).text();
+    expect(html).toContain('id="ssr"');
+    expect(html).toContain('Code audit of vibe-coded apps');
+    expect(html).toContain('/agents/vibe-app-security-triage');
+    expect((await ctx.app.request('/trials/nope')).status).toBe(404);
+  });
+
   it('answers an empty ranking for a known trial without results and 404 otherwise', async () => {
     expect((await ctx.app.request('/api/trials/nope.json')).status).toBe(404);
     expect((await ctx.app.request('/api/trials/runs/not-a-uuid.json')).status).toBe(404);

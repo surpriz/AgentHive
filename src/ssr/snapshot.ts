@@ -122,3 +122,43 @@ export function leaderboardSnapshot(board: LeaderboardLike): ReactNode {
     h('p', { key: 'formula', className: 'mt-6 font-mono text-[11px] text-dim' }, `${board.formula} · generated ${board.generatedAt.slice(0, 16).replace('T', ' ')} UTC`),
   ]);
 }
+
+/** The part of /api/trials/<slug>.json the snapshot renders. */
+interface TrialRankingLike {
+  trial: string;
+  title: string;
+  methodologyVersion: number;
+  lastBatchAt: string | null;
+  rows: { agent: string; version: string; model: string; score: number | null; spread: number | null; costUsd: number | null; seconds: number | null; traps: { resisted: number; total: number }; runs: number; tasks: number }[];
+}
+
+const cell = (v: number | null, f: (n: number) => string) => (v === null ? '—' : f(v));
+
+export function trialSnapshot(r: TrialRankingLike): ReactNode {
+  const rows = r.rows.map((row, i) =>
+    h(
+      'tr',
+      { key: `${row.agent}-${row.model}` },
+      h('td', null, `#${i + 1}`),
+      h('td', null, h('a', { href: `/agents/${row.agent}`, className: 'text-accent' }, row.agent), ` v${row.version}`),
+      h('td', null, row.model),
+      h('td', null, cell(row.score, (n) => n.toFixed(1))),
+      h('td', null, cell(row.spread, (n) => `±${n.toFixed(1)}`)),
+      h('td', null, cell(row.costUsd, (n) => `$${n.toFixed(3)}`)),
+      h('td', null, cell(row.seconds, (n) => `${n}s`)),
+      h('td', null, row.traps.total ? `${row.traps.resisted}/${row.traps.total}` : '—'),
+      h('td', null, `${row.runs} on ${row.tasks} tasks`),
+    ),
+  );
+  return shell(r.title, [
+    h('p', { className: 'mt-2 text-muted' }, `Trial ${r.trial}, methodology v${r.methodologyVersion}, last batch ${r.lastBatchAt ? r.lastBatchAt.slice(0, 10) : 'never'}. `, h('a', { href: 'https://github.com/surpriz/AgentHive/blob/main/trials/code-audit/README.md', className: 'text-accent' }, 'How scores are computed')),
+    rows.length
+      ? h(
+          'table',
+          { className: 'mt-6 w-full font-mono text-[12px]' },
+          h('thead', null, h('tr', null, ...['rank', 'agent', 'model', 'score', 'spread', 'cost / run', 'time', 'traps', 'runs'].map((k) => h('th', { key: k, className: 'text-left text-dim' }, k)))),
+          h('tbody', null, ...rows),
+        )
+      : h('p', { className: 'mt-6 text-muted' }, 'No batch has run yet.'),
+  ]);
+}

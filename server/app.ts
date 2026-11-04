@@ -7,7 +7,7 @@ import { agents, runs } from './db/schema';
 import { user as userTable } from './db/auth-schema';
 import { publishLocalAgents } from './dev/localAgents';
 import { withSnapshot } from './ssr';
-import { agentSnapshot, homeSnapshot, leaderboardSnapshot } from '../src/ssr/snapshot';
+import { agentSnapshot, homeSnapshot, leaderboardSnapshot, trialSnapshot } from '../src/ssr/snapshot';
 import { createAuth, type Auth, type AuthEnv, purgeUnverifiedUsers, signupCookie } from './auth';
 import { parseManifest, isV2, validatePackageFiles, MAX_PACKAGE_BYTES } from './manifest';
 import { latestAudit, publishManifest, reauditAgent, latestVersion } from './publish';
@@ -344,6 +344,13 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if (!opts.template) return c.notFound();
     c.header('Cache-Control', PUBLIC_CACHE);
     return c.html(withSnapshot(await opts.template(), leaderboardSnapshot(await computeLeaderboard(db))));
+  });
+  app.get('/trials/:slug{[a-z0-9-]+}', async (c) => {
+    if (!opts.template) return c.notFound();
+    const ranking = await trialRanking(db, c.req.param('slug'));
+    if (!ranking) return c.notFound();
+    c.header('Cache-Control', PUBLIC_CACHE);
+    return c.html(withSnapshot(await opts.template(), trialSnapshot(ranking)));
   });
   app.get('/dashboard', async (c) => {
     if (!opts.template) return c.notFound();

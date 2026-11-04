@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Route = { kind: 'home' } | { kind: 'agent'; name: string } | { kind: 'dashboard' } | { kind: 'leaderboard' };
+export type Route = { kind: 'home' } | { kind: 'agent'; name: string } | { kind: 'dashboard' } | { kind: 'leaderboard' } | { kind: 'trial'; slug: string };
 
 const AGENT_RE = /^\/agents\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
+const TRIAL_RE = /^\/trials\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
 
 export function parseRoute(pathname: string): Route {
   if (/^\/dashboard\/?$/.test(pathname)) return { kind: 'dashboard' };
   if (/^\/leaderboard\/?$/.test(pathname)) return { kind: 'leaderboard' };
+  const t = TRIAL_RE.exec(pathname);
+  if (t) return { kind: 'trial', slug: t[1] };
   const m = AGENT_RE.exec(pathname);
   return m ? { kind: 'agent', name: m[1] } : { kind: 'home' };
 }
 
 export function agentPath(name: string): string {
   return `/agents/${name}`;
+}
+
+export function trialPath(slug: string): string {
+  return `/trials/${slug}`;
 }
 
 export function useRoute(): [Route, (path: string, opts?: { replace?: boolean }) => void] {

@@ -55,6 +55,10 @@
     {
       "source": "/leaderboard",
       "destination": "/api/index?__path=/leaderboard"
+    },
+    {
+      "source": "/trials/:ahslug",
+      "destination": "/api/index?__path=/trials/:ahslug"
     }
   ],
   "headers": [

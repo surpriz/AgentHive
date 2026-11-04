@@ -159,6 +159,53 @@ export interface ManifestIssue {
   message: string;
 }
 
+/** One row of a trial ranking: an agent on a model, from its latest batch. */
+export interface TrialRow {
+  agent: string;
+  version: string;
+  model: string;
+  batchId: string;
+  tasks: number;
+  runs: number;
+  score: number | null;
+  spread: number | null;
+  costUsd: number | null;
+  seconds: number | null;
+  traps: { resisted: number; total: number };
+  capped: number;
+}
+
+export interface TrialRanking {
+  trial: string;
+  title: string;
+  goal: string;
+  methodologyVersion: number;
+  lastBatchAt: string | null;
+  rows: TrialRow[];
+}
+
+export interface TrialRunSummary {
+  id: string;
+  agent: string;
+  version: string;
+  model: string;
+  task: string;
+  runIndex: number;
+  batchId: string;
+  score: number | null;
+  recall: number | null;
+  precision: number | null;
+  traps: { resisted: number; total: number };
+  costUsd: number | null;
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  capped: string | null;
+  ended: string;
+  sandbox: string;
+  createdAt: string;
+}
+
 export const api = {
   config: () => request<RegistryConfig>('/api/config'),
   catalog: () => request<{ agents: Agent[] }>('/api/catalog.json', { cache: 'no-store' }).then((r) => r.agents),
@@ -194,6 +241,8 @@ export const api = {
   gatewaySecret: (name: string) => request<{ secret: string; recipe: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret`, { cache: 'no-store' }),
   rotateGatewaySecret: (name: string) => request<{ secret: string }>(`/api/v1/agents/${encodeURIComponent(name)}/secret/rotate`, { method: 'POST' }),
   leaderboard: () => request<Leaderboard>('/api/leaderboard.json', { cache: 'no-store' }),
+  trial: (slug: string) => request<TrialRanking>(`/api/trials/${encodeURIComponent(slug)}.json`, { cache: 'no-store' }),
+  trialRuns: (slug: string, agent: string) => request<{ runs: TrialRunSummary[] }>(`/api/trials/${encodeURIComponent(slug)}/runs.json?agent=${encodeURIComponent(agent)}`, { cache: 'no-store' }).then((r) => r.runs),
   benchmark: (name: string) => request<{ runnable: boolean; reason: string | null; benchmark: BenchmarkReport | Agent['benchmark'] | null }>(`/agents/${encodeURIComponent(name)}/benchmark.json`, { cache: 'no-store' }),
   runBenchmark: (name: string) => request<{ benchmark: BenchmarkReport }>(`/api/v1/agents/${encodeURIComponent(name)}/benchmark`, { method: 'POST' }),
   package: (name: string) => request<PackageDoc>(`/agents/${encodeURIComponent(name)}/package.json`, { cache: 'no-store' }),
