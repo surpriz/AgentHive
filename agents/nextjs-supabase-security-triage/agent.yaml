@@ -1,0 +1,86 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: nextjs-supabase-security-triage
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "A 20-minute first-pass security triage of a Next.js app on Supabase, worst issues first, with a fix for each."
+  tagline: "Built for the most common vibe-coded stack: RLS per table, anon versus service-role clients, server actions without a user check, middleware matchers, NEXT_PUBLIC leaks, auth callback redirects; ranked with file:line, proof and fix."
+  tags: [security, triage, nextjs, supabase, rls, server-actions, app-router, vercel, first-pass]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 12, description: "Cap on the number of findings; a triage stays short" }
+    - { name: time_budget_minutes, type: integer, min: 5, max: 60, default: 20, description: "How long the pass should take; drives how deep each area goes" }
+  bricks:
+    skills: [nextjs-supabase-checklist, supabase-rls-checklist, triage-report-format]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [missing-rls, idor, privilege-escalation, weak-jwt, sql-injection, nosql-injection, command-injection, xss, mass-assignment, unsigned-webhook, open-redirect, path-traversal, ssrf, cors, debug-endpoint, rate-limit, error-leakage, secret-exposure, committed-env, secret-in-logs, vulnerable-dependency, tls-verification] }
+              area: { type: string, enum: [secrets, access, api, deps, config] }
+              effort: { type: string, enum: [minutes, hour, day] }
+              evidence: { type: string }
+              fix: { type: string }
+        verdict: { type: string, enum: [do-not-ship, fix-before-launch, ship-with-followups, looks-ok] }
+        coverage: { type: array, items: { type: object } }
+        next_steps: { type: array, items: { type: string } }
+  tests:
+    - name: returns a verdict and at least one finding on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: reports coverage for every area
+      input: { path: ".", context: "Internal tool, 20 users, holds customer emails, not yet live" }
+      expect: { jsonPath: { path: coverage.length, min: 4 } }
+readme: |
+  Next.js and Supabase Security Triage is the generalist for the stack most apps written with AI
+  assistance run on: Next.js App Router with Supabase Auth, PostgREST from the browser, server
+  actions and route handlers, deployed on Vercel. In one time-boxed pass it covers secrets, access
+  control, API surface, dependencies and configuration with the checks that matter here: Row Level
+  Security off or `using (true)`, the service-role key in a client component or a `NEXT_PUBLIC_`
+  variable, a server action that trusts an id from the form, middleware that protects pages but
+  not `/api`, an auth callback that redirects to any URL, a webhook parsed before verification.
+
+  It ranks by reachability and impact, merges duplicates, and ends with a verdict and a coverage
+  table. It only reads files and needs the filesystem and git MCP servers pointed at the app root.
+useCases:
+  - "Before a Next.js and Supabase app opens to the public"
+  - "When the database policies were generated and never read"
+  - "As the first pass before the specialists"
+  - "After adding server actions, a webhook or an admin area"

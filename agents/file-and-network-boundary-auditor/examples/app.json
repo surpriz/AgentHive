@@ -1,0 +1,9 @@
+{
+  "path": "./my-app",
+  "focus": [
+    "app/api/files",
+    "app/api/import",
+    "src/lib/shell.ts"
+  ],
+  "context": "Design agency file sharing tool, 40 staff, clients download through share links, live"
+}

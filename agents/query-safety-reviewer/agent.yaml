@@ -1,0 +1,84 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: query-safety-reviewer
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "Finds the database calls where user input shapes the query: SQL and NoSQL injection, raw queries, and bodies spread into writes."
+  tagline: "Follows every request value into Prisma, Drizzle, Supabase, Mongoose, SQLAlchemy and raw SQL calls; flags string-built queries, operator injection and mass assignment, and shows the safe form the project already uses."
+  tags: [security, sql-injection, nosql-injection, mass-assignment, prisma, drizzle, mongoose, sqlalchemy, supabase, raw-query]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: include_orm_filters, type: boolean, default: true, description: "Also review ORM where/filter objects built from request data, not only raw queries" }
+  bricks:
+    skills: [query-safety-patterns]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [sql-injection, nosql-injection, mass-assignment]
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [sql-injection, nosql-injection, mass-assignment, raw-query, unsafe-filter] }
+              evidence: { type: string }
+              fix: { type: string }
+
+  tests:
+    - name: finds at least one issue on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { path: ".", context: "Small SaaS, 300 users, live" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Query Safety Reviewer follows every value that comes from a request (params, query string, body,
+  headers, cookies) into the database layer and asks whether it can change the shape of the query
+  rather than just its values. It knows the escape hatches of each library: `$queryRawUnsafe` and
+  `$executeRawUnsafe` in Prisma, `sql.raw` in Drizzle, `.rpc` and `.filter` string operators in
+  Supabase, `$where` and operator objects in Mongo, `text()` and f-strings in SQLAlchemy, and
+  plain string concatenation everywhere.
+
+  It also catches the quieter mistake of spreading a request body into a create or update, which
+  lets a client set columns it was never meant to touch. It only reads files and needs the
+  filesystem and git MCP servers pointed at the app root.
+useCases:
+  - "Before exposing a search, sort or filter endpoint"
+  - "After adding a raw SQL query for performance"
+  - "When an assistant wrote the data layer and you want every request-to-query path checked"
+  - "On any app that stores one customer next to another"

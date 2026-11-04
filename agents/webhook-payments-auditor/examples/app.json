@@ -1,0 +1,9 @@
+{
+  "path": "./my-app",
+  "focus": [
+    "app/api/webhooks",
+    "app/api/checkout",
+    "lib/stripe.ts"
+  ],
+  "context": "Subscription SaaS on Stripe, 1200 paying accounts, live"
+}

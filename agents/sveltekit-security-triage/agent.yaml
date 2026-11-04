@@ -1,0 +1,86 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: sveltekit-security-triage
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "A 20-minute first-pass security triage of a SvelteKit app, worst issues first, with a fix for each."
+  tagline: "Knows the SvelteKit shapes: load functions that skip the owner check, {@html} on user content, handleError leaking stacks, server keys under $env/static/public, unguarded +server.ts; ranked with file:line, proof and fix."
+  tags: [security, triage, sveltekit, svelte, drizzle, prisma, lucia, first-pass, node]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 12, description: "Cap on the number of findings; a triage stays short" }
+    - { name: time_budget_minutes, type: integer, min: 5, max: 60, default: 20, description: "How long the pass should take; drives how deep each area goes" }
+  bricks:
+    skills: [sveltekit-security-checklist, triage-report-format]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [missing-rls, idor, privilege-escalation, weak-jwt, sql-injection, nosql-injection, command-injection, xss, mass-assignment, unsigned-webhook, open-redirect, path-traversal, ssrf, cors, debug-endpoint, rate-limit, error-leakage, secret-exposure, committed-env, secret-in-logs, vulnerable-dependency, tls-verification] }
+              area: { type: string, enum: [secrets, access, api, deps, config] }
+              effort: { type: string, enum: [minutes, hour, day] }
+              evidence: { type: string }
+              fix: { type: string }
+        verdict: { type: string, enum: [do-not-ship, fix-before-launch, ship-with-followups, looks-ok] }
+        coverage: { type: array, items: { type: object } }
+        next_steps: { type: array, items: { type: string } }
+  tests:
+    - name: returns a verdict and at least one finding on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: reports coverage for every area
+      input: { path: ".", context: "Internal tool, 20 users, holds customer emails, not yet live" }
+      expect: { jsonPath: { path: coverage.length, min: 4 } }
+readme: |
+  SvelteKit Security Triage is the generalist for SvelteKit apps, usually on Drizzle or Prisma with
+  Lucia, Auth.js or a hand-rolled session. In one time-boxed pass it covers secrets, access control,
+  API surface, dependencies and configuration with checks written for the framework: the `load` in
+  `+page.server.ts` that reads any row by id while the actions next to it are scoped, the
+  `+server.ts` endpoint outside the `hooks.server.ts` guard, `{@html}` on Markdown nobody
+  sanitised, `handleError` returning the stack, a redirect built from a query parameter, a server
+  key under `$env/static/public`, a webhook parsed before its signature check.
+
+  It ranks by reachability and impact, merges duplicates, and ends with a verdict and a coverage
+  table. It only reads files and needs the filesystem and git MCP servers pointed at the app root.
+useCases:
+  - "Before a SvelteKit app opens to clients"
+  - "When load functions and form actions were written with an assistant"
+  - "As the first pass before the specialists"
+  - "After adding payments, uploads or an export endpoint"

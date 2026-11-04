@@ -1,0 +1,9 @@
+{
+  "path": "./worker",
+  "focus": [
+    "src/jobs",
+    "src/lib/shell.ts",
+    "src/lib/log.ts"
+  ],
+  "context": "Background worker that exports tenant data nightly and notifies customers by webhook; one VM, internal admin API only"
+}

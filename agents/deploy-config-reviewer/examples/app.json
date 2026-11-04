@@ -1,0 +1,10 @@
+{
+  "path": "./my-app",
+  "focus": [
+    "next.config.ts",
+    "vercel.json",
+    ".env.example",
+    "Dockerfile"
+  ],
+  "context": "Marketing site with a members area, deployed on Vercel, live"
+}

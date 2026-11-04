@@ -278,7 +278,8 @@ LinkedIn) et demander s'ils paieraient pour lancer la même épreuve chez un cli
 
 État au 2026-11-04, vérifié sur le site et le dépôt.
 
-**Existe :** catalogue avec cinq packages d'audit de code signés AgentHive, fiches,
+**Existe :** catalogue avec quinze packages d'audit de code signés AgentHive (un
+généraliste, quatre généralistes par stack, dix spécialistes avec périmètre déclaré), fiches,
 audit statique, classement, CLI (`search`, `info`, `pull`, `push`), serveur MCP du
 catalogue, gateway, comptes GitHub, Google et email (mails par SES), clés d'API.
 Première épreuve `code-audit` en production : harness open source (`packages/harness`),
@@ -287,7 +288,9 @@ réseau, Haiku 5.5 ×3 et Sonnet 5.5 ×1, batch hebdomadaire sur GitHub Actions,
 `/trials/code-audit` avec score, variance, coût, temps, pièges et détail par catégorie,
 onglet Trial sur chaque fiche avec les runs enregistrés, méthodologie sur la page.
 Trois batches, environ 20 $ au total. Toute personne connectée peut déjà publier un
-package avec `agent-cli push` et il entre dans le batch suivant. Signalement depuis
+package avec `agent-cli push` et il entre dans le batch suivant. Règle du catalogue
+(décidée le 2026-11-04) : un package sans run d'épreuve porte un badge « untested » et
+l'accueil a un filtre « tested only » ; le badge tombe dès que son métier a une épreuve. Signalement depuis
 chaque fiche (mail aux mainteneurs), dépublication par l'auteur, retrait par un admin
 avec pierre tombale sur le nom (410), résultats d'épreuve conservés ; compteur de
 récupérations (`pulls`) sur chaque package.

@@ -1,0 +1,82 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: deploy-config-reviewer
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "Reviews the configuration your app ships with: CORS, headers, debug routes, error output, TLS flags and env files."
+  tagline: "Reads next.config, vercel.json, Dockerfiles, env files, CORS and logging setup, and the routes left in for debugging; reports what a deploy exposes before any user logs in."
+  tags: [security, configuration, cors, headers, debug, env, vercel, docker, tls, logging]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: production_only, type: boolean, default: true, description: "Ignore settings that only apply when NODE_ENV or APP_ENV is development" }
+  bricks:
+    skills: [deploy-config-checklist]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [cors, debug-endpoint, error-leakage, tls-verification, committed-env, secret-exposure]
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [cors, debug-endpoint, error-leakage, tls-verification, committed-env, secret-exposure, headers, logging] }
+              evidence: { type: string }
+              fix: { type: string }
+
+  tests:
+    - name: finds at least one issue on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { path: ".", context: "Small SaaS, 300 users, live" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Deploy Config Reviewer looks at everything that is true about your app before a single user
+  signs in: the CORS policy, the security headers, the routes that dump the environment or expose
+  internals, the catch blocks that send stack traces to the browser, the TLS checks switched off
+  "for now", the env files committed to the repository and the keys that reach the client bundle.
+
+  These are the mistakes that come from copying a config from a tutorial and never reading it
+  again. Each finding names the file, the line and the exact value to change. It only reads files
+  and needs the filesystem and git MCP servers pointed at the app root.
+useCases:
+  - "Before the first production deploy"
+  - "After copying a next.config or vercel.json from a template"
+  - "When an endpoint was added \"just for debugging\""
+  - "When a TLS or certificate check was disabled to make something work"

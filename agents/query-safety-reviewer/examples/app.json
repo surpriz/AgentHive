@@ -1,0 +1,9 @@
+{
+  "path": "./my-app",
+  "focus": [
+    "src/routes",
+    "lib/db.ts",
+    "prisma"
+  ],
+  "context": "Booking tool for a coworking space, Express and Prisma on Postgres, live"
+}

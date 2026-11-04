@@ -1,0 +1,9 @@
+{
+  "path": "./my-app",
+  "focus": [
+    "app/api/auth",
+    "lib/auth.ts",
+    "middleware.ts"
+  ],
+  "context": "B2B SaaS, 400 accounts, invite-only sign-up, live"
+}

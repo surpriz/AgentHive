@@ -1,0 +1,4 @@
+{
+  "path": "./server",
+  "context": "CRM for a sales team, 25 users, Express 5 and Mongoose, live"
+}

@@ -1,0 +1,82 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: auth-flow-auditor
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "Finds the ways a stranger becomes a user, or a user becomes an admin, in your sign-in code."
+  tagline: "Reads sign-up, login, password reset, magic link, OAuth callback and session code; checks token verification, secrets, redirects, brute-force protection and where the role comes from."
+  tags: [security, authentication, jwt, session, oauth, password-reset, open-redirect, rate-limit, nextjs, express, fastapi]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: check_rate_limits, type: boolean, default: true, description: "Report login, signup and reset endpoints without throttling" }
+  bricks:
+    skills: [auth-flow-checklist]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [weak-jwt, open-redirect, rate-limit, privilege-escalation]
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [weak-jwt, open-redirect, rate-limit, privilege-escalation, missing-authn, session] }
+              evidence: { type: string }
+              fix: { type: string }
+
+  tests:
+    - name: finds at least one issue on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { path: ".", context: "Small SaaS, 300 users, live" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Auth Flow Auditor reads every path that turns a visitor into a user and a user into something
+  more: sign-up, login, password reset, magic links, OAuth callbacks, session cookies and the
+  JWT helpers behind them. For each it asks the questions AI-written auth code gets wrong: is the
+  token's signature verified with a real secret, does the code accept the algorithm the token
+  declares, does the reset link expire, can the redirect after login point off-site, can the role
+  be chosen by the person signing up, and can anyone try ten thousand passwords in a minute.
+
+  It only reads files. It needs the filesystem and git MCP servers pointed at the app root.
+useCases:
+  - "Before opening sign-up to the public"
+  - "After adding OAuth, magic links or a password reset flow"
+  - "When a JWT or session helper was written by an assistant"
+  - "When a login endpoint has no rate limit and you are not sure it matters"

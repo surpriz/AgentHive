@@ -1,0 +1,85 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: express-mongo-security-triage
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "A 20-minute first-pass security triage of an Express app on MongoDB or Mongoose, worst issues first, with a fix for each."
+  tagline: "Covers the Express and Mongo mistakes AI-written APIs make: operator injection, $where, role in the sign-up body, missing auth middleware on one router, stack traces in production, unsigned webhooks; ranked with file:line, proof and fix."
+  tags: [security, triage, express, mongodb, mongoose, jwt, nosql-injection, first-pass, node]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 12, description: "Cap on the number of findings; a triage stays short" }
+    - { name: time_budget_minutes, type: integer, min: 5, max: 60, default: 20, description: "How long the pass should take; drives how deep each area goes" }
+  bricks:
+    skills: [express-mongo-checklist, triage-report-format]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [missing-rls, idor, privilege-escalation, weak-jwt, sql-injection, nosql-injection, command-injection, xss, mass-assignment, unsigned-webhook, open-redirect, path-traversal, ssrf, cors, debug-endpoint, rate-limit, error-leakage, secret-exposure, committed-env, secret-in-logs, vulnerable-dependency, tls-verification] }
+              area: { type: string, enum: [secrets, access, api, deps, config] }
+              effort: { type: string, enum: [minutes, hour, day] }
+              evidence: { type: string }
+              fix: { type: string }
+        verdict: { type: string, enum: [do-not-ship, fix-before-launch, ship-with-followups, looks-ok] }
+        coverage: { type: array, items: { type: object } }
+        next_steps: { type: array, items: { type: string } }
+  tests:
+    - name: returns a verdict and at least one finding on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: reports coverage for every area
+      input: { path: ".", context: "Internal tool, 20 users, holds customer emails, not yet live" }
+      expect: { jsonPath: { path: coverage.length, min: 4 } }
+readme: |
+  Express and Mongo Security Triage is the generalist for Node APIs on MongoDB. In one time-boxed
+  pass it covers secrets, access control, API surface, dependencies and configuration, with checks
+  written for this stack: a router mounted without the auth middleware, `req.body` passed to
+  `find()` or `findOne()` so an operator object matches everything, `$where` with a string from the
+  request, `role` accepted at sign-up, `findByIdAndUpdate(id, req.body)`, the error handler that
+  returns `err.stack`, a webhook that trusts its body.
+
+  It ranks by reachability and impact, merges duplicates, and ends with a verdict and a coverage
+  table. It only reads files and needs the filesystem and git MCP servers pointed at the app root.
+useCases:
+  - "Before an Express API goes live"
+  - "When sign-up, roles or filters were written with an assistant"
+  - "As the first pass before the specialists"
+  - "On any Mongo-backed app that stores one customer next to another"

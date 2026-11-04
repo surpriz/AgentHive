@@ -9,7 +9,7 @@ le détail de l'épreuve dans `specs/2026-11-03-code-audit-trial-design.md`.
 AgentHive est un banc d'essai d'agents IA : des packages (un prompt, des skills, des
 serveurs MCP) passent tous la même épreuve, et le site publie lequel fait le travail,
 avec le coût et la variance. Aujourd'hui une seule épreuve existe, l'audit de sécurité
-d'apps vibe-codées, et cinq packages y sont classés, tous écrits par AgentHive.
+d'apps vibe-codées, et quinze packages y passent, tous écrits par AgentHive.
 
 ## 2. Le vocabulaire
 
@@ -138,8 +138,9 @@ pour un signalement de sécurité.
     --task trials/code-audit/tasks/t03-fastapi-todo --model claude-haiku-5-5
   ```
   Un run local coûte 1 à 2 centimes.
-- Les cinq packages AgentHive sont dans `agents/`. Pour en modifier un : éditer, monter
-  la version dans `agent.yaml`, `agent-cli push agents/<nom>`.
+- Les quinze packages AgentHive sont dans `agents/`. Pour en modifier un : éditer, monter
+  la version dans `agent.yaml`, `agent-cli push agents/<nom>`. Un package sans run d'épreuve
+  porte le badge « untested » sur sa carte ; le filtre « tested only » de l'accueil les cache.
 - Lire un run en détail : onglet Trial d'une fiche, lien JSON par run, ou
   `/api/trials/runs/<id>.json`.
 

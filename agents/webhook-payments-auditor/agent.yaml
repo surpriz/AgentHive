@@ -1,0 +1,84 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: webhook-payments-auditor
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "Checks the code that receives money signals: webhook signatures, amounts trusted from the client, invoice access, and replay handling."
+  tagline: "Reads Stripe, Paddle, Lemon Squeezy, PayPal and custom webhook receivers plus checkout and invoice routes; verifies signature checking, raw-body handling, idempotency, amount and ownership checks."
+  tags: [security, webhooks, stripe, payments, signature, idempotency, checkout, invoices, nextjs, express]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: providers, type: string, default: "auto", description: "Comma-separated providers to assume (stripe, paddle, lemonsqueezy, paypal, custom) or auto" }
+  bricks:
+    skills: [webhook-payments-checklist]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [unsigned-webhook, idor, mass-assignment]
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [unsigned-webhook, idor, mass-assignment, replay, amount-trust, raw-body] }
+              evidence: { type: string }
+              fix: { type: string }
+
+  tests:
+    - name: finds at least one issue on a typical app
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { path: ".", context: "Small SaaS, 300 users, live" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Webhook and Payments Auditor reads the two places where money meets your code: the webhook
+  receivers that providers call to say "this was paid", and the routes that start a payment or show
+  an invoice. It checks that every receiver verifies the provider's signature on the raw body with a
+  secret that exists, that an event cannot be replayed to mark things paid twice, that amounts and
+  prices come from your database rather than the client, and that an invoice or subscription can
+  only be paid, viewed or cancelled by its owner.
+
+  The comment that says "verified upstream" is not a check. The auditor reads the code and tells you
+  what a forged POST would do. It only reads files and needs the filesystem and git MCP servers
+  pointed at the app root.
+useCases:
+  - "Before switching a payment provider from test to live keys"
+  - "After adding a webhook receiver or a checkout route"
+  - "When \"paid\" status is set by code you did not write by hand"
+  - "On any app with invoices, subscriptions or credits"

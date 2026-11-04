@@ -1,0 +1,83 @@
+apiVersion: agenthive.sh/v2
+kind: Agent
+metadata:
+  name: worker-and-cron-auditor
+  version: 1.0.0
+  license: MIT
+  goal: code-audit
+  value: "Audits workers, cron jobs and queue consumers: secrets in logs, shell commands built from data, TLS off, stored URLs, unguarded admin endpoints."
+  tagline: "Reads the code that runs without a request in front of it: exporters, notifiers, schedulers and their internal admin APIs; checks what they log, what they execute, where they send data and who can trigger them."
+  tags: [security, worker, cron, queue, background-jobs, logging, command-injection, tls, ssrf, node, python]
+spec:
+  model:
+    requires: { toolCalling: true, minContextTokens: 32000 }
+    recommended: []
+  settings:
+    - { name: severity_floor, type: enum, values: [low, medium, high], default: medium, description: "Lowest severity to include in the findings list" }
+    - { name: max_findings, type: integer, min: 1, max: 50, default: 20, description: "Cap on the number of findings reported" }
+    - { name: include_admin_api, type: boolean, default: true, description: "Also review the internal HTTP or CLI surface that triggers jobs" }
+  bricks:
+    skills: [background-jobs-checklist]
+    mcp:
+      - name: filesystem
+        package: npm:@modelcontextprotocol/server-filesystem@2.1.0
+        args: ["."]
+        env: []
+        permissions: { network: [], filesystem: read }
+      - name: git
+        package: pypi:mcp-server-git==2026.10.28
+        args: []
+        env: []
+        permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [command-injection, secret-in-logs, tls-verification, ssrf, debug-endpoint]
+  io:
+    input:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Root folder of the app to audit" }
+        focus: { type: array, items: { type: string }, description: "Optional files, folders or routes to look at first" }
+        context: { type: string, description: "One paragraph about the app: who uses it, what data it holds, whether it is live" }
+    output:
+      type: object
+      required: [summary, findings]
+      properties:
+        summary: { type: string }
+        findings:
+          type: array
+          items:
+            type: object
+            required: [id, severity, title, file, evidence, fix]
+            properties:
+              id: { type: string }
+              severity: { type: string, enum: [low, medium, high, critical] }
+              title: { type: string }
+              file: { type: string }
+              line: { type: integer }
+              category: { type: string, enum: [command-injection, secret-in-logs, tls-verification, ssrf, debug-endpoint, secret-exposure, path-traversal, unsigned-webhook] }
+              evidence: { type: string }
+              fix: { type: string }
+
+  tests:
+    - name: finds at least one issue on a typical worker
+      input: { path: "." }
+      expect: { jsonPath: { path: findings.length, min: 1 } }
+    - name: writes a usable summary
+      input: { path: ".", context: "Nightly export worker on one VM, internal admin API" }
+      expect: { jsonPath: { path: summary.length, min: 40 } }
+readme: |
+  Worker and Cron Auditor is for the code nobody reviews because no user ever sees it: the nightly
+  export, the notifier, the queue consumer, the scheduler, and the small internal API that triggers
+  them. It checks what the job logs at startup and on error (configs with keys in them), what it
+  executes (`exec` with a tenant name or a file path in the string), how it talks to the outside
+  (TLS verification off for a partner, webhooks to stored URLs without host checks, shared secrets
+  sent in the URL), where it writes (export paths built from tenant data), and who can trigger it
+  (an admin endpoint behind a header nobody rotates, or behind nothing).
+
+  It only reads files and needs the filesystem and git MCP servers pointed at the project root.
+useCases:
+  - "Before a worker gets access to production credentials"
+  - "After adding a job that shells out or writes exports"
+  - "When a partner integration needed TLS verification \"temporarily\" off"
+  - "On any internal admin API that triggers jobs"

@@ -1,0 +1,4 @@
+{
+  "path": "./my-app",
+  "context": "Invoicing tool for freelancers, 900 accounts, holds client names and amounts, live on Vercel"
+}
