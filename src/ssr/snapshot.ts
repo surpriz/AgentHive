@@ -117,7 +117,7 @@ export function leaderboardSnapshot(board: LeaderboardLike): ReactNode {
       ),
     );
   return shell('Leaderboard', [
-    h('p', { key: 'intro', className: 'mt-3 max-w-2xl text-[14px] text-muted' }, 'Hosted agents ranked per category from measured numbers. Packages will be ranked by trial results once the first trial runs.'),
+    h('p', { key: 'intro', className: 'mt-3 max-w-2xl text-[14px] text-muted' }, 'Hosted agents ranked per category from measured numbers. Packages are ranked by trial results at /trials/code-audit.'),
     sections.length ? h('div', { key: 'sections' }, ...sections) : h('p', { key: 'empty', className: 'mt-6 font-mono text-[12px] text-dim' }, 'Nobody ranked yet.'),
     h('p', { key: 'formula', className: 'mt-6 font-mono text-[11px] text-dim' }, `${board.formula} · generated ${board.generatedAt.slice(0, 16).replace('T', ' ')} UTC`),
   ]);
@@ -160,5 +160,12 @@ export function trialSnapshot(r: TrialRankingLike): ReactNode {
           h('tbody', null, ...rows),
         )
       : h('p', { className: 'mt-6 text-muted' }, 'No batch has run yet.'),
+    h(
+      'section',
+      { id: 'methodology', className: 'mt-8 max-w-2xl text-[13px] text-muted' },
+      h('h2', { className: 'font-mono text-[13px] font-semibold text-fg' }, `Methodology, version ${r.methodologyVersion}`),
+      h('p', { className: 'mt-2' }, 'Tasks: small applications with three to five planted flaws each, eight public in the repository and four private that rotate. Runs: every package on every task, three times on claude-haiku-5-5 and once on claude-sonnet-5-5, in an isolated sandbox with the network cut, capped at one million input tokens, thirty thousand output tokens, forty turns or fifteen minutes.'),
+      h('p', { className: 'mt-2' }, 'Score: a finding matches a planted flaw by file and line or by category; recall weighs high 3, medium 2, low 1; precision sets real but unplanted remarks aside as neutral; score = 100 × recall × (0.7 + 0.3 × precision), averaged over runs, spread is the standard deviation. Traps are reported, never scored. Traces of public tasks are in the repository; runs on private tasks keep score, cost and timing public and their trace redacted.'),
+    ),
   ]);
 }
