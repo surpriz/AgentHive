@@ -1,0 +1,76 @@
+name: trial-code-audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'model=runs pairs, comma separated'
+        default: 'claude-haiku-5-5=3'
+      packages:
+        description: 'package names, comma separated (empty = all)'
+        default: ''
+      tasks:
+        description: 'task ids, comma separated (empty = all)'
+        default: ''
+      max_spend_usd:
+        description: 'stop scheduling runs past this spend'
+        default: '40'
+      push:
+        description: 'post the records to agenthive.sh'
+        type: boolean
+        default: true
+  schedule:
+    - cron: '30 4 * * 1'
+
+concurrency:
+  group: trial-code-audit
+  cancel-in-progress: false
+
+jobs:
+  batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @agenthive-sh/harness build
+      - name: batch id
+        id: batch
+        run: echo "id=$(date -u +%Y-%m-%dT%H-%MZ)" >> "$GITHUB_OUTPUT"
+      - name: run the batch
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+          MODELS: ${{ inputs.models || 'claude-haiku-5-5=3' }}
+          PACKAGES: ${{ inputs.packages }}
+          TASKS: ${{ inputs.tasks }}
+          MAX_SPEND: ${{ inputs.max_spend_usd || '40' }}
+          BATCH_ID: ${{ steps.batch.outputs.id }}
+        run: |
+          node packages/harness/dist/bin.js batch \
+            --agents agents \
+            --tasks trials/code-audit/tasks \
+            --models "$MODELS" \
+            --packages "$PACKAGES" \
+            --only-tasks "$TASKS" \
+            --sandbox e2b \
+            --concurrency 8 \
+            --max-spend "$MAX_SPEND" \
+            --out "runs/$BATCH_ID"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runs-${{ steps.batch.outputs.id }}
+          path: runs/
+          retention-days: 90
+      - name: post the records
+        if: ${{ inputs.push != false }}
+        env:
+          TRIAL_RESULTS_SECRET: ${{ secrets.TRIAL_RESULTS_SECRET }}
+          BATCH_ID: ${{ steps.batch.outputs.id }}
+        run: node packages/harness/dist/bin.js push --dir "runs/$BATCH_ID" --batch "$BATCH_ID" --trial code-audit

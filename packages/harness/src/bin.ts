@@ -7,6 +7,7 @@ import { loadPackage } from './package.js';
 import { findingsOf, score } from './score.js';
 import { loadTask, loadTaxonomy } from './task.js';
 import { pushDir } from './push.js';
+import { planBatch, runBatch } from './batch.js';
 import { anthropicClient, runTask } from './run.js';
 
 const program = new Command().name('agenthive-harness').description('Runs a declarative AgentHive package against a trial task and scores the result.');
@@ -71,6 +72,48 @@ program
     const doc = JSON.parse(await readFile(o.output, 'utf8')) as { result?: { output?: unknown } };
     const output = doc.result?.output ?? doc;
     console.log(JSON.stringify(score(findingsOf(output), task.truth, taxonomy, task.incidental), null, 2));
+  });
+
+const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+
+program
+  .command('batch')
+  .description('Runs every package on every task, several times per model, and writes one record per run')
+  .requiredOption('--agents <dir>', 'directory of package directories')
+  .requiredOption('--tasks <dir>', 'directory of task directories')
+  .option('--models <spec>', 'model=runs pairs, comma separated', 'claude-haiku-5-5=3')
+  .option('--packages <names>', 'only these packages, comma separated', '')
+  .option('--only-tasks <ids>', 'only these tasks, comma separated', '')
+  .option('--taxonomy <file>', 'taxonomy file', 'trials/code-audit/taxonomy.yaml')
+  .option('--sandbox <kind>', 'local or e2b', 'e2b')
+  .option('--concurrency <n>', 'runs in flight', '4')
+  .option('--max-spend <usd>', 'stop scheduling runs past this spend', '40')
+  .option('--out <dir>', 'where run records are written', 'runs')
+  .action(async (o: { agents: string; tasks: string; models: string; packages: string; onlyTasks: string; taxonomy: string; sandbox: string; concurrency: string; maxSpend: string; out: string }) => {
+    if (o.sandbox !== 'local' && o.sandbox !== 'e2b') throw new Error(`unknown sandbox: ${o.sandbox}`);
+    const models: Record<string, number> = {};
+    for (const pair of list(o.models)) {
+      const [model, runs] = pair.split('=');
+      if (!model || !Number(runs)) throw new Error(`bad model spec: ${pair}`);
+      models[model] = Number(runs);
+    }
+    const plan = await planBatch(o.agents, o.tasks, models, { packages: list(o.packages), tasks: list(o.onlyTasks) });
+    console.log(`${plan.packages.length} packages × ${plan.tasks.length} tasks × ${Object.entries(models).map(([m, n]) => `${m}×${n}`).join(' + ')} → ${o.out}`);
+    const summary = await runBatch({
+      client: await anthropicClient(),
+      plan,
+      taxonomyFile: o.taxonomy,
+      outDir: o.out,
+      sandbox: o.sandbox,
+      concurrency: Number(o.concurrency),
+      maxSpendUsd: Number(o.maxSpend),
+      onEvent: (e) => {
+        if (e.kind === 'done' || e.kind === 'failed' || e.kind === 'sandbox') console.error(`${e.kind}: ${e.detail}`);
+      },
+    });
+    console.log(`${summary.done}/${summary.planned} runs done, ${summary.failed.length} failed, spend $${summary.spendUsd.toFixed(2)}${summary.stoppedForBudget ? ' (stopped at the budget)' : ''}`);
+    for (const f of summary.failed) console.log(`  failed ${f.pkg} × ${f.task} × ${f.model} #${f.runIndex}: ${f.error.slice(0, 200)}`);
+    if (summary.done === 0) process.exit(1);
   });
 
 program

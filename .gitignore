@@ -13,3 +13,6 @@ api/_bundle/
 # Demo apps in the trials keep their planted env files on purpose
 !trials/**/.env.local
 !trials/**/.env
+
+# Harness batch output
+runs/
