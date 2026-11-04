@@ -1,6 +1,30 @@
 [
-  { "file": "package.json", "note": "No lockfile; neutral." },
-  { "file": "src/lib/webhook.ts", "lines": [20, 26], "note": "Passing a Node https agent to fetch has no effect in undici; a functional remark about f3, neutral." },
-  { "file": "src/http.ts", "lines": [15, 20], "note": "Admin token compared with timingSafeEqual and bound to localhost; anything about its strength is neutral." },
-  { "file": "src/index.ts", "note": "Webhook URL comes from Redis written by the main app; SSRF remarks about it are neutral, the main app is out of scope." }
+  {
+    "file": "package.json",
+    "note": "No lockfile; neutral."
+  },
+  {
+    "file": "src/lib/webhook.ts",
+    "lines": [
+      20,
+      26
+    ],
+    "note": "Passing a Node https agent to fetch has no effect in undici; a functional remark about f3, neutral."
+  },
+  {
+    "file": "src/http.ts",
+    "lines": [
+      15,
+      20
+    ],
+    "note": "Admin token compared with timingSafeEqual and bound to localhost; anything about its strength is neutral."
+  },
+  {
+    "file": "src/index.ts",
+    "note": "Webhook URL comes from Redis written by the main app; SSRF remarks about it are neutral, the main app is out of scope."
+  },
+  {
+    "file": "src/jobs/notify.ts",
+    "note": "Tenant-controlled webhook URL (SSRF toward internal hosts) and one signing secret for every tenant are real design remarks, not planted; neutral."
+  }
 ]
