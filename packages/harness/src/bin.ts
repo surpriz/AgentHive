@@ -6,6 +6,7 @@ import { DEFAULT_CAPS } from './loop.js';
 import { loadPackage } from './package.js';
 import { findingsOf, score } from './score.js';
 import { loadTask, loadTaxonomy } from './task.js';
+import { pushDir } from './push.js';
 import { anthropicClient, runTask } from './run.js';
 
 const program = new Command().name('agenthive-harness').description('Runs a declarative AgentHive package against a trial task and scores the result.');
@@ -70,6 +71,27 @@ program
     const doc = JSON.parse(await readFile(o.output, 'utf8')) as { result?: { output?: unknown } };
     const output = doc.result?.output ?? doc;
     console.log(JSON.stringify(score(findingsOf(output), task.truth, taxonomy, task.incidental), null, 2));
+  });
+
+program
+  .command('push')
+  .description('Posts the run records of a directory to a registry trial, signed with TRIAL_RESULTS_SECRET')
+  .requiredOption('--dir <dir>', 'directory of run records')
+  .requiredOption('--batch <id>', 'batch id; timestamps sort best, e.g. 2026-11-04T10-00Z')
+  .option('--trial <slug>', 'trial slug', 'code-audit')
+  .option('--registry <url>', 'registry origin', 'https://agenthive.sh')
+  .action(async (o: { dir: string; batch: string; trial: string; registry: string }) => {
+    const secret = process.env.TRIAL_RESULTS_SECRET;
+    if (!secret) throw new Error('TRIAL_RESULTS_SECRET is not set');
+    const out = await pushDir(o.dir, { registry: o.registry, trial: o.trial, batchId: o.batch, secret });
+    let failed = 0;
+    for (const r of out) {
+      const ok = r.status === 200 || r.status === 201;
+      if (!ok) failed++;
+      console.log(`${ok ? 'ok ' : 'ERR'} ${r.status || '---'} ${r.file}${ok ? '' : `  ${r.body.slice(0, 200)}`}`);
+    }
+    console.log(`${out.length - failed}/${out.length} records accepted`);
+    if (failed) process.exit(1);
   });
 
 program.parseAsync(process.argv).catch((err: unknown) => {

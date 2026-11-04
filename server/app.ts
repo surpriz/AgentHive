@@ -17,6 +17,7 @@ import { deliverWebhook, ensureSecret, ensureSystemUser, ensureWebhookSecret, ge
 import { randomUUID } from 'node:crypto';
 import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmark';
 import { computeLeaderboard, rankHistory, snapshotLeaderboard } from './leaderboard';
+import { RESULT_LIMITS, recordTrialResult, resultPostSchema, trialRanking, trialRun, trialRuns } from './trials';
 import { rowToAgent } from './registry';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { buildLayout, type PackageDoc } from '../src/lib/retrieval';
@@ -40,6 +41,8 @@ export interface AppOptions {
   background?: (p: Promise<unknown>) => void;
   /** Bearer token protecting /api/cron/*. Unset disables the cron routes. */
   cronSecret?: string;
+  /** Shared secret the batch runner signs trial results with; results are refused without it. */
+  trialSecret?: string;
   /** In-memory database only: a folder of package directories published under the test user at boot, with offline checks. */
   localAgentsDir?: string;
   /** Password login without verification plus a test user and key. Default: in-memory database outside production. */
@@ -250,6 +253,42 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if (!row) return publicJson(c, { error: 'not found' }, 404);
     const days = Math.min(365, Math.max(1, Number(c.req.query('days') ?? 30) || 30));
     return publicJson(c, { agent: row.name, category: row.category, history: await rankHistory(db, row, days) });
+  });
+
+  // Trial results, posted by the batch runner with the gateway's HMAC scheme over a shared secret.
+  app.post('/api/trials/:trial/results', async (c) => {
+    if (!opts.trialSecret) return c.json({ error: 'trials are not accepting results' }, 503);
+    const body = await c.req.text();
+    if (body.length > RESULT_LIMITS.bodyBytes) return c.json({ error: 'too large' }, 413);
+    const ts = c.req.header('x-agenthive-timestamp') ?? '';
+    const sig = c.req.header('x-agenthive-signature') ?? '';
+    if (!verifyRunSignature(opts.trialSecret, ts, body, sig)) return c.json({ error: 'bad signature' }, 401);
+    let parsed: ReturnType<typeof resultPostSchema.safeParse>;
+    try {
+      parsed = resultPostSchema.safeParse(JSON.parse(body));
+    } catch {
+      return c.json({ error: 'invalid json' }, 400);
+    }
+    if (!parsed.success) return c.json({ error: 'invalid record', issues: parsed.error.issues.slice(0, 10).map((i) => ({ path: i.path.join('.'), message: i.message })) }, 422);
+    const out = await recordTrialResult(db, c.req.param('trial'), parsed.data.batchId, parsed.data.record);
+    if (!out.ok) return c.json({ error: out.message }, out.status);
+    return c.json({ id: out.id, replaced: out.replaced }, out.replaced ? 200 : 201);
+  });
+
+  app.get('/api/trials/:file{[a-z0-9-]+\\.json}', async (c) => {
+    const ranking = await trialRanking(db, c.req.param('file').replace(/\.json$/, ''));
+    return ranking ? publicJson(c, ranking) : publicJson(c, { error: 'unknown trial' }, 404);
+  });
+
+  app.get('/api/trials/:trial/runs.json', async (c) => {
+    const agent = c.req.query('agent') ?? '';
+    if (!agent) return publicJson(c, { error: 'agent required' }, 404);
+    return publicJson(c, { trial: c.req.param('trial'), agent, runs: await trialRuns(db, c.req.param('trial'), agent) });
+  });
+
+  app.get('/api/trials/runs/:file{[a-f0-9-]+\\.json}', async (c) => {
+    const run = await trialRun(db, c.req.param('file').replace(/\.json$/, ''));
+    return run ? publicJson(c, run) : publicJson(c, { error: 'not found' }, 404);
   });
 
   app.get('/docs/grading', (c) => c.redirect(GRADING_URL, 302));

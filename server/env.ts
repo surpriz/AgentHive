@@ -19,6 +19,7 @@ export function optionsFromEnv(env: NodeJS.ProcessEnv, overrides: Partial<AppOpt
     origin: env.PUBLIC_ORIGIN ?? baseURL,
     auth: { secret, baseURL, github, google, email, trustedOrigins: [baseURL] },
     cronSecret: env.CRON_SECRET,
+    trialSecret: env.TRIAL_RESULTS_SECRET,
     ...overrides,
   };
 }

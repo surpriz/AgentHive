@@ -169,6 +169,55 @@ export const leaderboardSnapshots = pgTable(
   (t) => [uniqueIndex('leaderboard_day_category_agent_idx').on(t.day, t.category, t.agentId), index('leaderboard_agent_day_idx').on(t.agentId, t.day)],
 );
 
+/** A trial: one measured professional goal, with its own task set and methodology version. */
+export const trials = pgTable('trials', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  goal: varchar('goal', { length: 32 }).notNull(),
+  title: text('title').notNull(),
+  methodologyVersion: integer('methodology_version').notNull().default(1),
+  lastBatchAt: timestamp('last_batch_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One harness run of one package on one task, posted by the batch runner. `record` holds the full trace. */
+export const trialResults = pgTable(
+  'trial_results',
+  {
+    id: text('id').primaryKey(),
+    trialId: varchar('trial_id', { length: 64 })
+      .notNull()
+      .references(() => trials.id, { onDelete: 'cascade' }),
+    batchId: varchar('batch_id', { length: 64 }).notNull(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    version: varchar('version', { length: 32 }).notNull(),
+    model: varchar('model', { length: 64 }).notNull(),
+    taskId: varchar('task_id', { length: 64 }).notNull(),
+    taskVersion: integer('task_version').notNull(),
+    runIndex: integer('run_index').notNull(),
+    score: real('score'),
+    recall: real('recall'),
+    precision: real('precision'),
+    trapsResisted: integer('traps_resisted').notNull().default(0),
+    trapsTotal: integer('traps_total').notNull().default(0),
+    costUsd: real('cost_usd'),
+    durationMs: integer('duration_ms').notNull(),
+    inputTokens: integer('input_tokens').notNull(),
+    outputTokens: integer('output_tokens').notNull(),
+    capped: varchar('capped', { length: 16 }),
+    ended: varchar('ended', { length: 16 }).notNull(),
+    sandbox: varchar('sandbox', { length: 16 }).notNull(),
+    record: jsonb('record').$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('trial_results_run_idx').on(t.trialId, t.batchId, t.agentId, t.model, t.taskId, t.runIndex),
+    index('trial_results_trial_agent_idx').on(t.trialId, t.agentId, t.createdAt),
+  ],
+);
+
+export type TrialResultRow = typeof trialResults.$inferSelect;
 export type BenchmarkRow = typeof benchmarks.$inferSelect;
 export type RunRow = typeof runs.$inferSelect;
 export type AuditRow = typeof audits.$inferSelect;
