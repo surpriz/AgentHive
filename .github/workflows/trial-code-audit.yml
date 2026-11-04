@@ -22,6 +22,9 @@ on:
   schedule:
     - cron: '30 4 * * 1'
 
+permissions:
+  contents: read
+
 concurrency:
   group: trial-code-audit
   cancel-in-progress: false
