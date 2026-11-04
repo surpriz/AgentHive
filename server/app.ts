@@ -3,7 +3,7 @@ import { stringify as stringifyYaml } from 'yaml';
 import type { Context, Next } from 'hono';
 import { asc, eq, isNull } from 'drizzle-orm';
 import { createDb, PGLITE_URL, type Db } from './db/client';
-import { agents, runs } from './db/schema';
+import { agents, runs, trialResults } from './db/schema';
 import { user as userTable } from './db/auth-schema';
 import { publishLocalAgents } from './dev/localAgents';
 import { withSnapshot } from './ssr';
@@ -103,10 +103,11 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   /** Numbers on a card are measured over the gateway, never declared. */
   const withMeasured = async (rows: (typeof agents.$inferSelect)[]): Promise<Agent[]> => {
     const measured = rows.length > 0 ? await measuredMetrics(db) : new Map();
+    const tested = new Set(rows.length > 0 ? (await db.selectDistinct({ id: trialResults.agentId }).from(trialResults)).map((t) => t.id) : []);
     return rows.map((r) => {
       const a = rowToAgent(r);
       const m = measured.get(r.id);
-      return { ...a, runs30d: m?.runs30d ?? 0, successRate: m?.successRate ?? null, avgLatencyMs: m?.avgLatencyMs ?? null, costPerRun: null };
+      return { ...a, tested: tested.has(r.id), runs30d: m?.runs30d ?? 0, successRate: m?.successRate ?? null, avgLatencyMs: m?.avgLatencyMs ?? null, costPerRun: null };
     });
   };
   // Hidden agents (unpublished or taken down) leave every public listing; their name answers 410 with a tombstone.

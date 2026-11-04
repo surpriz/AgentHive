@@ -37,6 +37,12 @@ export function AgentCard({ agent, onOpen, isNew }: { agent: Agent; onOpen: (a: 
       <div className="flex flex-wrap items-center gap-1.5">
         <FrameworkBadge framework={agent.framework} />
         <Badge mono={false}>{agent.category}</Badge>
+        {agent.apiVersion === 'v2' &&
+          (agent.tested ? (
+            <span className="rounded-md border border-ok/40 bg-ok/10 px-1.5 py-0.5 font-mono text-[10px] text-ok" title="Has recorded runs on a trial; see its Trial tab and the ranking" data-testid="badge-tested">trial-ranked</span>
+          ) : (
+            <span className="rounded-md border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-dim" title="No trial covers this goal yet; the package is checked but its results are not measured" data-testid="badge-untested">untested</span>
+          ))}
       </div>
 
       <div className="mt-auto grid grid-cols-2 gap-2 border-t border-border pt-3 font-mono text-[12px]">

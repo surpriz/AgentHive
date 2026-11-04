@@ -38,6 +38,8 @@ export function rowToAgent(r: AgentRow): Agent {
     endpoint: r.endpoint,
     publishedAt: r.createdAt.toISOString().slice(0, 10),
     scope: r.scope ?? [],
+    // Set from trial results by the catalog loader; a bare row conversion (dashboard, publish response) says false.
+    tested: false,
     pulls: r.pulls,
     hiddenAt: r.hiddenAt ? r.hiddenAt.toISOString() : null,
   };

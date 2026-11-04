@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import path from 'node:path';
+import { readdirSync } from 'node:fs';
 import { createApp, type AppContext } from './app';
 import { otherUserKey } from './test/users';
 
@@ -29,6 +30,8 @@ beforeAll(async () => {
   authz = { authorization: `Bearer ${ctx.testApiKey}` };
 });
 
+/** Every folder under agents/ is published at boot, so the catalog count follows the repository. */
+const REPO_AGENTS = readdirSync(path.resolve(__dirname, '../agents'), { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 const req = (path: string, init?: RequestInit) => ctx.app.request(path, init);
 const post = (path: string, body: unknown, headers: Record<string, string> = authz) =>
   req(path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
@@ -41,7 +44,7 @@ describe('public registry', () => {
     expect(res.headers.get('cache-control')).toContain('s-maxage');
     const body = (await res.json()) as { apiVersion: string; count: number; agents: { name: string; value: string; grade: string }[] };
     expect(body.apiVersion).toBe('agenthive.sh/v1');
-    expect(body.count).toBe(5);
+    expect(body.count).toBe(REPO_AGENTS);
     expect(body.agents.find((a) => a.name === 'vibe-app-security-triage')?.value).toMatch(/security/);
   });
 
@@ -138,7 +141,7 @@ benchmark:
     expect(body.url).toBe('https://agenthive.sh/agents/jira-triage-bot');
 
     const idx = (await (await req('/api/agents.json')).json()) as { count: number };
-    expect(idx.count).toBe(6);
+    expect(idx.count).toBe(REPO_AGENTS + 1);
     const me = (await (await req('/api/v1/me', { headers: authz })).json()) as { agents: { name: string }[] };
     expect(me.agents.map((a) => a.name)).toContain('jira-triage-bot');
   });

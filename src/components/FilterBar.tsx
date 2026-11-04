@@ -80,6 +80,10 @@ export function FilterBar({
         <ChipGroup label="Framework" options={FRAMEWORKS} value={filters.framework} onChange={(v) => set('framework', v)} />
         <ChipGroup label="Category" options={CATEGORIES} value={filters.category} onChange={(v) => set('category', v)} />
         <ChipGroup label="Grade" options={GRADES} value={filters.grade} onChange={(v) => set('grade', v)} />
+        <label className="inline-flex cursor-pointer items-center gap-2 font-mono text-[11px] text-muted">
+          <input type="checkbox" checked={filters.testedOnly} onChange={(e) => set('testedOnly', e.target.checked)} className="accent-[var(--color-accent)]" />
+          tested only
+        </label>
       </div>
 
       <div className="flex items-center justify-between font-mono text-[11px] text-dim">
@@ -87,7 +91,7 @@ export function FilterBar({
           <span className="text-fg">{count}</span> / {total} agents
         </span>
         {active && (
-          <button type="button" onClick={() => onChange({ query: '', framework: 'All', category: 'All', grade: 'All' })} className="inline-flex items-center gap-1 text-muted hover:text-fg">
+          <button type="button" onClick={() => onChange({ query: '', framework: 'All', category: 'All', grade: 'All', testedOnly: false })} className="inline-flex items-center gap-1 text-muted hover:text-fg">
             <RotateCcw size={11} /> reset filters
           </button>
         )}

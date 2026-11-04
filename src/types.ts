@@ -89,6 +89,8 @@ export interface Agent {
   publishedAt: string;
   /** Flaw categories a specialist declares it covers; empty for a generalist. */
   scope: string[];
+  /** True once the package has at least one recorded trial run; an untested package shows a badge and can be filtered out. */
+  tested: boolean;
   /** Package retrievals counted by the registry. */
   pulls: number;
   /** Set once the agent is off the catalog (unpublished by its owner or taken down); only its owner still sees it. */
@@ -109,6 +111,8 @@ export interface Filters {
   framework: Framework | 'All';
   category: Category | 'All';
   grade: SecurityGrade | 'All';
+  /** Only packages with recorded trial runs. */
+  testedOnly: boolean;
 }
 
 export interface PublishPayload {

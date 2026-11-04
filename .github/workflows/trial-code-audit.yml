@@ -14,7 +14,7 @@ on:
         default: ''
       max_spend_usd:
         description: 'stop scheduling runs past this spend'
-        default: '40'
+        default: '60'
       push:
         description: 'post the records to agenthive.sh'
         type: boolean
@@ -58,10 +58,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+          # The Monday cron runs the reference model only; the Sonnet column is a manual dispatch (models input).
           MODELS: ${{ inputs.models || 'claude-haiku-5-5=3' }}
           PACKAGES: ${{ inputs.packages }}
           TASKS: ${{ inputs.tasks }}
-          MAX_SPEND: ${{ inputs.max_spend_usd || '40' }}
+          MAX_SPEND: ${{ inputs.max_spend_usd || '60' }}
           BATCH_ID: ${{ steps.batch.outputs.id }}
         run: |
           node packages/harness/dist/bin.js batch \
