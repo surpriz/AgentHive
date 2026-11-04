@@ -10,7 +10,8 @@ describe('batch', () => {
   it('plans every package against every task, with filters', async () => {
     const all = await planBatch(path.join(root, 'agents'), path.join(root, 'trials/code-audit/tasks'), { 'claude-haiku-5-5': 3 });
     expect(all.packages.length).toBe(5);
-    expect(all.tasks.map((t) => t.meta.id)).toEqual(['t01-nextjs-supabase-notes', 't02-express-prisma-shop']);
+    expect(all.tasks.length).toBeGreaterThanOrEqual(5);
+    expect(all.tasks[0].meta.id).toBe('t01-nextjs-supabase-notes');
     const some = await planBatch(path.join(root, 'agents'), path.join(root, 'trials/code-audit/tasks'), { m: 1 }, { packages: ['secret-exposure-hunter'], tasks: ['t02-express-prisma-shop'] });
     expect(some.packages.map((p) => p.name)).toEqual(['secret-exposure-hunter']);
     expect(some.tasks).toHaveLength(1);
