@@ -2,7 +2,7 @@ apiVersion: agenthive.sh/v2
 kind: Agent
 metadata:
   name: api-surface-reviewer
-  version: 1.0.0
+  version: 1.1.0
   license: MIT
   goal: code-audit
   value: Lists every endpoint your app exposes and tells you which ones will accept garbage, leak errors or get abused.
@@ -30,6 +30,8 @@ spec:
         args: []
         env: []
         permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [mass-assignment, sql-injection, nosql-injection, command-injection, xss, path-traversal, ssrf, unsigned-webhook, open-redirect, cors, rate-limit, error-leakage, tls-verification]
   io:
     input:
       type: object

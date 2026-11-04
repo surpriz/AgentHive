@@ -2,7 +2,7 @@ apiVersion: agenthive.sh/v2
 kind: Agent
 metadata:
   name: secret-exposure-hunter
-  version: 1.0.0
+  version: 1.1.0
   license: MIT
   goal: code-audit
   value: Finds real credentials leaked in your source, env files, client bundles and git history before someone else does.
@@ -30,6 +30,8 @@ spec:
         args: []
         env: []
         permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [secret-exposure, committed-env, secret-in-logs]
   io:
     input:
       type: object

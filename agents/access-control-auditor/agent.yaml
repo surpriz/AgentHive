@@ -2,7 +2,7 @@ apiVersion: agenthive.sh/v2
 kind: Agent
 metadata:
   name: access-control-auditor
-  version: 1.0.0
+  version: 1.1.0
   license: MIT
   goal: code-audit
   value: Finds the places where any user can read or change another user's data in your app.
@@ -30,6 +30,8 @@ spec:
         args: []
         env: []
         permissions: { network: [], filesystem: read }
+  # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
+  scope: [missing-rls, idor, privilege-escalation, weak-jwt, debug-endpoint]
   io:
     input:
       type: object
