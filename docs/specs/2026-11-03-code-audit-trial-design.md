@@ -165,6 +165,19 @@ Two scoring rules came out of these runs: a flaw may list alternate files where 
 same root cause is legitimately reported (`altFiles`), and incidental entries match
 on file alone unless a category is given.
 
+Day two (2026-11-04): the local batch command ran three packages on t01 and t02
+(6 runs, 0.10 USD): triage 92.5 and 100, access-control-auditor 75 and 92.5,
+api-surface-reviewer 21.3 and 100. The triage package then scored 100 on t03, t04
+and t05 at 0.012 to 0.019 USD per run. The line slack for matching went from 5 to
+2 after a "no lockfile" finding on `package.json:12` got credit for the planted
+lodash pin on line 15.
+
+Reading: the generalist at Haiku level finds everything planted so far. The
+ranking will separate packages on spread, cost and false positives before it
+separates them on recall; the private tasks and the later public ones (t06 to t08)
+must be harder: flaws spread over several files, decoys that look like flaws but
+are safe, and larger apps.
+
 ## Open points
 
 - **Specialists versus generalists.** A specialist package (secrets only) cannot find

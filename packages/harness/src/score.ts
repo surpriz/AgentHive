@@ -61,7 +61,7 @@ export interface Score {
 }
 
 const WEIGHT: Record<Severity, number> = { high: 3, medium: 2, low: 1 };
-const LINE_SLACK = 5;
+const LINE_SLACK = 2;
 
 export const normalizePath = (p: string) => p.replace(/\\/g, '/').replace(/^(\.\/|\/)+/, '').replace(/^app\//, '').toLowerCase();
 

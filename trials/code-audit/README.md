@@ -29,4 +29,6 @@ ANTHROPIC_API_KEY=... node packages/harness/dist/bin.js run \
   --model claude-haiku-5-5
 ```
 
-The demo apps are not meant to be deployed. Every key in them is fake.
+The demo apps are intentionally vulnerable: every flaw listed in a `truth.json` is
+planted on purpose, every key in them is fake, and none of them is meant to run
+anywhere but inside the harness. Do not copy code out of `tasks/*/app`.
