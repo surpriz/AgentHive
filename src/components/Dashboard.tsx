@@ -18,8 +18,9 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [rerunMsg, setRerunMsg] = useState<string | null>(null);
 
+  const [confirming, setConfirming] = useState<string | null>(null);
   const unpublish = async (name: string) => {
-    if (!window.confirm(`Take ${name} off the catalog? Its trial results stay visible, marked as unpublished, and the name keeps a tombstone. This cannot be undone from here.`)) return;
+    setConfirming(null);
     setRerunMsg(null);
     try {
       await api.unpublish(name);
@@ -158,10 +159,10 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
                   >
                     {rerunning === a.name ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   </button>
-                  {!a.hiddenAt && (
+                  {!a.hiddenAt && confirming !== a.name && (
                     <button
                       type="button"
-                      onClick={() => unpublish(a.name)}
+                      onClick={() => setConfirming(a.name)}
                       className="shrink-0 rounded p-1.5 text-dim hover:text-danger"
                       aria-label={`Unpublish ${a.name}`}
                       title="Take it off the catalog"
@@ -170,6 +171,13 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
                     </button>
                   )}
                   </div>
+                  {confirming === a.name && (
+                    <div role="alertdialog" aria-label={`Confirm unpublishing ${a.name}`} className="flex flex-wrap items-center gap-2 border-t border-border bg-danger/5 px-4 py-2 text-[12px] text-muted">
+                      <span>Take <span className="font-mono text-fg">{a.name}</span> off the catalog? Trial results stay visible as unpublished and the name keeps a tombstone. No undo from here.</span>
+                      <button type="button" onClick={() => unpublish(a.name)} className="rounded-md border border-danger/50 px-2 py-0.5 font-mono text-danger hover:bg-danger/10">unpublish</button>
+                      <button type="button" onClick={() => setConfirming(null)} className="font-mono text-dim hover:text-fg">cancel</button>
+                    </div>
+                  )}
                   {open === a.name && <AgentOps name={a.name} />}
                 </li>
               ))}
