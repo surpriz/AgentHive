@@ -57,17 +57,19 @@ export function Navbar({ onPush, onHow, onLeaderboard, onTrial, nodeCount, sessi
         <nav className="flex items-center gap-2">
           <a
             href="/leaderboard"
+            aria-label="Leaderboard"
             onClick={(e) => {
               e.preventDefault();
               onLeaderboard();
             }}
-            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted transition hover:bg-surface-2 hover:text-fg"
           >
             <Trophy size={14} />
             <span className="hidden sm:inline">Leaderboard</span>
           </a>
           <a
             href="/trials/code-audit"
+            aria-label="Trial"
             onClick={(e) => {
               e.preventDefault();
               onTrial();
