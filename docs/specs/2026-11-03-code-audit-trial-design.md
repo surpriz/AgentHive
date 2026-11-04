@@ -191,6 +191,23 @@ sandboxes in flight. Ranking published at `/trials/code-audit`:
 | 4 | secret-exposure-hunter | 35.8 | ±31.9 | 0.009 USD | 45 s | 3/6 |
 | 5 | dependency-risk-triage | 7.6 | ±17.0 | 0.010 USD | 54 s | 0/6 |
 
+**Second batch, 2026-11-04 10:55 UTC, eight public tasks, Haiku ×3 and Sonnet ×1:**
+160 runs, 0 failed, 8.69 USD, 28 minutes. Sonnet runs cost 0.13 to 0.24 USD each,
+well under the 0.47 USD estimate.
+
+| Package | Haiku 5.5 (24 runs) | Sonnet 5.5 (8 runs) |
+| --- | --- | --- |
+| vibe-app-security-triage | 96.8 ±7.7, 0.015 USD | 92.9 ±12.2, 0.198 USD |
+| access-control-auditor | 77.2 ±17.0, 0.013 USD | 72.2 ±21.8, 0.184 USD |
+| api-surface-reviewer | 71.2 ±31.5, 0.015 USD | 66.1 ±30.5, 0.239 USD |
+| secret-exposure-hunter | 33.7 ±31.5, 0.009 USD | 37.0 ±34.7, 0.129 USD |
+| dependency-risk-triage | 5.1 ±11.8, 0.011 USD | 19.2 ±29.3, 0.132 USD |
+
+Sonnet does not beat Haiku on these tasks with one run each; the Sonnet column
+needs three runs before it says anything. The category breakdown shows where the
+generalist still misses: the pinned dependency (2 of 3) and committed env files
+(5 of 6) on Haiku, the TLS flag (0 of 1) on Sonnet.
+
 Reading: the generalist at Haiku level finds everything planted so far. The
 ranking will separate packages on spread, cost and false positives before it
 separates them on recall; the private tasks and the later public ones (t06 to t08)
