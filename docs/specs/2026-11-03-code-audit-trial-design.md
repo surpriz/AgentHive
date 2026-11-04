@@ -214,6 +214,31 @@ separates them on recall; the private tasks and the later public ones (t06 to t0
 must be harder: flaws spread over several files, decoys that look like flaws but
 are safe, and larger apps.
 
+### Third batch, private tasks included (2026-11-04)
+
+Run 41840520233: 200 runs over 10 tasks (t01 to t08 plus p01 and p02 from the
+private repository), Haiku ×3 and Sonnet ×1, 199 done, 1 failed (an E2B MCP
+timeout on a brick whose transitive package was not in the npx cache), 10.64 USD,
+35 min. The private checkout through `TRIALS_PRIVATE_TOKEN` works and the pushed
+records of p01 and p02 are redacted.
+
+| Package | Haiku 5.5 (30 runs) | Sonnet 5.5 (10 runs) |
+| --- | --- | --- |
+| vibe-app-security-triage | 99.3 ±2.3 | 87.6 ±14.9 |
+| access-control-auditor | 78.8 ±18.1 | 71.9 ±19.3 |
+| api-surface-reviewer | 75.8 ±29.7 | 57.4 ±31.8 |
+| secret-exposure-hunter | 28.9 ±23.1 | 38.7 ±35.0 |
+| dependency-risk-triage | 10.0 ±19.3 | 11.9 ±23.7 |
+
+The Haiku generalist scores 100 on p01 and p02 in the sandbox; the one-off local
+62.5 on p01 was run-to-run variance. p03 (FastAPI file sharing: traversal next to
+a safe helper, SSRF next to an allowlisted webhook, mass assignment, enumerable
+share codes, a "Semgrep clean" README) and p04 (SvelteKit client portal: unsigned
+Stripe webhook with a "verified upstream" comment, export route without client
+filter, open redirect on the invite flow next to a safe login, stack traces in
+`handleError`) were written and validated locally after this batch (75.7 then
+100, and 94 then 100, on Haiku); they enter the next batch.
+
 ## Open points
 
 - **Specialists versus generalists.** A specialist package (secrets only) cannot find
