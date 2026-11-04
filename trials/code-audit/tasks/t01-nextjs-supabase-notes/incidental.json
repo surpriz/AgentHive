@@ -18,5 +18,13 @@
   {
     "file": "package.json",
     "note": "The demo ships without a lockfile; a real observation, neutral here."
+  },
+  {
+    "file": "supabase/migrations/0002_profiles.sql",
+    "note": "Profiles are readable by everyone on purpose; neutral."
+  },
+  {
+    "file": "app/api/notes/route.ts",
+    "note": "No rate limit on note creation; real, not planted, neutral."
   }
 ]
