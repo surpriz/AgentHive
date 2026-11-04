@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, gte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { agents, leaderboardSnapshots, type AgentRow } from './db/schema';
 import { measuredMetrics, type Measured } from './gateway';
@@ -44,7 +44,7 @@ export function compositeScore(c: { benchmark: number | null; audit: number | nu
 }
 
 export async function computeLeaderboard(db: Db, now = new Date()): Promise<Leaderboard> {
-  const rows = await db.select().from(agents).orderBy(asc(agents.name));
+  const rows = await db.select().from(agents).where(isNull(agents.hiddenAt)).orderBy(asc(agents.name));
   const measured = await measuredMetrics(db, now);
   const day = now.toISOString().slice(0, 10);
   const previous = await db.select().from(leaderboardSnapshots).where(and(eq(leaderboardSnapshots.day, (await previousSnapshotDay(db, day)) ?? ''))).catch(() => []);

@@ -248,6 +248,9 @@ export const api = {
   runBenchmark: (name: string) => request<{ benchmark: BenchmarkReport }>(`/api/v1/agents/${encodeURIComponent(name)}/benchmark`, { method: 'POST' }),
   package: (name: string) => request<PackageDoc>(`/agents/${encodeURIComponent(name)}/package.json`, { cache: 'no-store' }),
   audit: (name: string) => request<AuditResponse>(`/agents/${encodeURIComponent(name)}/audit.json`, { cache: 'no-store' }),
+  report: (name: string, body: { reason: 'security' | 'rights' | 'other'; details: string; email?: string }) =>
+    request<{ ok: true; id: string }>(`/api/agents/${encodeURIComponent(name)}/report`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+  unpublish: (name: string) => request<{ ok: true; name: string; hiddenAt: string }>(`/api/v1/agents/${encodeURIComponent(name)}/unpublish`, { method: 'POST' }),
   rerunAudit: (name: string) => request<{ agent: Agent | null; audit: AuditReport }>(`/api/v1/agents/${encodeURIComponent(name)}/audit`, { method: 'POST' }),
   publish: (manifest: Record<string, unknown>) =>
     request<{ agent: Agent; url: string; audit: AuditReport }>('/api/v1/agents', {

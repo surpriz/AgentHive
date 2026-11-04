@@ -87,6 +87,10 @@ export interface Agent {
   /** Author-hosted endpoint declared in the manifest. Stored, never called in v1.0. */
   endpoint: string | null;
   publishedAt: string;
+  /** Package retrievals counted by the registry. */
+  pulls: number;
+  /** Set once the agent is off the catalog (unpublished by its owner or taken down); only its owner still sees it. */
+  hiddenAt: string | null;
 }
 
 export type StepKind = 'thought' | 'tool_call' | 'action' | 'observation' | 'result';

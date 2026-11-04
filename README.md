@@ -46,6 +46,9 @@ pnpm auth:schema             # regenerate server/db/auth-schema.ts after changin
 | `/agents/<name>/benchmark.json`, `POST /api/v1/agents/<name>/benchmark` | registry benchmark (probes + `spec.tests`), public report and owner re-run |
 | `/api/v1/runs`, `/api/v1/agents/<name>/runs`, `…/secret` | run logs (caller / owner), gateway secret |
 | `/api/v1/me`, `POST /api/v1/agents`, `POST /api/v1/packages`, `POST /api/v1/agents/<name>/audit`, `/api/v1/keys` | authenticated: session cookie or `Authorization: Bearer <api key>` |
+| `POST /api/agents/<name>/report` | anyone reports a card (security, rights, other); mailed to `REPORTS_TO` when a sender exists, five per hour per address |
+| `POST /api/v1/agents/<name>/unpublish` | the owner takes it off the catalog: listings drop it, its name answers 410 with a tombstone, trial results stay |
+| `GET /api/v1/reports`, `POST /api/v1/agents/<name>/takedown`, `…/restore` | admins only (`ADMIN_LOGINS`, comma separated logins) |
 | `/api/auth/*` | better-auth: GitHub and Google OAuth, email + password with a verification link (`EMAIL_FROM` plus `SES_REGION`/`SES_ACCESS_KEY_ID`/`SES_SECRET_ACCESS_KEY`, or `RESEND_API_KEY`), all env-gated |
 | `/sitemap.xml`, `/robots.txt`, `/og.png` | SEO |
 
@@ -53,7 +56,7 @@ All of it is one Hono app (`server/app.ts`), mounted in the Vite dev server by `
 
 ## Deploy
 
-Vercel project `agenthive`, Neon project `agenthive` (branch `main` → production, `dev` → previews and local). `vercel.json` rewrites every API path and `/agents/:name` to the function; the build runs `pnpm db:migrate` first. Required env: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`. `BETTER_AUTH_URL` and `PUBLIC_ORIGIN` default to the deployment's own URL.
+Vercel project `agenthive`, Neon project `agenthive` (branch `main` → production, `dev` → previews and local). `vercel.json` rewrites every API path and `/agents/:name` to the function; the build runs `pnpm db:migrate` first. Required env: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`. `BETTER_AUTH_URL` and `PUBLIC_ORIGIN` default to the deployment's own URL. Optional: `ADMIN_LOGINS` (who can read reports and take agents down), `REPORTS_TO` (report notifications, defaults to `EMAIL_FROM`).
 
 ## Layout
 

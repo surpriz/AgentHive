@@ -37,6 +37,8 @@ export function rowToAgent(r: AgentRow): Agent {
     transport: r.transport as Agent['transport'],
     endpoint: r.endpoint,
     publishedAt: r.createdAt.toISOString().slice(0, 10),
+    pulls: r.pulls,
+    hiddenAt: r.hiddenAt ? r.hiddenAt.toISOString() : null,
   };
 }
 

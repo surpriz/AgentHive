@@ -76,6 +76,7 @@ export function OverviewTab({ agent }: { agent: Agent }) {
         <div><span className="text-dim">license</span><br />{agent.license}</div>
         <div><span className="text-dim">published</span><br />{agent.publishedAt}</div>
         <div><span className="text-dim">tools</span><br />{agent.tools.length}</div>
+        {agent.apiVersion === 'v2' && <div><span className="text-dim">pulls</span><br />{agent.pulls}</div>}
       </section>
     </div>
   );

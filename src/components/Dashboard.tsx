@@ -17,6 +17,18 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
   const [copied, setCopied] = useState(false);
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [rerunMsg, setRerunMsg] = useState<string | null>(null);
+
+  const unpublish = async (name: string) => {
+    if (!window.confirm(`Take ${name} off the catalog? Its trial results stay visible, marked as unpublished, and the name keeps a tombstone. This cannot be undone from here.`)) return;
+    setRerunMsg(null);
+    try {
+      await api.unpublish(name);
+      setRerunMsg(`${name}: unpublished`);
+      setMe(await api.me());
+    } catch (e) {
+      setRerunMsg(e instanceof Error ? e.message : 'could not unpublish');
+    }
+  };
   const [open, setOpen] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -122,6 +134,7 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
                       <span className="block truncate text-[12px] text-muted">{a.value}</span>
                     </span>
                     <Badge>v{a.version}</Badge>
+                    {a.hiddenAt && <Badge mono={false}>unpublished</Badge>}
                     <FrameworkBadge framework={a.framework} />
                     <GradeBadge grade={a.grade} title={a.score === null ? 'Audit pending' : `Computed grade · ${a.score}/100`} />
                   </button>
@@ -145,6 +158,17 @@ export function Dashboard({ onOpenAgent, onPush }: { onOpenAgent: (a: Agent) => 
                   >
                     {rerunning === a.name ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   </button>
+                  {!a.hiddenAt && (
+                    <button
+                      type="button"
+                      onClick={() => unpublish(a.name)}
+                      className="shrink-0 rounded p-1.5 text-dim hover:text-danger"
+                      aria-label={`Unpublish ${a.name}`}
+                      title="Take it off the catalog"
+                    >
+                      <EyeOff size={14} />
+                    </button>
+                  )}
                   </div>
                   {open === a.name && <AgentOps name={a.name} />}
                 </li>

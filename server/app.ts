@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { stringify as stringifyYaml } from 'yaml';
 import type { Context, Next } from 'hono';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, isNull } from 'drizzle-orm';
 import { createDb, PGLITE_URL, type Db } from './db/client';
 import { agents, runs } from './db/schema';
 import { user as userTable } from './db/auth-schema';
@@ -19,6 +19,8 @@ import { latestBenchmark, runBenchmark, type BenchmarkTrigger } from './benchmar
 import { computeLeaderboard, rankHistory, snapshotLeaderboard } from './leaderboard';
 import { RESULT_LIMITS, recordTrialResult, resultPostSchema, trialRanking, trialRun, trialRuns } from './trials';
 import { rowToAgent } from './registry';
+import { countPull, fileReport, hideAgent, listReports, REPORT_LIMIT, reportMail, reportSchema, resolveReports, restoreAgent, tombstone } from './moderation';
+import { HIDDEN_REASONS } from './db/schema';
 import { buildAgentCard, buildManifestYaml, buildRegistryIndex } from '../src/lib/manifest';
 import { buildLayout, type PackageDoc } from '../src/lib/retrieval';
 import { renderAgentHtml } from '../src/lib/seo';
@@ -47,6 +49,10 @@ export interface AppOptions {
   localAgentsDir?: string;
   /** Password login without verification plus a test user and key. Default: in-memory database outside production. */
   devLogin?: boolean;
+  /** Logins allowed to read reports and take agents down. Nobody when empty. */
+  adminLogins?: string[];
+  /** Where report notifications go when a mail sender exists. */
+  reportsTo?: string;
 }
 
 export interface AppContext {
@@ -103,10 +109,11 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
       return { ...a, runs30d: m?.runs30d ?? 0, successRate: m?.successRate ?? null, avgLatencyMs: m?.avgLatencyMs ?? null, costPerRun: null };
     });
   };
-  const loadAgents = async (): Promise<Agent[]> => withMeasured(await db.select().from(agents).orderBy(asc(agents.createdAt)));
-  const loadAgent = async (name: string): Promise<Agent | null> => {
+  // Hidden agents (unpublished or taken down) leave every public listing; their name answers 410 with a tombstone.
+  const loadAgents = async (): Promise<Agent[]> => withMeasured(await db.select().from(agents).where(isNull(agents.hiddenAt)).orderBy(asc(agents.createdAt)));
+  const visibleRow = async (name: string) => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, name) });
-    return row ? (await withMeasured([row]))[0] : null;
+    return row ?? null;
   };
 
   const viewer = async (c: Context): Promise<Viewer | null> => {
@@ -131,7 +138,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     await next();
   };
 
-  const publicJson = (c: Context, body: unknown, status: 200 | 404 = 200) => {
+  const publicJson = (c: Context, body: unknown, status: 200 | 404 | 410 = 200) => {
     c.header('Access-Control-Allow-Origin', '*');
     c.header('Cache-Control', status === 200 ? PUBLIC_CACHE : 'no-store');
     return c.json(body as Record<string, unknown>, status);
@@ -162,7 +169,9 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.get('/api/agents.json', async (c) => publicJson(c, buildRegistryIndex(await loadAgents(), opts.origin)));
 
   app.get('/agents/:name/agent.json', async (c) => {
-    const a = await loadAgent(c.req.param('name'));
+    const row = await visibleRow(c.req.param('name'));
+    if (row?.hiddenAt) return publicJson(c, tombstone(row), 410);
+    const a = row ? (await withMeasured([row]))[0] : null;
     return a ? publicJson(c, buildAgentCard(a, opts.origin)) : publicJson(c, { error: 'not found' }, 404);
   });
 
@@ -170,6 +179,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     c.header('Access-Control-Allow-Origin', '*');
     if (!row) return c.text('not found', 404);
+    if (row.hiddenAt) return c.text(`removed: ${row.hiddenReason ?? 'unpublished'}`, 410);
     c.header('Cache-Control', PUBLIC_CACHE);
     // A package is served as the author published it; a hosted agent gets the registry's enriched rendering.
     const body = row.apiVersion === 'v2' ? stringifyYaml((await latestVersion(db, row.id))?.manifest ?? {}) : buildManifestYaml((await withMeasured([row]))[0], opts.origin);
@@ -179,9 +189,11 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.get('/agents/:name/package.json', async (c) => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return publicJson(c, { error: 'not found' }, 404);
+    if (row.hiddenAt) return publicJson(c, tombstone(row), 410);
     if (row.apiVersion !== 'v2') return publicJson(c, { error: 'not a package: this agent is hosted by its author', url: `${opts.origin}/agents/${row.name}` }, 404);
     const v = await latestVersion(db, row.id);
     if (!v) return publicJson(c, { error: 'no version stored' }, 404);
+    background(countPull(db, row.id));
     const a = rowToAgent(row);
     const base = { name: a.name, version: a.version, author: a.author, apiVersion: 'v2' as const, goal: a.goal ?? null, license: a.license, value: a.value, tagline: a.tagline, settings: a.settings ?? [], bricks: a.bricks ?? { skills: [], mcp: [] }, files: v.files ?? {}, sha256: v.sha256 ?? null, publishedAt: a.publishedAt, url: `${opts.origin}/agents/${a.name}` };
     const doc: PackageDoc = { ...base, layouts: { claude: buildLayout(base, 'claude'), cursor: buildLayout(base, 'cursor') } };
@@ -191,6 +203,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.get('/agents/:name/audit.json', async (c) => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return publicJson(c, { error: 'not found' }, 404);
+    if (row.hiddenAt) return publicJson(c, tombstone(row), 410);
     const a = rowToAgent(row);
     const report = await latestAudit(db, row.id);
     return publicJson(c, { agent: a.name, version: a.version, grade: a.grade, score: a.score, criteria: `${opts.origin}/docs/grading`, report: report ?? null });
@@ -199,6 +212,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.get('/agents/:name/benchmark.json', async (c) => {
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return publicJson(c, { error: 'not found' }, 404);
+    if (row.hiddenAt) return publicJson(c, tombstone(row), 410);
     const a = rowToAgent(row);
     return publicJson(c, { agent: a.name, version: a.version, benchmark: await latestBenchmark(db, row.id), runnable: runnableReason(row) === null, reason: runnableReason(row) });
   });
@@ -316,6 +330,32 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     return c.json({ echo: input, received: { runId: h('x-agenthive-run-id'), caller: h('x-agenthive-caller'), agent: agentRef, timestamp: ts, signatureValid }, from: 'agenthive.sh/api/v1/echo' });
   });
 
+  // ---- reports ------------------------------------------------------------
+  // Anyone can report a card; signed-in or not. Five per hour per address, so a grudge cannot flood the inbox.
+  const reportHits = new Map<string, number[]>();
+  app.post('/api/agents/:name/report', async (c) => {
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return c.json({ error: 'not found' }, 404);
+    const me = await viewer(c);
+    const key = me?.id ?? c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? c.req.header('x-real-ip') ?? 'anon';
+    const now = Date.now();
+    const hits = (reportHits.get(key) ?? []).filter((t) => now - t < REPORT_LIMIT.windowMs);
+    if (hits.length >= REPORT_LIMIT.max) return c.json({ error: 'rate limited', retryAfterMs: REPORT_LIMIT.windowMs - (now - hits[0]) }, 429);
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'expected JSON' }, 400);
+    }
+    const parsed = reportSchema.safeParse(body);
+    if (!parsed.success) return c.json({ error: 'invalid report', issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) }, 422);
+    hits.push(now);
+    reportHits.set(key, hits);
+    const id = await fileReport(db, row, parsed.data, me?.id ?? null);
+    if (opts.auth.email && opts.reportsTo) background(opts.auth.email.send(reportMail(opts.reportsTo, row.name, parsed.data, `${opts.origin}/agents/${row.name}`)));
+    return c.json({ ok: true, id }, 202);
+  });
+
   app.get('/sitemap.xml', async (c) => {
     const urls = ['/', ...(await loadAgents()).map((a) => `/agents/${a.name}`)]
       .map((p) => `  <url><loc>${opts.origin}${p}</loc><changefreq>daily</changefreq></url>`)
@@ -329,7 +369,12 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
   app.get('/agents/:name', async (c) => {
     if (!opts.template) return c.notFound();
     const template = await opts.template();
-    const a = await loadAgent(c.req.param('name'));
+    const row = await visibleRow(c.req.param('name'));
+    if (row?.hiddenAt) {
+      c.header('Cache-Control', 'no-store');
+      return c.html(template, 410);
+    }
+    const a = row ? (await withMeasured([row]))[0] : null;
     c.header('Cache-Control', a ? PUBLIC_CACHE : 'no-store');
     return c.html(a ? withSnapshot(renderAgentHtml(template, a, opts.origin), agentSnapshot(a)) : template, a ? 200 : 404);
   });
@@ -437,6 +482,7 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     const me = c.get('viewer');
     const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
     if (!row) return c.json({ error: 'not found' }, 404);
+    if (row.hiddenAt) return c.json(tombstone(row), 410);
     const body = await c.req.text();
     const caller = { id: me.id, login: me.login, via: me.via };
     const wantsAsync = /^(1|true|yes)$/i.test(c.req.header('x-agenthive-async') ?? '');
@@ -487,6 +533,38 @@ export async function createApp(opts: AppOptions): Promise<AppContext> {
     if (row.ownerId !== c.get('viewer').id) return { error: c.json({ error: 'only the owner can do this' }, 403) };
     return { row };
   };
+
+  /** The owner takes a version off the catalog. Trial results stay, marked as unpublished; the name keeps a tombstone. */
+  v1.post('/agents/:name/unpublish', async (c) => {
+    const r = await ownedAgent(c);
+    if ('error' in r) return r.error;
+    await hideAgent(db, r.row, 'unpublished');
+    return c.json({ ok: true, name: r.row.name, hiddenAt: r.row.hiddenAt?.toISOString() ?? new Date().toISOString() });
+  });
+
+  const isAdmin = (c: Context<{ Variables: { viewer: Viewer } }>) => (opts.adminLogins ?? []).includes(c.get('viewer').login);
+  v1.get('/reports', async (c) => {
+    if (!isAdmin(c)) return c.json({ error: 'admins only' }, 403);
+    return c.json({ reports: await listReports(db) });
+  });
+  v1.post('/agents/:name/takedown', async (c) => {
+    if (!isAdmin(c)) return c.json({ error: 'admins only' }, 403);
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return c.json({ error: 'not found' }, 404);
+    const reason = ((await c.req.json().catch(() => ({}))) as { reason?: string }).reason;
+    const hiddenReason = HIDDEN_REASONS.find((r) => r === reason && r !== 'unpublished') ?? 'other';
+    await hideAgent(db, row, hiddenReason);
+    await resolveReports(db, row.id, 'resolved');
+    return c.json({ ok: true, name: row.name, reason: hiddenReason });
+  });
+  v1.post('/agents/:name/restore', async (c) => {
+    if (!isAdmin(c)) return c.json({ error: 'admins only' }, 403);
+    const row = await db.query.agents.findFirst({ where: eq(agents.name, c.req.param('name')) });
+    if (!row) return c.json({ error: 'not found' }, 404);
+    await restoreAgent(db, row);
+    await resolveReports(db, row.id, 'dismissed');
+    return c.json({ ok: true, name: row.name });
+  });
 
   v1.get('/agents/:name/runs', async (c) => {
     const r = await ownedAgent(c);

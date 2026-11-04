@@ -50,10 +50,40 @@ export const agents = pgTable(
     /** Latest benchmark, mirrored for the index. */
     benchmarkPassRate: real('benchmark_pass_rate'),
     benchmarkAt: timestamp('benchmark_at', { withTimezone: true }),
+    /** Set when the agent is off the catalog: unpublished by its owner or taken down after a report. The name keeps a tombstone. */
+    hiddenAt: timestamp('hidden_at', { withTimezone: true }),
+    hiddenReason: varchar('hidden_reason', { length: 32 }).$type<HiddenReason>(),
+    /** Package retrievals (package.json fetches by the CLI, a tool, or the copy prompt). */
+    pulls: integer('pulls').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('agents_name_idx').on(t.name)],
+);
+
+export const HIDDEN_REASONS = ['unpublished', 'security', 'rights', 'other'] as const;
+export type HiddenReason = (typeof HIDDEN_REASONS)[number];
+
+export const REPORT_REASONS = ['security', 'rights', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+/** A report filed from a card or by API; reviewed by an admin, who hides the agent or dismisses it. */
+export const agentReports = pgTable(
+  'agent_reports',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    reporterId: text('reporter_id').references(() => user.id, { onDelete: 'set null' }),
+    reporterEmail: varchar('reporter_email', { length: 200 }),
+    reason: varchar('reason', { length: 16 }).$type<ReportReason>().notNull(),
+    details: text('details').notNull(),
+    status: varchar('status', { length: 16 }).notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [index('agent_reports_agent_created_idx').on(t.agentId, t.createdAt)],
 );
 
 export const agentVersions = pgTable(
