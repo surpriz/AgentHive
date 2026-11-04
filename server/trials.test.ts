@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type AppContext } from './app';
+import { stripNul } from './trials';
 import { offlineContext } from './audit';
 import { signRun } from './gateway';
 
@@ -100,5 +101,10 @@ describe('trials', () => {
     const bare = await createApp({ databaseUrl: 'pglite://memory', origin: 'https://agenthive.sh', auth: { secret: 'y'.repeat(40), baseURL: 'http://localhost' }, template: async () => TEMPLATE, auditContext: offlineContext, devLogin: false });
     expect((await bare.app.request('/api/trials/code-audit/results', { method: 'POST', body: '{}' })).status).toBe(503);
     expect((await bare.app.request('/api/trials/code-audit.json')).status).toBe(200);
+  });
+
+  it('drops U+0000 from a record before it reaches jsonb', () => {
+    const cleaned = stripNul({ a: 'x\u0000y', b: ['\u0000', { c: 'ok' }], n: 1 });
+    expect(cleaned).toEqual({ a: 'xy', b: ['', { c: 'ok' }], n: 1 });
   });
 });

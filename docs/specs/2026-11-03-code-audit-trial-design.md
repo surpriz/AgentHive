@@ -248,6 +248,36 @@ its declared scope (access-control 33/33, api-surface 42/42, secrets 15/15,
 dependencies 3/3 on Haiku), so their low overall scores measure breadth, not quality.
 This is the number to quote when comparing a specialist with the generalist.
 
+### Fourth batch, fifteen packages (2026-11-04)
+
+Run 41877993995: 15 packages × 12 tasks × 3 Haiku runs, 539 done, 1 failed (E2B process
+lost), 6.33 USD, 85 min. One record was refused by the site with a 500: the trace carried
+U+0000, which Postgres jsonb rejects; the ingestion now strips it.
+
+| Package | Haiku 5.5 | in scope |
+| --- | --- | --- |
+| express-mongo-security-triage | 97.1 ±8.3 | generalist |
+| sveltekit-security-triage | 94.8 ±9.6 | generalist |
+| fastapi-security-triage | 94.5 ±9.6 | generalist |
+| nextjs-supabase-security-triage | 94.2 ±9.3 | generalist |
+| vibe-app-security-triage | 93.1 ±11.6 | generalist |
+| access-control-auditor | 76.5 ±17.3 | 36/36 |
+| api-surface-reviewer | 74.8 ±29.6 | 63/63 |
+| auth-flow-auditor | 62.7 ±31.6 | 24/24 |
+| worker-and-cron-auditor | 54.1 ±28.0 | 15/15 |
+| deploy-config-reviewer | 45.3 ±35.5 | 27/27 |
+| file-and-network-boundary-auditor | 27.9 ±27.6 | 15/15 |
+| query-safety-reviewer | 26.4 ±32.8 | 14/15 |
+| secret-exposure-hunter | 22.5 ±22.8 | 15/15 |
+| webhook-payments-auditor | 19.9 ±32.6 | 13/27 (scope narrowed to unsigned-webhook in 1.0.1) |
+| dependency-risk-triage | 3.4 ±9.9 | 3/3 |
+
+Reading: the four stack generalists score above the original generalist on their own stacks
+and are not worse elsewhere; every specialist is at or near 100 % inside its declared scope.
+The trap column penalises narrow specialists: an agent that correctly reports nothing on a
+trapped file counts as not having resisted. That metric needs a rethink (count traps only for
+packages whose scope covers the trapped file's flaw).
+
 ## Open points
 
 - **Specialists versus generalists.** A specialist package (secrets only) cannot find

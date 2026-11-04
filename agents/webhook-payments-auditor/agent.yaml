@@ -2,7 +2,7 @@ apiVersion: agenthive.sh/v2
 kind: Agent
 metadata:
   name: webhook-payments-auditor
-  version: 1.0.0
+  version: 1.0.1
   license: MIT
   goal: code-audit
   value: "Checks the code that receives money signals: webhook signatures, amounts trusted from the client, invoice access, and replay handling."
@@ -30,7 +30,7 @@ spec:
         env: []
         permissions: { network: [], filesystem: read }
   # Flaw categories this specialist is built to find (trial taxonomy ids); the ranking shows its hit rate inside this scope.
-  scope: [unsigned-webhook, idor, mass-assignment]
+  scope: [unsigned-webhook]
   io:
     input:
       type: object

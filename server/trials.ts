@@ -52,7 +52,16 @@ export const resultPostSchema = z.object({ batchId: z.string().min(1).max(RESULT
 export type RecordOutcome = { ok: true; id: string; replaced: boolean } | { ok: false; status: 404 | 422; message: string };
 
 /** Stores one run. Same batch, agent, model, task and run index replaces the earlier row, so a retried post is harmless. */
-export async function recordTrialResult(db: Db, trialId: string, batchId: string, record: RunRecord): Promise<RecordOutcome> {
+/** Postgres jsonb refuses U+0000 anywhere in a string; tool output from a sandbox can carry it, so it is dropped before the insert. */
+export function stripNul<T>(value: T): T {
+  if (typeof value === 'string') return value.replaceAll('\u0000', '') as T;
+  if (Array.isArray(value)) return value.map(stripNul) as T;
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, stripNul(v)])) as T;
+  return value;
+}
+
+export async function recordTrialResult(db: Db, trialId: string, batchId: string, input: RunRecord): Promise<RecordOutcome> {
+  const record = stripNul(input);
   const trial = TRIALS[trialId];
   if (!trial) return { ok: false, status: 404, message: 'unknown trial' };
   const agent = await db.query.agents.findFirst({ where: eq(agents.name, record.package.name) });
