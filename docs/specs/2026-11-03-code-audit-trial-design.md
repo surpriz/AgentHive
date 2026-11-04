@@ -149,8 +149,15 @@ with a concurrency of 8 sandboxes. Expected batch: 5 agents × 12 tasks × 4 run
 | --- | --- | --- |
 | 1 | Harness loop against one task with the filesystem brick, local run, trace and score; `taxonomy.yaml`; t01 and t02 | done 2026-11-03 |
 | 2 | E2B template and sandboxed bricks, caps, cost accounting; t03 to t05; results endpoint and tables | done 2026-11-04 (default E2B template with a prefetch step, no custom template yet) |
-| 3 | GitHub Actions batch, Haiku ×3; t06 to t08; `/trials/code-audit` page and card tab | batch, page and tab done 2026-11-04; t06 to t08 open |
-| 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch | open |
+| 3 | GitHub Actions batch, Haiku ×3; t06 to t08; `/trials/code-audit` page and card tab | done 2026-11-04 |
+| 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch | Sonnet batch launched 2026-11-04; private set prepared with p01 and p02 (p03, p04 open), repository to be pushed by the owner; methodology page is the trials README for now |
+
+### Specialists versus generalists: decided 2026-11-04
+
+One ranking. Every row carries a per-category breakdown (planted flaws found over
+planted flaws, per flaw category, summed over the batch) shown on demand on the
+trial page. A specialist is read through its categories; the headline score stays
+the whole-task number so that nobody can declare a tiny scope and score 100.
 
 ## First local runs (2026-11-03, Haiku 5.5, one run each)
 
