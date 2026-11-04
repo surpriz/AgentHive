@@ -30,8 +30,13 @@ direction replaces the 2026-11-02 "trust layer" strategy, and AgentHive builds
 the first pool of 5 to 10 agents. The arbitrations are recorded in `VISION.md`
 under "Arbitrages du 2026-11-03". The six-month plan is in `VISION.md`, "Roadmap proposée".
 
+Update, 2026-11-04: month 1 and the first trial are done (five packages ranked on
+`code-audit`, weekly batches, private task set). Status lives in `VISION.md`, "Où on
+en est".
+
 The validated vision and the proposed steps are in `VISION.md`, which takes
-precedence over everything below.
+precedence over everything below. The positioning paragraph below is the v0 one and
+is kept for history only.
 
 ## Positioning, in one paragraph
 

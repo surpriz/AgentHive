@@ -1,6 +1,6 @@
 # Vision d'AgentHive
 
-Document de référence, mis à jour le 2026-11-03. La partie « Vision validée », les
+Document de référence, mis à jour le 2026-11-04. La partie « Vision validée », les
 décisions datées et la stratégie sont celles du porteur de projet. La roadmap et les
 choix de conception sont des propositions, sauf mention contraire. Les arbitrages entre
 décisions successives sont consignés dans « Arbitrages du 2026-11-03 ».
@@ -276,28 +276,30 @@ LinkedIn) et demander s'ils paieraient pour lancer la même épreuve chez un cli
 
 ## Où on en est
 
-**Existe déjà :** catalogue, fiches, audit statique, benchmark sur les cas de l'auteur,
-classement avec historique, CLI, serveur MCP du catalogue, gateway d'appel vers le serveur
-de l'auteur, runs asynchrones avec webhooks signés, comptes et clés d'API.
+État au 2026-11-04, vérifié sur le site et le dépôt.
 
-**N'existe pas encore :** épreuve, harness d'exécution d'agents déclaratifs, format de
-package, export vers Cursor, Codex ou Claude Code, fork, republication avec filiation.
+**Existe :** catalogue avec cinq packages d'audit de code signés AgentHive, fiches,
+audit statique, classement, CLI (`search`, `info`, `pull`, `push`), serveur MCP du
+catalogue, gateway, comptes GitHub, Google et email (mails par SES), clés d'API.
+Première épreuve `code-audit` en production : harness open source (`packages/harness`),
+8 tâches publiques et 4 privées tournantes dans un dépôt privé, sandbox E2B sans
+réseau, Haiku 5.5 ×3 et Sonnet 5.5 ×1, batch hebdomadaire sur GitHub Actions, page
+`/trials/code-audit` avec score, variance, coût, temps, pièges et détail par catégorie,
+onglet Trial sur chaque fiche avec les runs enregistrés, méthodologie sur la page.
+Trois batches, environ 20 $ au total. Toute personne connectée peut déjà publier un
+package avec `agent-cli push` et il entre dans le batch suivant.
 
-### Problèmes du site, vérifiés le 2026-11-03
+**N'existe pas encore :** CGU, signalement et retrait (requis avant toute promotion,
+voir `specs/2026-11-02-v2-hub-design.md`, « Moderation and terms ») ; résultats
+publiés hors du site ; agents tiers classés ; retrait vers Codex ; comptage des
+récupérations ; rapport mensuel ; deuxième épreuve ; fork avec filiation.
 
-1. **Message en contradiction avec la vision.** La page d'accueil promet « the registry for
-   interoperable AI agents », LangGraph, CrewAI, AutoGen, MCP, A2A, « one manifest, any
-   runtime ». Vérifié dans `src/App.tsx`. À remplacer par la promesse du banc d'essai.
-2. **Rien de visible sans JavaScript.** Vérifié : la page d'accueil, une fiche agent et le
-   classement ne renvoient que les balises meta, le corps est vide. Le prérendu actuel ne
-   couvre que les meta. Il faut un rendu serveur ou des pages statiques pour les fiches et
-   les classements.
-3. **6 agents fictifs sur 7.** Incompatible avec une promesse de confiance. À retirer en
-   priorité, même s'il reste un seul agent.
-4. **`agent-cli add` marche, c'est `agent-cli serve` qui refuse.** `add` installe le serveur
-   MCP du catalogue dans Claude ou Cursor. Ce qui n'existe pas, c'est la récupération d'un
-   agent dans l'outil. Le modal « How it works » décrit encore la v0.
-5. **Connexion GitHub uniquement.** Ajouter Google et email.
+### Problèmes du site, relevés le 2026-11-03
+
+Les cinq points relevés ce jour-là (message « registry for interoperable AI agents »,
+rien sans JavaScript, agents fictifs, modal v0, connexion GitHub seule) sont corrigés
+au 2026-11-04 : page d'accueil et modal en anglais autour du banc d'essai, rendu
+serveur des fiches, du classement et de l'épreuve, fictifs retirés, Google et email.
 
 ## Roadmap proposée
 
@@ -305,9 +307,9 @@ Six mois, dimensionnés pour une seule épreuve bien faite. Le porteur a deux em
 
 | Période | Contenu | Terminé quand |
 |---|---|---|
-| Mois 1 | Retirer les fictifs, nouveau modal, rendu serveur, page d'accueil en anglais, login Google et email | Le site dit la même chose que la vision |
-| Mois 1 à 2 | Première épreuve d'audit (apps vibe-codées, failles placées), harness, 5 à 10 agents classés, runs enregistrés avec coût et variance | Un classement crédible existe |
-| Mois 2 à 3 | Résultats publiés (Hacker News, Reddit), soumission ouverte aux tiers, CGU et retrait en place | Des agents externes sont soumis |
+| Mois 1 | Retirer les fictifs, nouveau modal, rendu serveur, page d'accueil en anglais, login Google et email | Le site dit la même chose que la vision. **Fait le 2026-11-04.** |
+| Mois 1 à 2 | Première épreuve d'audit (apps vibe-codées, failles placées), harness, 5 à 10 agents classés, runs enregistrés avec coût et variance | Un classement crédible existe. **Fait le 2026-11-04** avec 5 agents ; le pool monte à 10 au fil de l'eau. |
+| Mois 2 à 3 | Résultats publiés (Hacker News, Reddit), soumission ouverte aux tiers, CGU et retrait en place | Des agents externes sont soumis. **En cours :** la soumission marche déjà, CGU et retrait à écrire, publication à faire. |
 | Mois 3 | Conversations avec 5 freelances et de premières équipes sur l'épreuve privée | On sait si quelqu'un paierait |
 | Mois 3 à 4 | Export en un clic vers Claude Code et Cursor, puis Codex | L'agent tourne dans l'outil après une seule action |
 | Mois 4 à 6 | Deuxième épreuve, rapport mensuel, serveur MCP « meilleur agent pour X » | AgentHive est cité comme source |
@@ -378,16 +380,16 @@ sous la main.
 
 ## Questions ouvertes
 
-1. Quelle part des tâches de l'épreuve rendre publique, et à quel rythme les renouveler ?
-2. Combien de runs par agent pour une variance acceptable, dans le plafond de coût ?
-3. Classement par modèle et outil, ou classement unique avec un modèle de référence ?
+1. ~~Quelle part des tâches de l'épreuve rendre publique, et à quel rythme les renouveler ?~~ Tranché le 2026-11-04 : 8 publiques, 4 privées, une privée remplacée par trimestre.
+2. ~~Combien de runs par agent pour une variance acceptable ?~~ 3 runs sur le modèle de référence ; Sonnet à 1 run tant que le budget ne permet pas 3.
+3. ~~Classement par modèle et outil, ou classement unique ?~~ Un classement par épreuve, une ligne par modèle, détail par catégorie de faille (2026-11-04).
 4. Qui revoit les épreuves (experts sécurité externes) ?
 5. Prix et contenu exact de l'offre pro freelances.
 6. Positionnement face à Vercel si skills.sh et DeepsecBench se rapprochent.
-7. Modèle de référence pour les runs de l'épreuve, dans le plafond de 300 EUR/mois.
+7. ~~Modèle de référence pour les runs de l'épreuve.~~ Haiku 5.5 (2026-11-03) ; un batch complet coûte environ 11 $.
 8. Fork public par défaut une fois publié ?
 9. Licences acceptées pour autoriser le fork.
-10. Fournisseur du harness d'exécution, après vérification des prix.
+10. ~~Fournisseur du harness d'exécution.~~ E2B, plan Hobby (2026-11-03).
 
 ## Sources
 
