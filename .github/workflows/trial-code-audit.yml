@@ -40,6 +40,15 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: private task set
+        if: ${{ env.HAS_PRIVATE == 'true' }}
+        env:
+          HAS_PRIVATE: ${{ secrets.TRIALS_PRIVATE_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: surpriz/agenthive-trials-private
+          token: ${{ secrets.TRIALS_PRIVATE_TOKEN }}
+          path: trials-private
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @agenthive-sh/harness build
       - name: batch id
@@ -57,7 +66,7 @@ jobs:
         run: |
           node packages/harness/dist/bin.js batch \
             --agents agents \
-            --tasks trials/code-audit/tasks \
+            --tasks trials/code-audit/tasks,trials-private/code-audit/tasks \
             --models "$MODELS" \
             --packages "$PACKAGES" \
             --only-tasks "$TASKS" \
@@ -65,6 +74,7 @@ jobs:
             --concurrency 8 \
             --max-spend "$MAX_SPEND" \
             --out "runs/$BATCH_ID"
+      # Records of private tasks are already redacted by the harness; the artifact still stays internal to the repo.
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -80,7 +80,7 @@ program
   .command('batch')
   .description('Runs every package on every task, several times per model, and writes one record per run')
   .requiredOption('--agents <dir>', 'directory of package directories')
-  .requiredOption('--tasks <dir>', 'directory of task directories')
+  .requiredOption('--tasks <dirs>', 'directories of task directories, comma separated; a missing one is skipped')
   .option('--models <spec>', 'model=runs pairs, comma separated', 'claude-haiku-5-5=3')
   .option('--packages <names>', 'only these packages, comma separated', '')
   .option('--only-tasks <ids>', 'only these tasks, comma separated', '')
@@ -97,7 +97,7 @@ program
       if (!model || !Number(runs)) throw new Error(`bad model spec: ${pair}`);
       models[model] = Number(runs);
     }
-    const plan = await planBatch(o.agents, o.tasks, models, { packages: list(o.packages), tasks: list(o.onlyTasks) });
+    const plan = await planBatch(o.agents, list(o.tasks), models, { packages: list(o.packages), tasks: list(o.onlyTasks) });
     console.log(`${plan.packages.length} packages × ${plan.tasks.length} tasks × ${Object.entries(models).map(([m, n]) => `${m}×${n}`).join(' + ')} → ${o.out}`);
     const summary = await runBatch({
       client: await anthropicClient(),

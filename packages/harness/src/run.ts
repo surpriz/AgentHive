@@ -45,6 +45,11 @@ async function initRepo(dir: string): Promise<void> {
   await exec('git', ['commit', '-q', '-m', 'initial import'], { cwd: dir, env });
 }
 
+/** A private task's run keeps its numbers and loses everything that describes the app: turns, tool results, the report itself. */
+export function redact(r: LoopResult): LoopResult {
+  return { ...r, turns: r.turns.map((t) => ({ ...t, text: '', toolCalls: t.toolCalls.map((c) => ({ ...c, input: null, result: '' })) })), output: { redacted: true }, outputText: '' };
+}
+
 /** The local session: bricks as child processes in the staged directory. */
 const localSession = (dir: string): SandboxSession => ({ host: localHost, cwd: dir, id: 'local', close: async () => {} });
 
@@ -68,6 +73,7 @@ export async function runTask(opts: RunOptions): Promise<RunRecord> {
         onEvent: opts.onEvent,
       });
       const s = result.output ? score(findingsOf(result.output), opts.task.truth, opts.taxonomy, opts.task.incidental) : null;
+      const shown = opts.task.meta.public === false ? redact(result) : result;
       return {
         harness: '0.1.0',
         package: { name: opts.pkg.name, version: opts.pkg.version, author: opts.pkg.author },
@@ -77,8 +83,8 @@ export async function runTask(opts: RunOptions): Promise<RunRecord> {
         runIndex: opts.runIndex ?? 0,
         startedAt,
         endedAt: new Date().toISOString(),
-        result,
-        score: s,
+        result: shown,
+        score: s === null ? null : opts.task.meta.public === false ? { ...s, falsePositives: [], incidental: [] } : s,
       };
     } finally {
       await bricks.close();

@@ -15,6 +15,8 @@ describe('batch', () => {
     const some = await planBatch(path.join(root, 'agents'), path.join(root, 'trials/code-audit/tasks'), { m: 1 }, { packages: ['secret-exposure-hunter'], tasks: ['t02-express-prisma-shop'] });
     expect(some.packages.map((p) => p.name)).toEqual(['secret-exposure-hunter']);
     expect(some.tasks).toHaveLength(1);
+    const withMissing = await planBatch(path.join(root, 'agents'), [path.join(root, 'trials/code-audit/tasks'), path.join(root, 'nope')], { m: 1 });
+    expect(withMissing.tasks.length).toBe(all.tasks.length);
   });
 
   it('names records so a directory sorts by task, package and model', () => {

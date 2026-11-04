@@ -7,6 +7,8 @@ import type { Incidental, Taxonomy, Truth } from './score.js';
 export interface TaskMeta {
   id: string;
   stack: string;
+  /** false for the rotating private set: traces and outputs are redacted before leaving the runner. */
+  public?: boolean;
   /** The goal input handed to the agent, `path` relative to the app root. */
   input: Record<string, unknown>;
   tags?: string[];
