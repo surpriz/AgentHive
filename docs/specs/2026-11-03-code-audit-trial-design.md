@@ -145,12 +145,12 @@ with a concurrency of 8 sandboxes. Expected batch: 5 agents × 12 tasks × 4 run
 
 ## Rollout
 
-| Week | Deliverable |
-| --- | --- |
-| 1 | Harness loop against one task with the filesystem brick, local run, trace and score; `taxonomy.yaml`; t01 and t02 |
-| 2 | E2B template and sandboxed bricks, caps, cost accounting; t03 to t05; results endpoint and tables |
-| 3 | GitHub Actions batch, Haiku ×3; t06 to t08; `/trials/code-audit` page and card tab |
-| 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch |
+| Week | Deliverable | Status |
+| --- | --- | --- |
+| 1 | Harness loop against one task with the filesystem brick, local run, trace and score; `taxonomy.yaml`; t01 and t02 | done 2026-11-03 |
+| 2 | E2B template and sandboxed bricks, caps, cost accounting; t03 to t05; results endpoint and tables | done 2026-11-04 (default E2B template with a prefetch step, no custom template yet) |
+| 3 | GitHub Actions batch, Haiku ×3; t06 to t08; `/trials/code-audit` page and card tab | batch, page and tab done 2026-11-04; t06 to t08 open |
+| 4 | Sonnet column, private repo with p01 to p04, methodology page, first public batch | open |
 
 ## First local runs (2026-11-03, Haiku 5.5, one run each)
 
@@ -171,6 +171,18 @@ api-surface-reviewer 21.3 and 100. The triage package then scored 100 on t03, t0
 and t05 at 0.012 to 0.019 USD per run. The line slack for matching went from 5 to
 2 after a "no lockfile" finding on `package.json:12` got credit for the planted
 lodash pin on line 15.
+
+**First full batch, 2026-11-04 10:25 UTC, GitHub Actions, E2B sandboxes, Haiku 5.5 ×3:**
+5 packages × 5 tasks × 3 runs = 75 runs, 0 failed, 0.91 USD, 13 minutes with 8
+sandboxes in flight. Ranking published at `/trials/code-audit`:
+
+| # | Package | Score | Spread | Cost / run | Time | Traps |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | vibe-app-security-triage | 97.8 | ±6.6 | 0.013 USD | 78 s | 6/6 |
+| 2 | access-control-auditor | 71.9 | ±20.2 | 0.012 USD | 64 s | 6/6 |
+| 3 | api-surface-reviewer | 60.7 | ±33.4 | 0.015 USD | 95 s | 6/6 |
+| 4 | secret-exposure-hunter | 35.8 | ±31.9 | 0.009 USD | 45 s | 3/6 |
+| 5 | dependency-risk-triage | 7.6 | ±17.0 | 0.010 USD | 54 s | 0/6 |
 
 Reading: the generalist at Haiku level finds everything planted so far. The
 ranking will separate packages on spread, cost and false positives before it
