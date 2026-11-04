@@ -239,6 +239,15 @@ filter, open redirect on the invite flow next to a safe login, stack traces in
 `handleError`) were written and validated locally after this batch (75.7 then
 100, and 94 then 100, on Haiku); they enter the next batch.
 
+### Declared scope (2026-11-04)
+
+A package may list the flaw categories it is built to find in `spec.scope`. The
+ranking shows it under the name and the hit rate inside that scope; the score column
+still counts the whole task. Read against batch 3, every specialist is at 100 % inside
+its declared scope (access-control 33/33, api-surface 42/42, secrets 15/15,
+dependencies 3/3 on Haiku), so their low overall scores measure breadth, not quality.
+This is the number to quote when comparing a specialist with the generalist.
+
 ## Open points
 
 - **Specialists versus generalists.** A specialist package (secrets only) cannot find
