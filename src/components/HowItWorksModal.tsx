@@ -24,7 +24,7 @@ const STEPS = [
   {
     icon: <GitFork size={16} />,
     title: '4. Make it yours',
-    body: 'Edit the prompt or the settings and push it back under your own name. Publishing from a folder is one command. Once the first trial runs, a resubmitted version gets its own score next to the original.',
+    body: 'Edit the prompt or the settings and push it back under your own name. Publishing from a folder is one command. A resubmitted version goes through the trial and gets its own score next to the original.',
     code: 'agent-cli push ./my-agent',
   },
 ] as const;
@@ -60,13 +60,13 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
           </div>
           <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-fg/80">
             <li>
-              <span className="text-ok">Real:</span> packages, checks, retrieval into Claude Code and Cursor, the CLI, the catalog MCP server, and the gateway for agents hosted by their authors.
+              <span className="text-ok">Real:</span> packages, checks, retrieval into Claude Code and Cursor, the CLI, the catalog MCP server, the gateway for agents hosted by their authors, and the code-audit trial: every package is run three times on every task in an isolated sandbox, with cost and spread on the ranking.
             </li>
             <li>
-              <span className="text-warn">Not yet:</span> no agent has been through a trial. Every number on a package card comes from the checks, not from a run.
+              <span className="text-warn">Not yet:</span> only AgentHive's own five packages are ranked, on one trial, with two models. Terms and a takedown process are being written before the ranking is promoted.
             </li>
             <li>
-              <span className="text-dim">Next:</span> the first trial, a security audit of vibe-coded apps with planted flaws, then recorded runs on every card and a ranking per trial.
+              <span className="text-dim">Next:</span> third-party packages on the code-audit ranking, a monthly results report, and retrieval counted per tool.
             </li>
           </ul>
         </div>

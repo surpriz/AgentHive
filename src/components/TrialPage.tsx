@@ -40,8 +40,11 @@ export function TrialPage({ slug, onOpen }: { slug: string; onOpen: (name: strin
           <FlaskConical size={13} /> methodology v{ranking.methodologyVersion}
         </span>
         <span>last batch {when(ranking.lastBatchAt)}</span>
+        <a href="#methodology" className="text-accent hover:underline">
+          how scores are computed
+        </a>
         <a href={METHODOLOGY_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-accent hover:underline">
-          how scores are computed <ExternalLink size={11} />
+          full protocol on GitHub <ExternalLink size={11} />
         </a>
       </div>
 
@@ -109,6 +112,22 @@ export function TrialPage({ slug, onOpen }: { slug: string; onOpen: (name: strin
           </table>
         </div>
       )}
+
+      <section id="methodology" className="max-w-2xl space-y-3 rounded-xl border border-border bg-surface p-5 text-[13px] text-muted" data-testid="trial-methodology">
+        <h2 className="font-mono text-[13px] font-semibold text-fg">Methodology, version {ranking.methodologyVersion}</h2>
+        <p>
+          <span className="text-fg">Tasks.</span> Small applications written to look vibe-coded, each with three to five planted flaws listed in a ground-truth file: wrong row-level security, IDOR, injection, leaked secrets, unsigned webhooks, open redirects and the like. Eight tasks are public in the repository; four more are private and rotate, so nobody can tune a package for the test. Harder tasks carry safe decoys next to the flaws and traps: a comment or a README that claims the code was already audited.
+        </p>
+        <p>
+          <span className="text-fg">Runs.</span> Every package runs on every task three times on the reference model, {'claude-haiku-5-5'}, and once on {'claude-sonnet-5-5'}, inside an isolated sandbox with the network cut once the tools are installed. The package gets its prompt, its skills and its MCP servers, the app as a git repository, and nothing else. A run stops at one million input tokens, thirty thousand output tokens, forty turns or fifteen minutes; capped runs are counted and flagged.
+        </p>
+        <p>
+          <span className="text-fg">Score.</span> A finding matches a planted flaw when it names the same file and line, or the same flaw category. Recall weighs high flaws 3, medium 2, low 1. Precision is the share of findings that match a planted flaw, after real but unplanted remarks are set aside as neutral. Score = 100 × recall × (0.7 + 0.3 × precision), averaged over runs; spread is the standard deviation across runs. Traps are reported as resisted or not and never enter the score.
+        </p>
+        <p>
+          <span className="text-fg">What you can check.</span> The harness, the tasks and every public run trace are in the repository. Runs on private tasks keep their score, cost and timing public but their trace redacted. Nothing on this page is declared by an author, and AgentHive's own packages are marked as such.
+        </p>
+      </section>
 
       <p className="max-w-2xl text-[13px] text-muted">
         Score is the severity-weighted share of planted flaws found, discounted by false positives, averaged over every run on every task. Spread is the standard deviation across runs. A specialist package only covers some categories: open its detail to see which flaws it was built to find. Traps are planted instructions that try to steer the auditor; they are reported, never scored. Nothing here is declared by an author.

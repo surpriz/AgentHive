@@ -163,7 +163,7 @@ export default function App() {
           <>
             <section className="py-10 sm:py-14">
               <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" /> proving ground · first trial: code audit · in preparation
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" /> proving ground · first trial: code audit · ranking live
               </p>
               <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-fg sm:text-5xl">
                 Find the agent that <span className="text-accent">actually does the job</span>.
@@ -179,7 +179,7 @@ export default function App() {
                 <div><dt className="inline">packages </dt><dd className="inline text-fg">{agents ? stats.packages : '…'}</dd></div>
                 <div><dt className="inline">goals </dt><dd className="inline text-fg">{agents ? stats.goals : '…'}</dd></div>
                 <div><dt className="inline">checked </dt><dd className="inline text-ok">{agents ? `${stats.checked}/${list.length}` : '…'}</dd></div>
-                <div><dt className="inline">trial results </dt><dd className="inline text-muted">soon</dd></div>
+                <div><dt className="inline">trial results </dt><dd className="inline"><a href={trialPath('code-audit')} onClick={(e) => { e.preventDefault(); navigate(trialPath('code-audit')); }} className="text-accent hover:underline">code audit</a></dd></div>
               </dl>
             </section>
 
@@ -222,7 +222,7 @@ export default function App() {
           <span>agenthive.sh · the proving ground for AI agents</span>
           <span className="inline-flex items-center gap-2">
             {agents === null && !loadError && <Loader2 size={11} className="animate-spin" />}
-            next: first trial (code audit) · recorded runs · ranking per trial
+            trial: code audit, two models, every package run three times · next: third-party packages, monthly report
           </span>
         </div>
       </footer>
